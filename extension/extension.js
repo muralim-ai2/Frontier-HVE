@@ -13,9 +13,9 @@ const EMPTY_PROFILE = {
   explanation_depth: null, bloat_triggers: [],
 };
 const PREFERENCES = [
-  { label: 'No code', value: 'no_code', description: 'Describe the outcome; the agent writes the code and explains as it goes' },
+  { label: 'No code', value: 'no_code', description: 'Describe the outcome; the agent builds it and coaches you through the choices' },
   { label: 'Low code', value: 'low_code', description: 'Read and adjust code with guidance' },
-  { label: 'Pro code', value: 'pro_code', description: 'Write and review code yourself' },
+  { label: 'Pro code', value: 'pro_code', description: 'Use AI to code and review continuously' },
 ];
 
 /**

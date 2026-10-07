@@ -28,7 +28,7 @@ EDGES = {
 BACK_EDGES = ("direction-invalidated", "rework-required", "new-opportunity-found")
 BACK_EDGE_CAP = 2
 CODE_SUFFIXES = {".py", ".js", ".jsx", ".ts", ".tsx", ".mjs", ".cjs", ".css", ".scss", ".html", ".vue", ".svelte"}
-SKIP_DIRS = {"node_modules", ".next", ".git", ".harness", ".worktrees", "dist", "build", "coverage"}
+SKIP_DIRS = {"node_modules", ".next", ".git", ".harness", ".hve", "dist", "build", "coverage"}
 MAX_FILE_LINES = 500
 Profile = Literal["benchmark", "product"]
 

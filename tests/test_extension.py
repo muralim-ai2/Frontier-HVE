@@ -58,7 +58,7 @@ def test_rendered_plugin_shape() -> None:
         agents = render(out)
         assert len(agents) == 11, agents
         assert json.loads((out / "plugin.json").read_text(encoding="utf-8"))["name"] == "frontier-hve"
-        assert len(list((out / "skills").glob("*/SKILL.md"))) == 7
+        assert len(list((out / "skills").glob("*/SKILL.md"))) == 8
         assert (out / "scripts" / "guardrail.py").exists()
         for name in agents:
             text = (out / "com.github.copilot" / "agents" / name).read_text(encoding="utf-8")

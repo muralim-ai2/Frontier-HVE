@@ -1,4 +1,4 @@
-"""Initializer/worker loop over feature_list.json: init locks features and starts git; next picks one; verify commits, flips, or diagnoses."""
+"""Initializer/worker loop over feature_list.json: init locks features and starts git; next picks one; verify commits, flips, or diagnoses; status writes tracker.json."""
 
 import json
 import re
@@ -21,7 +21,7 @@ FIELDS = {"name", "description", "verify", "passes"}
 MIN_FEATURES = 3
 MAX_ATTEMPTS = 5
 VERIFY_TIMEOUT_S = 300
-GITIGNORE = ("node_modules/", ".next/", ".harness/", ".worktrees/")
+GITIGNORE = ("node_modules/", ".next/", ".harness/", ".hve/")
 Review = Literal["local", "github"]
 
 Json = dict[str, Any]
@@ -67,6 +67,7 @@ def init(project: Path, review: Review) -> Json:
         "review": review, "trunk": git(project, "symbolic-ref", "--short", "HEAD").strip(), "order": [f["name"] for f in features],
         "lock": {f["name"]: {"description": f["description"], "verify": f["verify"]} for f in features},
         "attempts": {f["name"]: 0 for f in features}, "base": {}, "current": None, "since_ms": None, "escalated": None, "help": None})
+    tracker(project)
     git(project, "add", "-A")
     git(project, "commit", "-m", "[init] scaffold")
     return {"initialized": True, "review": review, "features": [f["name"] for f in features]}
@@ -176,6 +177,25 @@ def verify(project: Path) -> Json:
             "pr_status": pr["status"], "lines_added": pr["lines_added"], "scope_creep": pr["scope_creep"]}
 
 
+def tracker(project: Path) -> Json:
+    """Write tracker.json with each feature's status, attempts, check, evidence files and the user's manual check; return it."""
+    state = read_json(project / ".harness" / "state.json")
+    rows = []
+    for f in read_json(project / "feature_list.json"):
+        name = f["name"]
+        status = ("passed" if f["passes"] else "escalated" if state["escalated"] == name
+                  else "in_progress" if state["current"] == name else "pending")
+        evidence = project / ".harness" / "evidence" / name
+        check = project / ".harness" / "checks" / f"{name}.json"
+        rows.append({"name": name, "description": f["description"], "status": status, "attempts": state["attempts"][name],
+                     "verify": f["verify"], "evidence": sorted(p.relative_to(project).as_posix() for p in evidence.iterdir())
+                     if evidence.is_dir() else [], "manual_check": read_json(check)["result"] if check.exists() else None})
+    data = {"updated": datetime.now(timezone.utc).isoformat(timespec="seconds"), "passed": sum(r["status"] == "passed" for r in rows),
+            "total": len(rows), "features": rows}
+    write_json(project / "tracker.json", data)
+    return data
+
+
 def resume(project: Path, note: str) -> Json:
     """Human-only: record the human's answer, clear the escalation, and give the feature a fresh attempt budget."""
     state = read_json(project / ".harness" / "state.json")
@@ -196,7 +216,12 @@ if __name__ == "__main__":
         result = {"next": next_feature, "verify": verify}[args[0]](Path(args[1]).resolve())
     elif len(args) >= 3 and args[0] == "resume":
         result = resume(Path(args[1]).resolve(), " ".join(args[2:]))
+    elif len(args) == 2 and args[0] == "status":
+        result = tracker(Path(args[1]).resolve())
     else:
-        raise SystemExit("usage: loop.py init <project> --review {local|github} | next <project> | verify <project> | resume <project> <note>")
+        raise SystemExit("usage: loop.py init <project> --review {local|github} | next <project> | verify <project> | resume <project> <note> "
+                         "| status <project>")
+    if args[0] in ("next", "verify", "resume"):
+        tracker(Path(args[1]).resolve())
     print(json.dumps(result, indent=2))
     sys.exit(1 if result.get("passes") is False or result.get("escalated") else 0)

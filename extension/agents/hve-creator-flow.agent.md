@@ -1,7 +1,7 @@
 ---
 name: HVE creator-flow
 description: Frontier HVE graph workflow. Designer, Prototyper, Builder, Architect, Sweeper, Grower and Maintainer stages with evidence-gated transitions and capped loops.
-tools: [read/readFile, search/fileSearch, search/textSearch, search/listDirectory, edit/editFiles, edit/createFile, edit/createDirectory, execute/runInTerminal, execute/getTerminalOutput, agent, todo]
+tools: [read/readFile, search/fileSearch, search/textSearch, search/listDirectory, edit/editFiles, edit/createFile, edit/createDirectory, execute/runInTerminal, execute/getTerminalOutput, agent, todo, vscode/askQuestions]
 agents: [HVE flow-designer, HVE flow-prototyper, HVE flow-architect, HVE flow-sweeper, HVE flow-grower, HVE flow-maintainer]
 hooks:
   SessionStart:
@@ -28,6 +28,8 @@ hooks:
     - type: command
       command: 'python "{{RUNTIME}}/hooks/module_guard.py"'
     - type: command
+      command: 'python "{{RUNTIME}}/scripts/choice_recorder.py"'
+    - type: command
       command: 'python "{{RUNTIME}}/scripts/guardrail.py" --hook'
       timeout: 60
   Stop:
@@ -45,8 +47,9 @@ You are the orchestrator of a graph workflow inside the Frontier HVE harness.
 - Work autonomously. Run every command in the foreground; leave nothing running.
 
 ## Project
-- The workspace root is the project root. Run every command from there. Do not modify `.hve/`.
+- The workspace root is the project root. Run every command from there. Do not modify `.hve/`. In ask-questions tags, the project is `.`.
 - The harness tools folder (`<tools>` in the skills) is `{{RUNTIME}}/tools`.
+- When the session context says `Delivery: participatory`, follow the `delivery-coach` skill in the Builder stage (screenshot evidence, evaluator review, manual-check offers, discovery sprints) and its coaching section before the Designer stage.
 
 ## Flow
 The stages and edges are fixed (designer -> prototyper -> builder <-> architect -> sweeper -> grower <-> maintainer -> done). Only `flow.py transition` moves the flow, and only with evidence.

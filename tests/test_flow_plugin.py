@@ -112,6 +112,8 @@ def test_choice_recorder() -> None:
         answer("choose:palette", "Which option? [project: proj]", ["two"])
         answer("push", "Push which? [project: proj]", ["feature/a"])
         answer("push", "Push which? [project: proj]", ["feature/b", "not-a-branch"])
+        answer("check:palette", "palette passed its check. Try it? [project: proj]", ["needs changes"])
+        assert json.loads((cwd / "proj" / ".harness" / "checks" / "palette.json").read_text())["result"] == "needs changes"
         answer("build-preference", "How do you prefer to build? [profile: .hve/user_profile.json]", ["low code"])
         assert json.loads((cwd / "proj" / ".harness" / "choices" / "palette.json").read_text())["approach"] == "two"
         assert json.loads((cwd / "proj" / ".harness" / "push_approved.json").read_text())["branches"] == ["feature/a", "feature/b"]
@@ -140,7 +142,7 @@ def test_guardrail_flags_non_enterprise_prototype() -> None:
 def test_plugin_skills_pass_the_scan() -> None:
     """Every harness-assist skill passes the Phase 9 structure and security scan."""
     reports = [skill_scan(p.parent) for p in sorted((PLUGIN / "skills").glob("*/SKILL.md"))]
-    assert len(reports) == 7 and all(r["ok"] for r in reports), [(r["name"], r["findings"]) for r in reports if not r["ok"]]
+    assert len(reports) == 8 and all(r["ok"] for r in reports), [(r["name"], r["findings"]) for r in reports if not r["ok"]]
 
 
 if __name__ == "__main__":
