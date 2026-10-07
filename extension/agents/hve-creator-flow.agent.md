@@ -10,6 +10,10 @@ hooks:
   UserPromptSubmit:
     - type: command
       command: 'python "{{RUNTIME}}/hooks/profile_detector.py"'
+    - type: command
+      command: 'python "{{RUNTIME}}/hooks/skill_loader.py"'
+      env:
+        HARNESS_SKILLS_MIN_STATUS: provisional
   SubagentStart:
     - type: command
       command: 'python "{{RUNTIME}}/hooks/compaction.py"'
@@ -19,7 +23,11 @@ hooks:
       env:
         HARNESS_PROJECT: .
         HARNESS_STOP_POLICY: once
+    - type: command
+      command: 'python "{{RUNTIME}}/hooks/skill_loader.py"'
   PostToolUse:
+    - type: command
+      command: 'python "{{RUNTIME}}/hooks/skill_loader.py"'
     - type: command
       command: 'python "{{RUNTIME}}/hooks/loop_guard.py"'
       env:
@@ -47,7 +55,7 @@ You are the orchestrator of a graph workflow inside the Frontier HVE harness.
 - Work autonomously. Run every command in the foreground; leave nothing running.
 
 ## Project
-- The workspace root is the project root. Run every command from there. Do not modify `.hve/`. In ask-questions tags, the project is `.`.
+- The workspace root is the project root. Run every command from there. Do not modify `.hve/` except `.hve/learnings.json` (the `dreams` skill); the skill loader copies library skills to `.hve/skills/` for you to read. In ask-questions tags, the project is `.`.
 - The harness tools folder (`<tools>` in the skills) is `{{RUNTIME}}/tools`.
 - When the session context says `Delivery: participatory`, follow the `delivery-coach` skill in the Builder stage (screenshot evidence, evaluator review, manual-check offers, discovery sprints) and its coaching section before the Designer stage.
 

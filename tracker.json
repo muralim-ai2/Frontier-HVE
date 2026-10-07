@@ -19,8 +19,8 @@
     },
     {
       "id": "N18",
-      "issue": "Phase 9 tooling is built but no skills are imported (D-022).",
-      "action": "In the separate repo: run `python tools/skills/triage.py <skills source>` on the candidate skills, review skills/triage.json shortlists."
+      "issue": "Resolved 2026-10-07 (D-037): 13 skills authored and admitted as provisional; the library loads per task within 10 skills / 2,000 tokens.",
+      "action": "See N23 for the paired evaluation that promotes skills to admitted."
     },
     {
       "id": "N19",
@@ -41,6 +41,16 @@
       "id": "N22",
       "issue": "Built (D-032, D-033): .hve/ state layout, HVE product agents and the Frontier HVE extension (extension/), covered by tests/test_extension.py. User test of 0.1.0: agents, skills and setup work; loop init failed in the existing repo (fixed in 0.1.1). Not verified live: the loop in 0.1.1, tool ids.",
       "action": "User: in the test window reload (0.1.1 re-renders the agents), check the HVE agents follow the picked model (try Auto), then ask HVE creator for a small multi-feature task and check that feature_list.json, progress.txt and .harness/ appear and the existing repo's git identity is kept."
+    },
+    {
+      "id": "N23",
+      "issue": "All 13 library skills are provisional: quality lift is unmeasured (D-037). Live paired runs cost about 4 creator runs of ~15 min per skill.",
+      "action": "User: pick one prompt per category (UX, architecture, de-slop, scrub, research, dreams); run `python tools/skills/eval_skill.py run skills/authored/<name> --runs 2`, blind-score, `eval_skill.py report <name> --score human`, then `python tools/skills/onboard.py skills/authored/<name> authored` to promote or reject."
+    },
+    {
+      "id": "N24",
+      "issue": "Built (D-035, D-037), extension 0.2.0: delivery-coach (tracker.json, screenshot evidence, manual-check offers, .hve/discovery sprints, coaching), the skill library with /recommend-skills. Not verified live.",
+      "action": "User: reload the test window, re-run Frontier HVE: Set up (pro code now reads 'Use AI to code and review continuously'), ask HVE creator for a small UI app; check tracker.json, a manual-check question after a feature, .hve/skills/ with the loaded skills, and /recommend-skills output."
     }
   ],
   "phases": [
@@ -739,12 +749,18 @@
         {
           "id": "9.4",
           "item": "Run the gate on candidate skills from the 7 categories",
-          "files": [],
-          "status": "not_started",
-          "validate": "Findings in research/findings/.",
+          "files": [
+            "skills/authored/",
+            "skills/admitted/",
+            "skills/registry.json",
+            "tools/skills/recommend.py",
+            "hooks/skill_loader.py"
+          ],
+          "status": "built",
+          "validate": "python tests/test_skills.py; python tools/skills/recommend.py provisional \"<task>\"; then the paired eval per category (N23).",
           "done_when": "Candidates evaluated, registry populated.",
           "validated_by": null,
-          "evidence": "User: skills are brought over in a separate repo (D-022)."
+          "evidence": "2026-10-07 (D-037): 13 authored skills passed the provisional gate (360-440 tokens each) and are in the registry as provisional; graph-workflow-agents has none. No paired eval yet."
         }
       ]
     },

@@ -142,7 +142,7 @@ def test_guardrail_flags_non_enterprise_prototype() -> None:
 def test_plugin_skills_pass_the_scan() -> None:
     """Every harness-assist skill passes the Phase 9 structure and security scan."""
     reports = [skill_scan(p.parent) for p in sorted((PLUGIN / "skills").glob("*/SKILL.md"))]
-    assert len(reports) == 8 and all(r["ok"] for r in reports), [(r["name"], r["findings"]) for r in reports if not r["ok"]]
+    assert len(reports) == 9 and all(r["ok"] for r in reports), [(r["name"], r["findings"]) for r in reports if not r["ok"]]
 
 
 if __name__ == "__main__":

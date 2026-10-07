@@ -58,7 +58,8 @@ def test_rendered_plugin_shape() -> None:
         agents = render(out)
         assert len(agents) == 11, agents
         assert json.loads((out / "plugin.json").read_text(encoding="utf-8"))["name"] == "frontier-hve"
-        assert len(list((out / "skills").glob("*/SKILL.md"))) == 8
+        assert len(list((out / "skills").glob("*/SKILL.md"))) == 9
+        assert not (out / "skills" / "ux-flows").exists() and (EXTENSION / "runtime" / "skills" / "admitted" / "ux-flows" / "SKILL.md").is_file()
         assert (out / "scripts" / "guardrail.py").exists()
         for name in agents:
             text = (out / "com.github.copilot" / "agents" / name).read_text(encoding="utf-8")
@@ -91,6 +92,9 @@ def test_rendered_hooks_run_in_a_workspace() -> None:
         start = {"hook_event_name": "SessionStart", "timestamp": "2026-10-06T08:00:00+00:00", "source": "new"}
         context = run(hook(creator, "profile_detector.py"), ws, start)
         assert context and "Explanation depth: balanced" in json.dumps(context), context
+        prompt = start | {"hook_event_name": "UserPromptSubmit", "prompt": "Design an accessible signup page."}
+        assert run(hook(creator, "skill_loader.py"), ws, prompt, HARNESS_SKILLS_MIN_STATUS="provisional") is None
+        assert (ws / ".hve" / "skills" / "accessibility" / "SKILL.md").is_file(), list((ws / ".hve").rglob("SKILL.md"))
         pre = {"hook_event_name": "PreToolUse", "timestamp": "2026-10-06T08:01:00+00:00", "tool_name": "read_file",
                "tool_input": {"filePath": "x"}, "tool_use_id": "t1"}
         assert run(hook(creator, "loop_guard.py"), ws, pre, HARNESS_PROJECT=".", HARNESS_STOP_POLICY="once") is None

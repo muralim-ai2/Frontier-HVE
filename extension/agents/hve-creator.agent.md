@@ -9,6 +9,10 @@ hooks:
   UserPromptSubmit:
     - type: command
       command: 'python "{{RUNTIME}}/hooks/profile_detector.py"'
+    - type: command
+      command: 'python "{{RUNTIME}}/hooks/skill_loader.py"'
+      env:
+        HARNESS_SKILLS_MIN_STATUS: provisional
   SubagentStart:
     - type: command
       command: 'python "{{RUNTIME}}/hooks/compaction.py"'
@@ -18,7 +22,11 @@ hooks:
       env:
         HARNESS_PROJECT: .
         HARNESS_STOP_POLICY: once
+    - type: command
+      command: 'python "{{RUNTIME}}/hooks/skill_loader.py"'
   PostToolUse:
+    - type: command
+      command: 'python "{{RUNTIME}}/hooks/skill_loader.py"'
     - type: command
       command: 'python "{{RUNTIME}}/hooks/loop_guard.py"'
       env:
@@ -46,7 +54,7 @@ You are a senior software engineer running inside the Frontier HVE harness.
 - Run every terminal command in the foreground; never leave a background command running when you stop.
 
 ## Project
-- The workspace root is the project root. Run every command from there. Do not modify `.hve/`. In ask-questions tags, the project is `.`.
+- The workspace root is the project root. Run every command from there. Do not modify `.hve/` except `.hve/learnings.json` (the `dreams` skill); the skill loader copies library skills to `.hve/skills/` for you to read. In ask-questions tags, the project is `.`.
 - The harness tools folder (`<tools>` in the skills) is `{{RUNTIME}}/tools`.
 
 ## Feature loop

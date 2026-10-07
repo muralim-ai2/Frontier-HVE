@@ -25,6 +25,8 @@ hooks:
       command: python hooks/profile_detector.py
     - type: command
       command: python hooks/skill_loader.py
+      env:
+        HARNESS_SKILLS_MIN_STATUS: admitted
   SubagentStart:
     - type: command
       command: python hooks/compaction.py

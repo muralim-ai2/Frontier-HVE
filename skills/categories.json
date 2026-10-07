@@ -1,5 +1,12 @@
 {
-  "max_skills_per_session": 3,
+  "loadout": {
+    "max_skills": 10,
+    "max_tokens": 2000
+  },
+  "provisional": {
+    "max_skill_tokens": 800,
+    "max_description_chars": 200
+  },
   "thresholds": {
     "min_quality_lift_pp": 10,
     "max_token_overhead_pct": 20
@@ -10,16 +17,16 @@
       "task_pattern": "\\b(ui|ux|interface|page|screen|layout|design|palette|component|frontend|accessib\\w*)\\b"
     },
     "architecture": {
-      "skill_pattern": "\\b(architect\\w*|adr|system design|tech(nical)? spec|design doc\\w*|c4 model|module boundar\\w*)\\b",
-      "task_pattern": "\\b(app|application|service|api|system|architect\\w*|backend|database)\\b"
+      "skill_pattern": "\\b(architect\\w*|adr|system design|tech(nical)? spec|design doc\\w*|c4 model|module boundar\\w*|api design|trade-?offs?|low-?code|no-?code)\\b",
+      "task_pattern": "\\b(apps?|applications?|service|api|system|architect\\w*|backend|database|platform|low-?code|no-?code|pro-?code|power (apps|automate))\\b"
     },
     "de-slop": {
       "skill_pattern": "\\b(de-?slop\\w*|slop|over-?engineer\\w*|simplif\\w*|dead code|bloat\\w*|verbos\\w*)\\b",
-      "task_pattern": "."
+      "task_pattern": "\\b(clean ?up|simplif\\w*|refactor\\w*|review\\w*|polish\\w*|slop|bloat\\w*|readab\\w*|tidy|copy|wording)\\b"
     },
     "scrub": {
       "skill_pattern": "\\b(scrub\\w*|sanitiz\\w*|redact\\w*|secrets?|pii|clean-?up)\\b",
-      "task_pattern": "."
+      "task_pattern": "\\b(scrub\\w*|tidy|leftover\\w*|clean ?up|before (?:i |we )?(?:commit|push|merge|release|ship))\\b"
     },
     "graph-workflow-agents": {
       "skill_pattern": "\\b(grower|sweeper|maintainer|knowledge graph|code graph|graph workflow)\\b",
@@ -27,11 +34,11 @@
     },
     "self-learning": {
       "skill_pattern": "\\b(dreams?|dreaming|self-?learn\\w*|self-?improv\\w*|reflect\\w*|retrospective|lessons? learned)\\b",
-      "task_pattern": "."
+      "task_pattern": "\\b(learn\\w*|lessons?|retro\\w*|dream\\w*|what went wrong|post-?mortem|consolidat\\w*|pitfalls?)\\b"
     },
     "research": {
-      "skill_pattern": "\\b(research\\w*|literature|investigat\\w*|citations?|evidence)\\b",
-      "task_pattern": "\\b(research|investigate|compare|evaluate|find out|survey)\\b"
+      "skill_pattern": "\\b(research\\w*|analyst|literature|investigat\\w*|citations?|evidence)\\b",
+      "task_pattern": "\\b(research\\w*|investigat\\w*|compare|comparison|evaluate|find out|survey|analy[sz]\\w*|market|competitors?|sources?)\\b"
     }
   }
 }

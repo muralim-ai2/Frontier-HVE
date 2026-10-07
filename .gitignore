@@ -4,6 +4,8 @@ node_modules/
 .hve/outputs/*/current/
 skills/candidates/
 skills/eval_override.json
+.hve/skills/
+.hve/discovery/
 
 # Copilot OTel export: hundreds of MB and contains full chat content
 .hve/runs/copilot-otel.jsonl

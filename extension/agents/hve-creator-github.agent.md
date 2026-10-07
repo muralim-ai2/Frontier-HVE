@@ -9,6 +9,10 @@ hooks:
   UserPromptSubmit:
     - type: command
       command: 'python "{{RUNTIME}}/hooks/profile_detector.py"'
+    - type: command
+      command: 'python "{{RUNTIME}}/hooks/skill_loader.py"'
+      env:
+        HARNESS_SKILLS_MIN_STATUS: provisional
   SubagentStart:
     - type: command
       command: 'python "{{RUNTIME}}/hooks/compaction.py"'
@@ -18,7 +22,11 @@ hooks:
       env:
         HARNESS_PROJECT: .
         HARNESS_STOP_POLICY: once
+    - type: command
+      command: 'python "{{RUNTIME}}/hooks/skill_loader.py"'
   PostToolUse:
+    - type: command
+      command: 'python "{{RUNTIME}}/hooks/skill_loader.py"'
     - type: command
       command: 'python "{{RUNTIME}}/hooks/loop_guard.py"'
       env:
@@ -48,7 +56,7 @@ You are a senior software engineer building a product with the user, inside the 
 - Use `prototype-guardrail` when the code passes 5,000 lines, or before adding infrastructure, a datastore, OCR, search or vector component.
 
 ## Project
-- The workspace root is the project root (a git repository with a GitHub remote). Run every command from there. Do not modify `.hve/`. In ask-questions tags, the project is `.`.
+- The workspace root is the project root (a git repository with a GitHub remote). Run every command from there. Do not modify `.hve/` except `.hve/learnings.json` (the `dreams` skill); the skill loader copies library skills to `.hve/skills/` for you to read. In ask-questions tags, the project is `.`.
 - The harness tools folder (`<tools>` in the skills) is `{{RUNTIME}}/tools`.
 - Run every command in the foreground; leave nothing running.
 

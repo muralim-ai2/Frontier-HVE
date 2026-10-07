@@ -1,4 +1,4 @@
-"""Assemble the extension's runtime/ (Python hooks and loop tools) and skills/ from the repository, and check every agent template."""
+"""Assemble the extension's runtime/ (Python hooks, loop tools and the skill library) and skills/ from the repository, and check every agent template."""
 
 import py_compile
 import re
@@ -13,9 +13,11 @@ SKILLS = EXTENSION / "skills"
 PLUGIN_SRC = REPO / "plugins" / "harness-assist"
 FILES = {
     "hooks": ["hve_paths.py", "interventions.py", "profile_detector.py", "compaction.py", "loop_guard.py", "flow_guard.py",
-              "module_guard.py", "no_fallback.py"],
+              "module_guard.py", "no_fallback.py", "skill_loader.py"],
     "tools/loop": ["loop.py", "diagnose.py", "flow.py"],
     "tools/git": ["branch_workflow.py", "parallel_options.py"],
+    "tools/skills": ["recommend.py"],
+    "skills": ["registry.json", "categories.json"],
 }
 SCRIPTS = ["choice_recorder.py", "guardrail.py", "enterprise_catalog.json"]
 RUNTIME_REF = re.compile(r"\{\{RUNTIME\}\}/([\w./-]+\.py)")
@@ -34,6 +36,8 @@ def build() -> list[str]:
     for name in SCRIPTS:
         shutil.copy2(PLUGIN_SRC / "scripts" / name, RUNTIME / "scripts" / name)
     shutil.copytree(PLUGIN_SRC / "skills", SKILLS)
+    shutil.copytree(REPO / "skills" / "admitted", RUNTIME / "skills" / "admitted")
+    shutil.copy2(REPO / "skills" / "authored" / "NOTICE", RUNTIME / "skills" / "NOTICE")
     for path in RUNTIME.rglob("*.py"):
         py_compile.compile(str(path), doraise=True)
     for cache in list(RUNTIME.rglob("__pycache__")):
