@@ -10,7 +10,7 @@
   "thresholds": {
     "min_quality_lift_pp": 10,
     "max_token_overhead_pct": 20,
-    "micro_min_wins": 3,
+    "micro_min_wins_or_ties": 3,
     "micro_max_task_loss": 1
   },
   "micro_eval": {

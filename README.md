@@ -255,33 +255,33 @@ See the [blueprint's ranked problems and research review](reference/Enterprise%2
 
 ## 8. Tooling, skills and governance
 
-**SkillOpt-style admission: skills earn their place in context.** Discovery is not installation, and installation is not evidence of value. Thirteen skills were authored; a micro paired evaluation admitted eight and rejected five (D-022, D-037, D-038). NVIDIA SkillEvaluator is an optional scanner integration, not a currently running dependency.
+**SkillOpt-style admission: skills earn their place in context.** Discovery is not installation, and installation is not evidence of value. Thirteen skills were authored; a micro paired evaluation admitted ten and rejected three (D-022, D-037, D-038; method and results in [research/findings/phase-9-skill-micro-eval.md](research/findings/phase-9-skill-micro-eval.md)). NVIDIA SkillEvaluator is an optional scanner integration, not a currently running dependency.
 
-- **Skill gate (Phase 9, D-022, D-037)**: [scan.py](tools/skills/scan.py) blocks malformed or unsafe skills (prompt injection, external fetches, encoded payloads, destructive commands, secrets); [triage.py](tools/skills/triage.py) maps candidates to the selected categories ([skills/categories.json](skills/categories.json)); [onboard.py](tools/skills/onboard.py) `--provisional` admits a skill that passes the scan, matches a category, stays under 800 tokens and a 200-character description and ships no non-Python scripts; [eval_skill.py](tools/skills/eval_skill.py) runs paired with/without benchmarks of full sessions, [micro_eval.py](tools/skills/micro_eval.py) runs a fast micro version (below), and [onboard.py](tools/skills/onboard.py) without the flag promotes a skill to `admitted` at a lift of 10 or more points with token overhead under 20% (micro evals also need 3 of 5 task wins and no task lost by more than 1 point).
+- **Skill gate (Phase 9, D-022, D-037)**: [scan.py](tools/skills/scan.py) blocks malformed or unsafe skills (prompt injection, external fetches, encoded payloads, destructive commands, secrets); [triage.py](tools/skills/triage.py) maps candidates to the selected categories ([skills/categories.json](skills/categories.json)); [onboard.py](tools/skills/onboard.py) `--provisional` admits a skill that passes the scan, matches a category, stays under 800 tokens and a 200-character description and ships no non-Python scripts; [eval_skill.py](tools/skills/eval_skill.py) runs paired with/without benchmarks of full sessions, [micro_eval.py](tools/skills/micro_eval.py) runs a fast micro version (below), and [onboard.py](tools/skills/onboard.py) without the flag promotes a skill to `admitted` at a lift of 10 or more points with token overhead under 20% (micro evals also need wins or ties on 3 of 5 tasks and no task lost by more than 1 point).
 - **Micro paired evaluation (D-038)**: each skill has 5 small tasks with 3-4 checks each ([tests/skill_tasks](tests/skill_tasks)). One tool-less call of `gpt-5.4-mini` answers each task with the skill in its instructions and once without; `gpt-5.2-chat` judges every pair blind (A/B order fixed by a hash of the task id) against the checks, scoring 0-5. Both answers come from the same model, so judge self-preference does not favour either condition. Token overhead is the extra prompt and answer tokens divided by a typical creator call (50K tokens). Keyless Entra auth through the Azure CLI; every response is cached in `.hve/evals/micro/`, so re-runs and resumes are free. The full run for 13 skills took 144 s and about 140K tokens.
 
-| Skill | Lift (pp) | Wins | Result |
+| Skill | Lift (pp) | Wins/ties/losses | Result |
 |---|---|---|---|
-| `dreams` | 56 | 5/5 | admitted |
-| `analyst` | 44 | 4/5 | admitted |
-| `scrub` | 40 | 4/5 | admitted |
-| `build-approach` | 28 | 4/5 | admitted |
-| `ux-flows` | 28 | 5/5 | admitted |
-| `web-research` | 28 | 3/5 | admitted |
-| `api-design` | 16 | 3/5 | admitted |
-| `architecture-options` | 12 | 3/5 | admitted |
-| `prose-anti-slop` | 28 | 2/5 (3 ties) | rejected |
-| `ui-anti-slop` | 12 | 2/5 (3 ties) | rejected |
-| `code-hygiene` | 8 | 2/5 | rejected |
-| `ui-content` | 4 | 2/5 | rejected |
-| `accessibility` | 0 | 1/5 | rejected |
+| `dreams` | 56 | 5/0/0 | admitted |
+| `analyst` | 44 | 4/1/0 | admitted |
+| `scrub` | 40 | 4/1/0 | admitted |
+| `build-approach` | 28 | 4/1/0 | admitted |
+| `ux-flows` | 28 | 5/0/0 | admitted |
+| `web-research` | 28 | 3/2/0 | admitted |
+| `prose-anti-slop` | 28 | 2/2/1 | admitted (ties count as wins) |
+| `api-design` | 16 | 3/2/0 | admitted |
+| `architecture-options` | 12 | 3/2/0 | admitted |
+| `ui-anti-slop` | 12 | 2/3/0 | admitted (ties count as wins) |
+| `code-hygiene` | 8 | 2/1/2 | rejected |
+| `ui-content` | 4 | 2/1/2 | rejected |
+| `accessibility` | 0 | 1/3/1 | rejected |
 - **Skill library and budgeted loading (D-037)**: library skills ([skills/admitted](skills/admitted), registry [skills/registry.json](skills/registry.json)) are not discoverable, so they add nothing to ordinary chats. In creator sessions [hooks/skill_loader.py](hooks/skill_loader.py) ranks them per prompt with [recommend.py](tools/skills/recommend.py) (admitted first, then relevance to the prompt, measured lift, size), loads as many as fit the loadout budget (up to 10 skills and 2,000 tokens) by copying them to `.hve/skills/`, offers the rest ranked so the user can tick more (ask-questions `load-skills`), and denies reading any other library skill. Plugin skills stay readable. `/recommend-skills` shows the same ranking on demand with the evidence: [SkillsBench](https://www.skillsbench.ai) (arXiv 2602.12670) found curated skills raise pass rates by 16.6 points on average and that focused skills beat exhaustive bundles. HVE agents load `provisional` and `admitted` skills; research agents load `admitted` only.
 
 | Category | Library skills (admitted) |
 |---|---|
-| UX | `ux-flows` |
+| UX | `ux-flows`, `ui-anti-slop` |
 | Architecture | `architecture-options`, `api-design`, `build-approach` (no code, low code or pro code) |
-| De-slop | none admitted yet (`code-hygiene`, `ui-anti-slop`, `prose-anti-slop` rejected) |
+| De-slop | `ui-anti-slop`, `prose-anti-slop` (`code-hygiene` rejected) |
 | Scrub | `scrub` |
 | Dreams / self-learning | `dreams` (lessons learned into `.hve/learnings.json`) |
 | Research | `web-research`, `analyst` |

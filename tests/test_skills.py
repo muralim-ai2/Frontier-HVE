@@ -17,7 +17,7 @@ from onboard import decide, decide_provisional  # noqa: E402
 from scan import scan  # noqa: E402
 from triage import load_categories, skill_categories  # noqa: E402
 
-THRESHOLDS = {"min_quality_lift_pp": 10, "max_token_overhead_pct": 20, "micro_min_wins": 3, "micro_max_task_loss": 1}
+THRESHOLDS = {"min_quality_lift_pp": 10, "max_token_overhead_pct": 20, "micro_min_wins_or_ties": 3, "micro_max_task_loss": 1}
 
 
 def write_skill(root: Path, name: str, description: str, body: str = "Follow these steps.\n", dirname: str | None = None) -> Path:
@@ -58,10 +58,11 @@ def test_onboarding_thresholds() -> None:
     assert decide(report, {"quality_lift_pp": 12.0, "token_overhead_pct": 5.0, "eval_method": "session"}, ["ux"], THRESHOLDS) == []
     reasons = decide(report, {"quality_lift_pp": 4.0, "token_overhead_pct": 25.0, "eval_method": "session"}, ["ux"], THRESHOLDS)
     assert len(reasons) == 2 and "below 10 pp" in reasons[0] and "not under 20%" in reasons[1], reasons
-    micro = {"quality_lift_pp": 16.0, "token_overhead_pct": 0.9, "eval_method": "micro", "wins": 2, "worst_delta": -2.0,
+    micro = {"quality_lift_pp": 16.0, "token_overhead_pct": 0.9, "eval_method": "micro", "losses": 3, "worst_delta": -2.0,
              "per_task": [{}] * 5}
     micro_reasons = decide(report, micro, ["ux"], THRESHOLDS)
-    assert len(micro_reasons) == 2 and "won 2 of 5" in micro_reasons[0] and "by 2.0 points" in micro_reasons[1], micro_reasons
+    assert len(micro_reasons) == 2 and "won or tied 2 of 5" in micro_reasons[0] and "by 2.0 points" in micro_reasons[1], micro_reasons
+    assert decide(report, micro | {"losses": 1, "worst_delta": -1.0}, ["ux"], THRESHOLDS) == []
     blocked = decide({"name": "x", "ok": False, "findings": [{"rule": "secret", "file": "a.py", "line": 3}]}, None, ["ux"], THRESHOLDS)
     assert blocked == ["scan: secret in a.py:3"], blocked
     try:

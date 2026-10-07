@@ -49,8 +49,9 @@ def decide(report: Json, evaluation: Json | None, categories: list[str], thresho
     if evaluation["token_overhead_pct"] >= thresholds["max_token_overhead_pct"]:
         reasons.append(f"token overhead {evaluation['token_overhead_pct']}% not under {thresholds['max_token_overhead_pct']}%")
     if evaluation["eval_method"] == "micro":
-        if evaluation["wins"] < thresholds["micro_min_wins"]:
-            reasons.append(f"won {evaluation['wins']} of {len(evaluation['per_task'])} tasks, needs {thresholds['micro_min_wins']}")
+        held = len(evaluation["per_task"]) - evaluation["losses"]
+        if held < thresholds["micro_min_wins_or_ties"]:
+            reasons.append(f"won or tied {held} of {len(evaluation['per_task'])} tasks, needs {thresholds['micro_min_wins_or_ties']}")
         if evaluation["worst_delta"] < -thresholds["micro_max_task_loss"]:
             reasons.append(f"lost a task by {-evaluation['worst_delta']} points, more than {thresholds['micro_max_task_loss']}")
     return reasons

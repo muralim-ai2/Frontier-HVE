@@ -44,8 +44,8 @@
     },
     {
       "id": "N23",
-      "issue": "Done 2026-10-07 (D-038): micro paired eval of all 13 skills in 144 s (~140K tokens): 8 admitted, 5 rejected.",
-      "action": "User: review skills/evals/*.json per-task reasons; decide whether to revise and re-evaluate the rejected de-slop and UI-copy skills (python tools/skills/micro_eval.py <skill>; cached calls are free), and whether to add a second judge pass with swapped order."
+      "issue": "Done 2026-10-07 (D-038): micro paired eval of all 13 skills in 144 s (~140K tokens). With ties counted as wins (user decision): 10 admitted, 3 rejected. Findings: research/findings/phase-9-skill-micro-eval.md.",
+      "action": "User: spot-check 2 pairs per admitted skill against the judge; decide whether to revise and re-run code-hygiene, ui-content and accessibility, and whether to confirm prose-anti-slop and ui-anti-slop with fresh tasks or a swapped-order judge pass."
     },
     {
       "id": "N24",
@@ -760,7 +760,7 @@
           "validate": "python tests/test_skills.py; python tools/skills/recommend.py provisional \"<task>\"; then the paired eval per category (N23).",
           "done_when": "Candidates evaluated, registry populated.",
           "validated_by": null,
-          "evidence": "2026-10-07 (D-037, D-038): 13 authored skills passed the provisional gate; the micro paired eval (gpt-5.4-mini answers, gpt-5.2-chat blind judge, 5 tasks each) admitted 8 and rejected 5; graph-workflow-agents has none."
+          "evidence": "2026-10-07 (D-037, D-038): 13 authored skills passed the provisional gate; the micro paired eval (gpt-5.4-mini answers, gpt-5.2-chat blind judge, 5 tasks each) admitted 10 and rejected 3 (ties count as wins); graph-workflow-agents has none."
         }
       ]
     },
