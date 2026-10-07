@@ -61,6 +61,29 @@ def test_init_rejects_bad_feature_lists() -> None:
     assert "real check" in raises(ValueError, loop.validate, trivial)
 
 
+def test_init_in_existing_repo() -> None:
+    """Init keeps an existing repo's identity and branch, stacks the first PR on that branch, and refuses a foreign hook or a re-init."""
+    with tempfile.TemporaryDirectory() as tmp:
+        project = Path(tmp) / "project"
+        project.mkdir()
+        git(project, "init", "-b", "trunk")
+        git(project, "config", "user.name", "dev")
+        git(project, "config", "user.email", "dev@example.com")
+        (project / "check.py").write_text(CHECK, encoding="utf-8")
+        (project / "feature_list.json").write_text(json.dumps([feature(n, f"{n}.txt") for n in "abc"]), encoding="utf-8")
+        hook = project / ".git" / "hooks" / "pre-commit"
+        hook.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
+        assert "already exists" in raises(FileExistsError, loop.init, project, "local")
+        hook.unlink()
+        loop.init(project, "local")  # type: ignore[arg-type]
+        assert git(project, "config", "user.name").strip() == "dev"
+        assert git(project, "log", "-1", "--format=%an %s").strip() == "dev [init] scaffold"
+        assert "already initialized" in raises(FileExistsError, loop.init, project, "local")
+        loop.next_feature(project)
+        (project / "a.txt").write_text("a\n", encoding="utf-8")
+        assert loop.verify(project)["passes"] is True
+        assert read_json(project / ".harness" / "prs" / "a.json")["base_branch"] == "trunk"
+
 def test_loop_commits_flips_and_queues() -> None:
     """Verify fails until the work exists, B1 code is rejected at commit, PR records stack, and a passing baseline escalates."""
     with tempfile.TemporaryDirectory() as tmp:
@@ -274,6 +297,7 @@ def test_module_guard() -> None:
 
 if __name__ == "__main__":
     test_init_rejects_bad_feature_lists()
+    test_init_in_existing_repo()
     test_loop_commits_flips_and_queues()
     test_rules_stuck_then_spec()
     test_rules_circular_and_cap()

@@ -63,36 +63,38 @@ def test_rendered_plugin_shape() -> None:
         for name in agents:
             text = (out / "com.github.copilot" / "agents" / name).read_text(encoding="utf-8")
             assert "{{RUNTIME}}" not in text and re.search(r"^name: HVE ", text, re.M), name
+            assert not re.search(r"^(model|reasoning-effort):|budget", text, re.M), f"{name}: product agents use the picked model, no budget"
             for script in re.findall(r'python "([^"]+\.py)"', text):
                 assert Path(script).is_file(), (name, script)
 
 
 def test_rendered_hooks_run_in_a_workspace() -> None:
-    """The creator agent's rendered hooks run from a workspace: budget and profile at start, guard, module and guardrail after tools."""
+    """The creator agent's rendered hooks run from a workspace: profile at start, guard, module and guardrail after tools."""
     with tempfile.TemporaryDirectory() as tmp:
         out = Path(tmp) / "plugin"
         render(out)
         ws = workspace(tmp)
         creator = (out / "com.github.copilot" / "agents" / "hve-creator.agent.md").read_text(encoding="utf-8")
         start = {"hook_event_name": "SessionStart", "timestamp": "2026-10-06T08:00:00+00:00", "source": "new"}
-        assert run(hook(creator, "budget.py"), ws, start, HARNESS_BUDGET_MIN="15", HARNESS_BUDGET_ON_END="ask") is None
         context = run(hook(creator, "profile_detector.py"), ws, start)
         assert context and "partially technical" in json.dumps(context), context
         pre = {"hook_event_name": "PreToolUse", "timestamp": "2026-10-06T08:01:00+00:00", "tool_name": "read_file",
                "tool_input": {"filePath": "x"}, "tool_use_id": "t1"}
-        assert run(hook(creator, "loop_guard.py"), ws, pre, HARNESS_PROJECT=".", HARNESS_STOP_POLICY="budget") is None
+        assert run(hook(creator, "loop_guard.py"), ws, pre, HARNESS_PROJECT=".", HARNESS_STOP_POLICY="once") is None
         post = pre | {"hook_event_name": "PostToolUse", "tool_name": "create_file", "tool_response": "ok"}
         assert run(hook(creator, "module_guard.py"), ws, post) is None
         assert run(hook(creator, "guardrail.py"), ws, post) is None
-        assert (ws / ".hve" / "runs" / "s1.budget.json").exists()
 
 
 def test_rendered_flow_and_loop_tools_run() -> None:
-    """From a workspace, the runtime's flow.py starts the flow, the stage guard sends an unfinished stage back, and loop.py inits git."""
+    """From a workspace that is already a git repo, flow.py starts the flow, the stage guard sends an unfinished stage back, and loop.py inits."""
     with tempfile.TemporaryDirectory() as tmp:
         out = Path(tmp) / "plugin"
         render(out)
         ws = workspace(tmp)
+        subprocess.run(["git", "init", "-q"], cwd=ws, check=True)
+        subprocess.run(["git", "config", "user.name", "dev"], cwd=ws, check=True)
+        subprocess.run(["git", "config", "user.email", "dev@example.com"], cwd=ws, check=True)
         designer = (out / "com.github.copilot" / "agents" / "hve-flow-designer.agent.md").read_text(encoding="utf-8")
         flow_py = re.search(r'python "([^"]+/tools/loop/flow\.py)"', designer)[1]  # type: ignore[index]
         subprocess.run([sys.executable, flow_py, "init", ".", "--profile", "product"], cwd=ws, check=True, capture_output=True)

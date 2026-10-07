@@ -12,7 +12,7 @@ RUNTIME = EXTENSION / "runtime"
 SKILLS = EXTENSION / "skills"
 PLUGIN_SRC = REPO / "plugins" / "harness-assist"
 FILES = {
-    "hooks": ["hve_paths.py", "budget.py", "interventions.py", "profile_detector.py", "compaction.py", "loop_guard.py", "flow_guard.py",
+    "hooks": ["hve_paths.py", "interventions.py", "profile_detector.py", "compaction.py", "loop_guard.py", "flow_guard.py",
               "module_guard.py", "no_fallback.py"],
     "tools/loop": ["loop.py", "diagnose.py", "flow.py"],
     "tools/git": ["branch_workflow.py", "parallel_options.py"],

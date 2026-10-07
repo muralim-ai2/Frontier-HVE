@@ -2,7 +2,6 @@
 name: HVE flow-architect
 description: Frontier HVE creator-flow Architect stage. Checks structure (module sizes, boundaries, error handling) and passes or sends back for rework.
 user-invocable: false
-model: GPT-5.6 Sol (copilot)
 tools: [read/readFile, search/fileSearch, search/textSearch, search/listDirectory, execute/runInTerminal]
 hooks:
   Stop:

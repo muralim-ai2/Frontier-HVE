@@ -85,4 +85,5 @@ The stages and edges are fixed (designer -> prototyper -> builder <-> architect 
 
 ## Rules
 - Be concise. Machine state is JSON only. No file over 500 lines, no error hiding.
+- Errors: judge each error and keep going when there is a sound way around it. Stop and report to the user only for a critical error (data loss, security or credentials, broken harness state) or one that repeats after you changed approach, so retrying would loop.
 - Sub-agents: at most 3 at a time, one role each, only the paths and description they need.

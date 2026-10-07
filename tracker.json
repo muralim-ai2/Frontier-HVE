@@ -39,8 +39,8 @@
     },
     {
       "id": "N22",
-      "issue": "Built (D-032): .hve/ state layout, HVE product agents and the Frontier HVE extension (extension/), covered by tests/test_extension.py. Not verified live: plugin agents loading from chat.pluginLocations, hook commands with absolute paths, tool ids.",
-      "action": "User: install the VSIX in a fresh window, run 'Frontier HVE: Set up', reload, and check that the HVE agents and skills appear (Session Target: Local) and that an HVE creator session writes .hve/runs/<sid>.budget.json."
+      "issue": "Built (D-032, D-033): .hve/ state layout, HVE product agents and the Frontier HVE extension (extension/), covered by tests/test_extension.py. User test of 0.1.0: agents, skills and setup work; loop init failed in the existing repo (fixed in 0.1.1). Not verified live: the loop in 0.1.1, tool ids.",
+      "action": "User: in the test window reload (0.1.1 re-renders the agents), check the HVE agents follow the picked model (try Auto), then ask HVE creator for a small multi-feature task and check that feature_list.json, progress.txt and .harness/ appear and the existing repo's git identity is kept."
     }
   ],
   "phases": [

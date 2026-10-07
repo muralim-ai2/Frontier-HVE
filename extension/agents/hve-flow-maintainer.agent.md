@@ -2,7 +2,6 @@
 name: HVE flow-maintainer
 description: Frontier HVE creator-flow Maintainer stage. Confirms the product is healthy (all checks green) or reopens growth.
 user-invocable: false
-model: GPT-5.6 Sol (copilot)
 tools: [read/readFile, search/fileSearch, search/textSearch, search/listDirectory, execute/runInTerminal]
 hooks:
   Stop:

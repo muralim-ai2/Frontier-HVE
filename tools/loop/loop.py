@@ -44,22 +44,27 @@ def validate(features: Any) -> None:
 
 
 def init(project: Path, review: Review) -> Json:
-    """Validate and lock feature_list.json, write progress.txt and .gitignore, git init with the B1 pre-commit hook, commit."""
-    if (project / ".git").exists() or (project / ".harness" / "state.json").exists():
+    """Validate and lock feature_list.json, write progress.txt and .gitignore, add the B1 pre-commit hook to a new or existing repo, commit."""
+    if (project / ".harness" / "state.json").exists():
         raise FileExistsError(f"{project} is already initialized")
     features = read_json(project / "feature_list.json")
     validate(features)
+    if not (project / ".git").exists():
+        git(project, "init", "-b", "main")
+        git(project, "config", "user.name", "harness")
+        git(project, "config", "user.email", "harness@localhost")
+    hook = project / git(project, "rev-parse", "--git-path", "hooks/pre-commit").strip()
+    script = f'#!/bin/sh\nexec "{Path(sys.executable).as_posix()}" "{NO_FALLBACK.as_posix()}" .\n'
+    if hook.exists() and hook.read_text(encoding="utf-8") != script:
+        raise FileExistsError(f"{hook} already exists; add `{script.splitlines()[1]}` to it, then run init again")
     ignore = project / ".gitignore"
     existing = ignore.read_text(encoding="utf-8").splitlines() if ignore.exists() else []
     ignore.write_text("\n".join(existing + [g for g in GITIGNORE if g not in existing]) + "\n", encoding="utf-8")
     (project / "progress.txt").write_text("", encoding="utf-8")
-    git(project, "init", "-b", "main")
-    git(project, "config", "user.name", "harness")
-    git(project, "config", "user.email", "harness@localhost")
-    hook = project / ".git" / "hooks" / "pre-commit"
-    hook.write_text(f'#!/bin/sh\nexec "{Path(sys.executable).as_posix()}" "{NO_FALLBACK.as_posix()}" .\n', encoding="utf-8", newline="\n")
+    hook.parent.mkdir(parents=True, exist_ok=True)
+    hook.write_text(script, encoding="utf-8", newline="\n")
     write_json(project / ".harness" / "state.json", {
-        "review": review, "order": [f["name"] for f in features],
+        "review": review, "trunk": git(project, "symbolic-ref", "--short", "HEAD").strip(), "order": [f["name"] for f in features],
         "lock": {f["name"]: {"description": f["description"], "verify": f["verify"]} for f in features},
         "attempts": {f["name"]: 0 for f in features}, "base": {}, "current": None, "since_ms": None, "escalated": None, "help": None})
     git(project, "add", "-A")
@@ -164,7 +169,7 @@ def verify(project: Path) -> Json:
     git(project, "commit", "-m", f"[progress] {name} passes")
     previous = state["order"][state["order"].index(name) - 1] if state["order"].index(name) else None
     pr = open_pr(project, name, state["base"][name], {"command": command, "exit_code": 0, "output_tail": output[-2000:]},
-                 base_branch=f"feature/{previous}" if previous else "main", status="queued" if state["review"] == "github" else "recorded")
+                 base_branch=f"feature/{previous}" if previous else state["trunk"], status="queued" if state["review"] == "github" else "recorded")
     state["current"] = None
     write_json(project / ".harness" / "state.json", state)
     return {"name": name, "passes": True, "remaining": sum(not f["passes"] for f in features), "pr": pr["branch"],

@@ -1,17 +1,8 @@
 ---
 name: HVE minimal
-description: Frontier HVE baseline. The pinned model answers with no tools, skills or sub-agents, as a quality and cost reference.
-model: GPT-6 Astra (copilot)
-reasoning-effort: high
+description: Frontier HVE baseline. The model answers with no tools, skills or sub-agents, as a quality and cost reference.
 tools: []
 agents: []
-hooks:
-  SessionStart:
-    - type: command
-      command: 'python "{{RUNTIME}}/hooks/budget.py"'
-      env:
-        HARNESS_BUDGET_MIN: "10"
-        HARNESS_BUDGET_ON_END: stop
 ---
 
 You are a software engineer. Respond to the user's request.

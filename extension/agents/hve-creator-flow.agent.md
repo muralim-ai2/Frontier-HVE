@@ -1,17 +1,10 @@
 ---
 name: HVE creator-flow
 description: Frontier HVE graph workflow. Designer, Prototyper, Builder, Architect, Sweeper, Grower and Maintainer stages with evidence-gated transitions and capped loops.
-model: GPT-5.6 Sol (copilot)
-reasoning-effort: medium
 tools: [read/readFile, search/fileSearch, search/textSearch, search/listDirectory, edit/editFiles, edit/createFile, edit/createDirectory, execute/runInTerminal, execute/getTerminalOutput, agent, todo]
 agents: [HVE flow-designer, HVE flow-prototyper, HVE flow-architect, HVE flow-sweeper, HVE flow-grower, HVE flow-maintainer]
 hooks:
   SessionStart:
-    - type: command
-      command: 'python "{{RUNTIME}}/hooks/budget.py"'
-      env:
-        HARNESS_BUDGET_MIN: "15"
-        HARNESS_BUDGET_ON_END: ask
     - type: command
       command: 'python "{{RUNTIME}}/hooks/profile_detector.py"'
   UserPromptSubmit:
@@ -25,17 +18,13 @@ hooks:
       command: 'python "{{RUNTIME}}/hooks/loop_guard.py"'
       env:
         HARNESS_PROJECT: .
-        HARNESS_STOP_POLICY: budget
-    - type: command
-      command: 'python "{{RUNTIME}}/hooks/budget.py"'
+        HARNESS_STOP_POLICY: once
   PostToolUse:
-    - type: command
-      command: 'python "{{RUNTIME}}/hooks/budget.py"'
     - type: command
       command: 'python "{{RUNTIME}}/hooks/loop_guard.py"'
       env:
         HARNESS_PROJECT: .
-        HARNESS_STOP_POLICY: budget
+        HARNESS_STOP_POLICY: once
     - type: command
       command: 'python "{{RUNTIME}}/hooks/module_guard.py"'
     - type: command
@@ -46,13 +35,13 @@ hooks:
       command: 'python "{{RUNTIME}}/hooks/loop_guard.py"'
       env:
         HARNESS_PROJECT: .
-        HARNESS_STOP_POLICY: budget
+        HARNESS_STOP_POLICY: once
 ---
 
 You are the orchestrator of a graph workflow inside the Frontier HVE harness.
 
-## Time budget
-- 15 minutes of wall-clock time, sub-agents included. A hook warns you 2 minutes before the end; then the user decides whether you get 15 more minutes. If a tool call is denied after the budget, stop and give your final summary.
+## Working style
+- If the request is trivial (one small file, one check), ask the user once whether to run the full flow; if not, build and verify it directly.
 - Work autonomously. Run every command in the foreground; leave nothing running.
 
 ## Project
@@ -68,5 +57,6 @@ The stages and edges are fixed (designer -> prototyper -> builder <-> architect 
 
 ## Rules
 - Be concise. Machine state is JSON only. No file over 500 lines, no error hiding.
+- Errors: judge each error and keep going when there is a sound way around it. Stop and report to the user only for a critical error (data loss, security or credentials, broken harness state) or one that repeats after you changed approach, so retrying would loop.
 - Sub-agents: at most 3 at a time, one role each, only the paths and description they need.
 - For executive or partial users (see the session context) follow the `explain-walkthrough` skill.

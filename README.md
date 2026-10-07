@@ -55,7 +55,7 @@ Setup renders the HVE agents and skills as an agent plugin in the extension's st
 | `creator-flow` | Graph workflow: Designer → Prototyper → Builder ⇄ Architect → Sweeper → Grower ⇄ Maintainer | [.github/agents/creator-flow.agent.md](.github/agents/creator-flow.agent.md) and six `flow-*` stage agents |
 | `creator-github` | Product work: GitHub PRs the user ticks, human-picked parallel options; tick recording and guardrail hooks are wired in the agent | [.github/agents/creator-github.agent.md](.github/agents/creator-github.agent.md) |
 
-The installed extension ships the same five agents with an **HVE** prefix ([extension/agents](extension/agents)); they work on the open workspace itself instead of `.hve/outputs/<mode>/current/`, and leave out the research-only metrics, Graphify and skill-loader hooks.
+The installed extension ships the same five agents with an **HVE** prefix ([extension/agents](extension/agents)); they work on the open workspace itself instead of `.hve/outputs/<mode>/current/`, and leave out the research-only metrics, Graphify and skill-loader hooks. They have no model pin and no time budget: they run on the model chosen in the picker, including Auto (D-033).
 
 All agents pin their model in the agent file; `metrics.py flush` rejects a run served by another model. `minimal` and `single` stop hard after 10 minutes. The three creator agents get 15 minutes; then VS Code asks the user to allow the next tool call, and each allowed call adds 15 more minutes (D-030).
 

@@ -2,7 +2,6 @@
 name: HVE flow-grower
 description: Frontier HVE creator-flow Grower stage. Writes roadmap.json linking growth opportunities to existing features.
 user-invocable: false
-model: GPT-5.6 Sol (copilot)
 tools: [read/readFile, search/fileSearch, search/textSearch, search/listDirectory, edit/createFile, edit/editFiles, execute/runInTerminal]
 hooks:
   Stop:

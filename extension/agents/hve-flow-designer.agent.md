@@ -2,7 +2,6 @@
 name: HVE flow-designer
 description: Frontier HVE creator-flow Designer stage. Defines the product shape in design.json (screens, acceptance criteria, checks).
 user-invocable: false
-model: GPT-5.6 Sol (copilot)
 tools: [read/readFile, search/fileSearch, search/textSearch, search/listDirectory, edit/editFiles, edit/createFile, execute/runInTerminal]
 hooks:
   Stop:
