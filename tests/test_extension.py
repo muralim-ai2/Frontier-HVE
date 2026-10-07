@@ -15,11 +15,11 @@ EMPTY_PROFILE = {"prompt_style": None, "wants_evidence": None, "verbosity": None
                  "bloat_triggers": []}
 
 
-def render(out: Path) -> list[str]:
+def render(out: Path, version: str = "0.0.0-test") -> list[str]:
     """Build the extension and render its plugin into out with Node; return the rendered agent file names."""
     subprocess.run([sys.executable, str(EXTENSION / "build.py")], check=True, capture_output=True, text=True)
     script = (f"process.stdout.write(JSON.stringify(require({json.dumps(str(EXTENSION / 'render.js'))})"
-              f".renderPlugin({json.dumps(str(EXTENSION))}, {json.dumps(str(out))}, '0.0.0-test')))")
+              f".renderPlugin({json.dumps(str(EXTENSION))}, {json.dumps(str(out))}, {json.dumps(version)})))")
     result = subprocess.run(["node", "-e", script], capture_output=True, text=True, check=True)
     return json.loads(result.stdout)
 
@@ -68,6 +68,19 @@ def test_rendered_plugin_shape() -> None:
                 assert Path(script).is_file(), (name, script)
 
 
+def test_rerender_updates_in_place() -> None:
+    """Rendering over an existing plugin (held open by VS Code) updates the version and agents and removes stale files."""
+    with tempfile.TemporaryDirectory() as tmp:
+        out = Path(tmp) / "plugin"
+        render(out, "0.1.0")
+        stale = out / "com.github.copilot" / "agents" / "old.agent.md"
+        stale.write_text("old", encoding="utf-8")
+        (out / "skills" / "old-skill").mkdir()
+        assert len(render(out, "0.1.1")) == 11
+        assert json.loads((out / "plugin.json").read_text(encoding="utf-8"))["version"] == "0.1.1"
+        assert not stale.exists() and not (out / "skills" / "old-skill").exists()
+
+
 def test_rendered_hooks_run_in_a_workspace() -> None:
     """The creator agent's rendered hooks run from a workspace: profile at start, guard, module and guardrail after tools."""
     with tempfile.TemporaryDirectory() as tmp:
@@ -114,6 +127,7 @@ def test_rendered_flow_and_loop_tools_run() -> None:
 if __name__ == "__main__":
     test_extension_js_parses()
     test_rendered_plugin_shape()
+    test_rerender_updates_in_place()
     test_rendered_hooks_run_in_a_workspace()
     test_rendered_flow_and_loop_tools_run()
     print("test_extension: OK")
