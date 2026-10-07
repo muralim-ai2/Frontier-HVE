@@ -227,3 +227,11 @@
 - All 134 source skills (pinned commit `fc39b297`) were screened statically with no model calls; one disposition per skill is in `research/findings/phase-9-source-skill-manifest.json`: 38 tier 1 (requested areas, 5 of them with scripts or source-runtime steps not shipped), 72 tier 2 (outside the requested areas, a scope decision), 24 for human review (scanner flags that are mostly expected in security, DevOps and language skills). Positioning and plan: `research/findings/phase-9-skill-selection-coverage.md` section 6.
 - Imported skills will keep their text, `LICENSE` and `NOTICE` unchanged, live in `skills/imported/agentx/`, never be discoverable, and load per task within the loadout budget; skills over 2,000 tokens are offered for the user to tick. Same micro paired evaluation and gate; skills with an authored counterpart are compared on the same tasks.
 - Fix: rejected registry entries now carry `status: "rejected"` (they kept the status they were evaluated with).
+
+## D-041 — Admit the 27 imported skills untested; strict evaluation deferred
+- User decision (2026-10-07): imports must win all 3 tasks with uplift confirmed by a significance test, and token use must stay low. The Foundry endpoint was unreachable from this machine (DNS failures and connection resets), so the user asked to stop retrying, admit the 27 skills and mark them for testing later.
+- Strict gate (`micro-strict`, built in `onboard.decide` and `import_eval.py`, unit-tested): micro gate plus every task won plus a one-sided exact sign test on check-level gains vs losses, p < `strict_alpha` 0.05.
+- `onboard.py ... untested` admits with scan and category checks only: status `provisional`, `evaluation: "pending"`. Registry: 37 admitted entries, 27 of them pending. The manifest records the same.
+- No bloat: the 27 are not discoverable or always-on; they are ranked per task for HVE agents only and, being large, are mostly offered rather than auto-loaded. Research agents ignore provisional skills.
+- The extension ships the source `LICENSE` and `NOTICE` in `runtime/skills/licenses/agentx/`. Its build compiles harness Python only: the imported `documentation/scripts/generate-readme.py` does not compile upstream and is kept verbatim.
+- Notes: `research/findings/phase-9-skill-selection-coverage.md` section 6.4. Follow-up: tracker `N26`.

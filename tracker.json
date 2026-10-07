@@ -56,6 +56,11 @@
       "id": "N25",
       "issue": "Built (D-039), extension 0.3.0: HVE skill-evaluator agent (in-chat blind pairs, optional Foundry path, workspace library) and the context-load guardrail (/check-context-load, setup notification, delivery-coach close-out). Not verified live. Found in this window: the harness-assist skills are registered twice (repository path and installed extension).",
       "action": "User: run Frontier HVE: Set up and read the context-load notification; type /check-context-load; pick HVE skill-evaluator and onboard one small skill of your own; remove the repository plugins/harness-assist entry from chat.pluginLocations in windows where the extension is installed."
+    },
+    {
+      "id": "N26",
+      "issue": "27 AgentX skills imported verbatim and admitted untested (D-041): status provisional, evaluation pending. The strict gate (3 tasks, all won, check-level sign test p < 0.05) could not run because the Foundry endpoint failed DNS and reset connections from this machine.",
+      "action": "Agent, when the endpoint is reachable: `python tools/skills/import_eval.py eval \"%TEMP%\\agentx-src\" karpathy-guidelines` (about 0.4-0.5M tokens); update the manifest evaluation field and research/findings/phase-9-skill-selection-coverage.md 6.4 with the results. User: decide whether to keep any skill that fails."
     }
   ],
   "wiki_topics": {

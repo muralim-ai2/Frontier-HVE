@@ -14,6 +14,7 @@ MANIFEST = ROOT / "research" / "findings" / "phase-9-source-skill-manifest.json"
 IMPORTED = ROOT / "skills" / "imported" / "agentx"
 TASKS_DIR = ROOT / "tests" / "skill_tasks" / "imported"
 TASKS_PER_SKILL = 3
+SOURCE = "AgentX fc39b29, verbatim (Apache-2.0, skills/imported/agentx/LICENSE and NOTICE)"
 TASK_WRITER = ("You write evaluation tasks for a coding-assistant skill. From the skill's name and description only, write "
                f"{TASKS_PER_SKILL} small, realistic requests a user might make where this skill should help. Each must be answerable in "
                "at most 250 words and have 3-4 concrete, checkable criteria of a good answer. Do not mention the skill. "
@@ -63,15 +64,27 @@ def run(source_root: Path, extra: list[str]) -> list[Json]:
     for e in evals:
         e["eval_method"] = "micro-strict"
         (micro_eval.EVALS_DIR / f"{e['skill']}.json").write_text(json.dumps(e, indent=2) + "\n", encoding="utf-8")
-    source = "AgentX fc39b29, verbatim (Apache-2.0, skills/imported/agentx/LICENSE and NOTICE)"
-    return [onboard(dirs[e["skill"]], source, False) | {"eval": e} for e in evals]
+    return [onboard(dirs[e["skill"]], SOURCE, "eval") | {"eval": e} for e in evals]
+
+
+def admit_untested(source_root: Path, extra: list[str]) -> list[Json]:
+    """Copy every candidate and admit it as provisional with its evaluation pending (scan and category checks only)."""
+    for name in ("LICENSE", "NOTICE"):
+        IMPORTED.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(source_root / name, IMPORTED / name)
+    return [onboard(copy_verbatim(source_root, s), SOURCE, "untested") for s in candidates(extra)]
 
 
 if __name__ == "__main__":
     args = sys.argv[1:]
-    if not args:
-        raise SystemExit("usage: import_eval.py <source repo clone> [extra skill name ...]   (run from the repository root)")
-    for r in run(Path(args[0]), args[1:]):
+    if len(args) < 2 or args[0] not in ("eval", "untested"):
+        raise SystemExit("usage: import_eval.py eval|untested <source repo clone> [extra skill name ...]   (run from the repository root)")
+    if args[0] == "untested":
+        for r in admit_untested(Path(args[1]), args[2:]):
+            print(f"{r['name']:<28} {'provisional (eval pending)' if r['admitted'] else 'rejected'}  {r['skill_tokens']} tokens  "
+                  f"{'; '.join(r['reasons'])}")
+        raise SystemExit(0)
+    for r in run(Path(args[1]), args[2:]):
         e = r["eval"]
         print(f"{r['name']:<28} {'ADMIT' if r['admitted'] else 'reject':<6} lift {e['quality_lift_pp']:>6} pp  wins {e['wins']}/{len(e['per_task'])}  "
               f"checks +{e['check_gains']}/-{e['check_losses']} p={e['check_sign_test_p']}  {'; '.join(r['reasons'])}")

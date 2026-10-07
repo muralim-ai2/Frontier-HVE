@@ -5,7 +5,7 @@ import shutil
 import sys
 from datetime import date
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 from scan import scan
 from triage import load_categories, skill_categories
@@ -15,6 +15,7 @@ REGISTRY_FILE = ROOT / "skills" / "registry.json"
 ADMITTED_DIR = ROOT / "skills" / "admitted"
 EVALS_DIR = ROOT / "skills" / "evals"
 NON_PYTHON_SCRIPTS = {".ps1", ".sh", ".bat", ".cmd"}
+Mode = Literal["provisional", "eval", "untested"]
 
 Json = dict[str, Any]
 
@@ -63,22 +64,27 @@ def decide(report: Json, evaluation: Json | None, categories: list[str], thresho
     return reasons
 
 
-def onboard(skill_dir: Path, source: str, provisional: bool) -> Json:
-    """Run the static gate (provisional) or the eval gate, then admit (copy + registry entry) or reject (registry entry with reasons)."""
+def onboard(skill_dir: Path, source: str, mode: Mode) -> Json:
+    """Run the static gate (provisional), the eval gate (eval) or scan and category only (untested), then admit or reject."""
     config = load_categories()
     report = scan(skill_dir)
     categories = skill_categories(report, config)
     evaluation = None
-    if provisional:
+    if mode == "provisional":
         scripts = sorted(p.name for p in skill_dir.rglob("*") if p.suffix.lower() in NON_PYTHON_SCRIPTS)
         reasons = decide_provisional(dict(report), categories, config["provisional"], scripts)
+    elif mode == "untested":
+        reasons = [f"scan: {f['rule']} in {f['file']}:{f['line']}" for f in report["findings"]]
+        reasons += [] if categories else ["matches no harness category in skills/categories.json"]
     else:
         eval_file = EVALS_DIR / f"{report['name']}.json"
         evaluation = json.loads(eval_file.read_text(encoding="utf-8")) if report["ok"] and eval_file.exists() else None
         reasons = decide(dict(report), evaluation, categories, config["thresholds"])
     entry: Json = {"name": report["name"], "description": report["description"], "source": source,
-                   "status": "provisional" if provisional else "admitted", "task_categories": categories,
+                   "status": "admitted" if mode == "eval" else "provisional", "task_categories": categories,
                    "skill_tokens": report["skill_tokens"], "quality_lift_pp": None}
+    if mode == "untested":
+        entry["evaluation"] = "pending"
     if evaluation:
         entry |= {k: evaluation[k] for k in ("quality_lift_pp", "token_overhead_pct", "lift_per_aiu", "eval_method")}
         entry["eval_run_ids"] = evaluation["runs_with"] + evaluation["runs_without"]
@@ -99,6 +105,6 @@ def onboard(skill_dir: Path, source: str, provisional: bool) -> Json:
 
 if __name__ == "__main__":
     args = sys.argv[1:]
-    if len(args) not in (2, 3) or (len(args) == 3 and args[2] != "--provisional"):
-        raise SystemExit("usage: onboard.py <skill_dir> <source label> [--provisional]")
-    print(json.dumps(onboard(Path(args[0]), args[1], len(args) == 3), indent=2))
+    if len(args) != 3 or args[2] not in ("provisional", "eval", "untested"):
+        raise SystemExit("usage: onboard.py <skill_dir> <source label> provisional|eval|untested")
+    print(json.dumps(onboard(Path(args[0]), args[1], args[2]), indent=2))  # type: ignore[arg-type]

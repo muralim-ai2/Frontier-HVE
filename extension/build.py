@@ -38,8 +38,12 @@ def build() -> list[str]:
     shutil.copytree(PLUGIN_SRC / "skills", SKILLS)
     shutil.copytree(REPO / "skills" / "admitted", RUNTIME / "skills" / "admitted")
     shutil.copy2(REPO / "skills" / "authored" / "NOTICE", RUNTIME / "skills" / "NOTICE")
+    (RUNTIME / "skills" / "licenses" / "agentx").mkdir(parents=True)
+    for name in ("LICENSE", "NOTICE"):
+        shutil.copy2(REPO / "skills" / "imported" / "agentx" / name, RUNTIME / "skills" / "licenses" / "agentx" / name)
     for path in RUNTIME.rglob("*.py"):
-        py_compile.compile(str(path), doraise=True)
+        if RUNTIME / "skills" not in path.parents:
+            py_compile.compile(str(path), doraise=True)
     for cache in list(RUNTIME.rglob("__pycache__")):
         shutil.rmtree(cache)
     referenced = sorted({ref for agent in (EXTENSION / "agents").glob("*.agent.md")
