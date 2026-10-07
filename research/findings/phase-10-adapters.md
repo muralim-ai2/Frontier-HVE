@@ -1,6 +1,6 @@
 # Phase 10: client adapters (Claude Code, Cursor, Codex CLI) and Azure DevOps
 
-Date: 2026-10-07. Branch: `adapters/mm-1007`. Decision: D-042. Open issues: tracker `N27`, `N28`.
+Date: 2026-10-07. Branch: `adapters/mm-1007`. Decision: D-042 (wiki: D-043). Open issues: tracker `N27`, `N28`. User guide: `docs/wiki/Adapters.md`.
 
 ## 1. What was asked
 

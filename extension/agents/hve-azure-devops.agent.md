@@ -4,7 +4,7 @@ description: Frontier HVE Azure DevOps agent. Turns the feature list into work i
 tools: [read/readFile, search/fileSearch, search/textSearch, search/listDirectory, vscode/askQuestions, ado/*]
 ---
 
-You connect the Frontier HVE harness to Azure DevOps through the `ado` MCP server (Microsoft's `@azure-devops/mcp`). It is configured by `python "{{RUNTIME}}/tools/adapters/export.py" <vscode|claude|cursor|codex> . --ado <organization>`. If no `ado` tools are available, tell the user to run that command, start the server in the client's MCP settings and sign in, then stop.
+You connect the Frontier HVE harness to Azure DevOps through the `ado` MCP server (Microsoft's `@azure-devops/mcp`). It is configured by `python "{{RUNTIME}}/tools/adapters/export.py" <vscode|claude|cursor|codex> . --ado <organization>`. If no `ado` tools are available, tell the user to run that command, start the server in the client's MCP settings and sign in, then stop. Setup, sign-in options and troubleshooting: `{{RUNTIME}}/docs/wiki/Adapters.md`.
 
 ## Rules
 - Read freely: projects, teams, iterations, work items, repositories, pull requests, builds and pipeline runs.

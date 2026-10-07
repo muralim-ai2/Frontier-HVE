@@ -74,7 +74,7 @@
     }
   ],
   "wiki_topics": {
-    "note": "Wiki pages to write later; none exist yet. Add a topic whenever a feature lands, update sources when it changes. Statuses: not_started, drafted, published.",
+    "note": "Wiki pages live in docs/wiki/ (index: Home.md), are shipped in the extension runtime (runtime/docs/wiki/) and are pointed to from .github/copilot-instructions.md and AGENTS.md so agents find them. Add a topic whenever a feature lands, update sources when it changes. Statuses: not_started, drafted, published.",
     "topics": [
       {"id": "W01", "topic": "Getting started", "covers": "Install the VSIX, Frontier HVE: Set up, build preference question, Session Target: Local, what .hve/ holds", "sources": ["README.md#install-the-frontier-hve-extension", "D-032", "D-034"], "status": "not_started"},
       {"id": "W02", "topic": "Agent modes and when to use each", "covers": "HVE minimal, single, creator, creator-flow, creator-github, skill-evaluator; research vs product agents; model pins vs picked model", "sources": ["README.md#agent-modes", "D-033", "D-036"], "status": "not_started"},
@@ -94,7 +94,7 @@
       {"id": "W16", "topic": "Hooks reference", "covers": "Every hook: event, purpose, environment variables, state files under .hve/ and .harness/", "sources": ["hooks/", "extension/agents/"], "status": "not_started"},
       {"id": "W17", "topic": "Troubleshooting", "covers": "Plugin not re-rendered, Python missing, hooks not firing (Local target), duplicate plugin registration, push waiting for sign-in, Foundry deployment names", "sources": ["D-033", "D-038", "D-039"], "status": "not_started"},
       {"id": "W18", "topic": "Decisions, tracker and validation", "covers": "Decision log, tracker statuses, why only the user validates, how evidence is recorded", "sources": ["research/decisions/decision_log.md", "tracker.json"], "status": "not_started"},
-      {"id": "W19", "topic": "Using the harness in Claude Code, Cursor and Codex; Azure DevOps", "covers": "/export-harness, what each client gets, how to invoke the agents, hook gaps per client, connecting Azure DevOps with @azure-devops/mcp, the HVE azure-devops agent", "sources": ["research/findings/phase-10-adapters.md", "tools/adapters/export.py", "hooks/agent_compat.py", "D-042"], "status": "not_started"}
+      {"id": "W19", "topic": "Using the harness in Claude Code, Cursor and Codex; Azure DevOps", "covers": "/export-harness, what each client gets, how to invoke the agents, hook gaps per client, connecting Azure DevOps with @azure-devops/mcp, the HVE azure-devops agent", "sources": ["docs/wiki/Adapters.md", "research/findings/phase-10-adapters.md", "tools/adapters/export.py", "hooks/agent_compat.py", "D-042", "D-043"], "status": "drafted"}
     ]
   },
   "phases": [

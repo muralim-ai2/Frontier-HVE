@@ -42,6 +42,7 @@ def build() -> list[str]:
     (RUNTIME / "skills" / "licenses" / "agentx").mkdir(parents=True)
     for name in ("LICENSE", "NOTICE"):
         shutil.copy2(REPO / "skills" / "imported" / "agentx" / name, RUNTIME / "skills" / "licenses" / "agentx" / name)
+    shutil.copytree(REPO / "docs" / "wiki", RUNTIME / "docs" / "wiki")
     for path in RUNTIME.rglob("*.py"):
         if RUNTIME / "skills" not in path.parents:
             py_compile.compile(str(path), doraise=True)

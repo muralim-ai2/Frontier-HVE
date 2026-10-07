@@ -216,8 +216,9 @@ def export(client: str, workspace: Path, organization: str | None) -> Json:
     written = [] if client == "vscode" else export_client(workspace, client)
     if organization:
         written.append(add_ado(workspace, client, organization))
+    guide = str(ROOT / "docs" / "wiki" / "Adapters.md") if client == "vscode" else f"{RUNTIME_PATH}/docs/wiki/Adapters.md"
     return {"client": client, "written": [p.relative_to(workspace).as_posix() for p in written], "invoke": INVOKE[client],
-            "gaps": GAPS[client]}
+            "gaps": GAPS[client], "guide": guide}
 
 
 if __name__ == "__main__":

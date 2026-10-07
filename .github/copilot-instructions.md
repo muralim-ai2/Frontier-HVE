@@ -4,6 +4,7 @@
 
 - This repo is the enterprise AI harness. Original request and design rules: `reference/initial_request.md`. Background: `reference/Enterprise AI Harness Blueprint v3.md`, `reference/Implementation Plan Enterprise AI Harness v3.md`.
 - Current status and open work: `tracker.json` (`next_actions` first). Decisions: `research/decisions/decision_log.md`. Hypothesis: `research/hypothesis.md`.
+- How-to wiki for users and agents: `docs/wiki/` (start at `Home.md`; e.g. `Adapters.md` for Claude Code, Cursor, Codex and Azure DevOps).
 - Never mark a tracker item `validated`; only the user does.
 
 ## npm registry on Microsoft-managed devices

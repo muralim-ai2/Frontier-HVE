@@ -205,10 +205,27 @@ def test_codex_hooks() -> None:
         assert sub and "additionalContext" in sub[0]["hookSpecificOutput"], sub
 
 
+def test_wiki_is_shipped_and_linked() -> None:
+    """The adapter guide ships in the runtime where the skill, agent and export report point, and wiki links resolve."""
+    for page in (REPO / "docs" / "wiki").glob("*.md"):
+        for link in re.findall(r"\]\(([^)#:]+)\)", page.read_text(encoding="utf-8")):
+            assert (page.parent / link).is_file(), (page.name, link)
+    skill = (REPO / "plugins" / "harness-assist" / "skills" / "export-harness" / "SKILL.md").read_text(encoding="utf-8")
+    agent = (EXTENSION / "agents" / "hve-azure-devops.agent.md").read_text(encoding="utf-8")
+    assert "<tools>/../docs/wiki/Adapters.md" in skill and "{{RUNTIME}}/docs/wiki/Adapters.md" in agent
+    with tempfile.TemporaryDirectory() as tmp:
+        ws = exported_workspace(tmp)
+        report = export(ws, "claude")
+        assert (ws / report["guide"]).is_file() and (ws / ".hve" / "runtime" / "tools" / ".." / "docs" / "wiki" / "Adapters.md").is_file()
+        assert ".hve/runtime/docs/wiki/Adapters.md" in (ws / ".claude" / "agents" / "hve-azure-devops.md").read_text(encoding="utf-8")
+        assert Path(export(ws, "vscode", "--ado", "contoso")["guide"]).is_file()
+
+
 if __name__ == "__main__":
     test_export_structure()
     test_export_refuses_foreign_files_and_bad_organizations()
     test_claude_code_hooks()
     test_cursor_hooks()
     test_codex_hooks()
+    test_wiki_is_shipped_and_linked()
     print("test_adapters: OK")
