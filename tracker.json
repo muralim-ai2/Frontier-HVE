@@ -51,8 +51,36 @@
       "id": "N24",
       "issue": "Built (D-035, D-037), extension 0.2.0: delivery-coach (tracker.json, screenshot evidence, manual-check offers, .hve/discovery sprints, coaching), the skill library with /recommend-skills. Not verified live.",
       "action": "User: reload the test window, re-run Frontier HVE: Set up (pro code now reads 'Use AI to code and review continuously'), ask HVE creator for a small UI app; check tracker.json, a manual-check question after a feature, .hve/skills/ with the loaded skills, and /recommend-skills output."
+    },
+    {
+      "id": "N25",
+      "issue": "Built (D-039), extension 0.3.0: HVE skill-evaluator agent (in-chat blind pairs, optional Foundry path, workspace library) and the context-load guardrail (/check-context-load, setup notification, delivery-coach close-out). Not verified live. Found in this window: the harness-assist skills are registered twice (repository path and installed extension).",
+      "action": "User: run Frontier HVE: Set up and read the context-load notification; type /check-context-load; pick HVE skill-evaluator and onboard one small skill of your own; remove the repository plugins/harness-assist entry from chat.pluginLocations in windows where the extension is installed."
     }
   ],
+  "wiki_topics": {
+    "note": "Wiki pages to write later; none exist yet. Add a topic whenever a feature lands, update sources when it changes. Statuses: not_started, drafted, published.",
+    "topics": [
+      {"id": "W01", "topic": "Getting started", "covers": "Install the VSIX, Frontier HVE: Set up, build preference question, Session Target: Local, what .hve/ holds", "sources": ["README.md#install-the-frontier-hve-extension", "D-032", "D-034"], "status": "not_started"},
+      {"id": "W02", "topic": "Agent modes and when to use each", "covers": "HVE minimal, single, creator, creator-flow, creator-github, skill-evaluator; research vs product agents; model pins vs picked model", "sources": ["README.md#agent-modes", "D-033", "D-036"], "status": "not_started"},
+      {"id": "W03", "topic": "The feature loop (initializer, generator, evaluator)", "covers": "feature_list.json, locked checks, progress.txt, tracker.json, stacked branches, loop.py init/next/verify/status, existing repos", "sources": ["README.md#5-anthropic-long-running-pattern", "D-023", "D-033", "D-035"], "status": "not_started"},
+      {"id": "W04", "topic": "Recovery rules and escalation", "covers": "Attempt ledger, rules R0-R7, attempt cap, escalation questions, human-only resume, judged errors vs stop", "sources": ["tools/loop/diagnose.py", "D-024", "D-033"], "status": "not_started"},
+      {"id": "W05", "topic": "Participatory delivery (delivery-coach)", "covers": "Coaching first, screenshot evidence from checks, evaluator sub-agent, manual-check offers, discovery sprints in .hve/discovery, close-out", "sources": ["plugins/harness-assist/skills/delivery-coach/SKILL.md", "D-035"], "status": "not_started"},
+      {"id": "W06", "topic": "Explanation depth without labels", "covers": "Build preference (no/low/pro code), inferred depth, signals and weights, why users are never classified", "sources": ["hooks/profile_detector.py", "D-034"], "status": "not_started"},
+      {"id": "W07", "topic": "Guardrails", "covers": "Prototype guardrail (5,000 lines, non-enterprise components, 20 MB files), module size, no-fallback pre-commit, anti-gaming, push only ticked branches", "sources": ["plugins/harness-assist/scripts/guardrail.py", "hooks/", "D-025", "D-026", "D-031"], "status": "not_started"},
+      {"id": "W08", "topic": "Skill library and budgeted loading", "covers": "Hidden library vs discoverable skills, loadout budget (10 skills, 2,000 tokens), ranking, /recommend-skills, ticking extra skills, workspace library", "sources": ["tools/skills/recommend.py", "hooks/skill_loader.py", "D-037", "D-039"], "status": "not_started"},
+      {"id": "W09", "topic": "Evaluating and onboarding a skill", "covers": "Static gate, micro paired evaluation, in-chat evaluator, blind judging, admission rule, ties as wins, reading an eval file", "sources": ["research/findings/phase-9-skill-micro-eval.md", "research/findings/phase-9-skill-evaluator-and-context-load.md", "D-038", "D-039"], "status": "not_started"},
+      {"id": "W10", "topic": "Context load and bloat", "covers": "What loads before the user types, how it is counted, warnings, fixes, when the check runs and how to invoke it", "sources": ["research/findings/phase-9-skill-evaluator-and-context-load.md", "D-039"], "status": "not_started"},
+      {"id": "W11", "topic": "Sub-agents and model routing", "covers": "How VS Code picks a sub-agent's model, built-in helper models, cost-tier limit, what that means for reasoning settings", "sources": ["README.md#agent-modes", "D-036"], "status": "not_started"},
+      {"id": "W12", "topic": "Graph workflow (creator-flow)", "covers": "Stages and edges, evidence-gated transitions, capped loops, stage agents and the stage guard", "sources": ["tools/loop/flow.py", "D-028"], "status": "not_started"},
+      {"id": "W13", "topic": "GitHub delivery (creator-github)", "covers": "Stacked feature branches, PR records, code review, tick-to-push, parallel options the user runs and picks", "sources": ["tools/git/", "D-026", "D-027", "D-029"], "status": "not_started"},
+      {"id": "W14", "topic": "Research harness and benchmarks", "covers": "bench, collect, compare, blind scoring, trajectory, OTel metrics, telemetry prune", "sources": ["tools/observe/", "D-005", "D-011", "D-031"], "status": "not_started"},
+      {"id": "W15", "topic": "Tokenomics", "covers": "Where tokens go, caching, compaction, skill and instruction costs, loadout budget, cost of evaluation", "sources": ["research/findings/phase-3-tokenomics.md", "D-037", "D-039"], "status": "not_started"},
+      {"id": "W16", "topic": "Hooks reference", "covers": "Every hook: event, purpose, environment variables, state files under .hve/ and .harness/", "sources": ["hooks/", "extension/agents/"], "status": "not_started"},
+      {"id": "W17", "topic": "Troubleshooting", "covers": "Plugin not re-rendered, Python missing, hooks not firing (Local target), duplicate plugin registration, push waiting for sign-in, Foundry deployment names", "sources": ["D-033", "D-038", "D-039"], "status": "not_started"},
+      {"id": "W18", "topic": "Decisions, tracker and validation", "covers": "Decision log, tracker statuses, why only the user validates, how evidence is recorded", "sources": ["research/decisions/decision_log.md", "tracker.json"], "status": "not_started"}
+    ]
+  },
   "phases": [
     {
       "phase": 1,

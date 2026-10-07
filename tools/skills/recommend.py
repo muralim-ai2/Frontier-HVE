@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any, Literal
 
 SKILLS_DIR = Path(__file__).resolve().parents[2] / "skills"
+USER_REGISTRY = Path.cwd() / ".hve" / "skills-registry.json"
 STATUS_ORDER = {"admitted": 0, "provisional": 1}
 STOP_WORDS = {"the", "and", "for", "then", "with", "from", "that", "this", "our", "your", "into", "each", "before", "after", "are",
               "was", "not", "can", "how", "what", "why", "all", "any", "one", "use", "make", "want", "need", "please"}
@@ -43,6 +44,15 @@ def relevance(prompt: str, entry: Json, categories: list[str], frequency: Counte
     return len(set(entry["task_categories"]) & set(categories)) + sum(1 / frequency[s] for s in shared)
 
 
+def library_entries() -> list[Json]:
+    """Return harness library entries and the workspace's own admitted skills, each with the folder to load it from."""
+    entries = [e | {"path": f"skills/admitted/{e['name']}"} for e in read("registry.json")["admitted"]]
+    if USER_REGISTRY.is_file():
+        own = json.loads(USER_REGISTRY.read_text(encoding="utf-8"))["admitted"]
+        entries += [e | {"path": (USER_REGISTRY.parent / "skill-library" / e["name"]).as_posix()} for e in own]
+    return entries
+
+
 def rank(prompt: str, min_status: MinStatus) -> Json:
     """Return the prompt's categories, the skills to load (most relevant first, within max skills and tokens) and the rest to recommend."""
     if min_status not in STATUS_ORDER:
@@ -51,7 +61,7 @@ def rank(prompt: str, min_status: MinStatus) -> Json:
     budget = config["loadout"]
     categories = task_categories(prompt, config)
     allowed = {s for s, order in STATUS_ORDER.items() if order <= STATUS_ORDER[min_status]}
-    library = read("registry.json")["admitted"]
+    library = library_entries()
     frequency = Counter(s for e in library for s in skill_stems(e))
     frequency = Counter({s: n for s, n in frequency.items() if n <= len(library) / 2})
     matching = [e for e in library if e["status"] in allowed and set(e["task_categories"]) & set(categories)]
@@ -61,8 +71,7 @@ def rank(prompt: str, min_status: MinStatus) -> Json:
     recommend: list[Json] = []
     tokens = 0
     for e in matching:
-        row = {k: e[k] for k in ("name", "status", "task_categories", "skill_tokens", "quality_lift_pp")}
-        row["path"] = f"skills/admitted/{e['name']}"
+        row = {k: e[k] for k in ("name", "status", "task_categories", "skill_tokens", "quality_lift_pp", "path")}
         if len(load) < budget["max_skills"] and tokens + e["skill_tokens"] <= budget["max_tokens"]:
             load.append(row)
             tokens += e["skill_tokens"]

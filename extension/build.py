@@ -16,7 +16,7 @@ FILES = {
               "module_guard.py", "no_fallback.py", "skill_loader.py"],
     "tools/loop": ["loop.py", "diagnose.py", "flow.py"],
     "tools/git": ["branch_workflow.py", "parallel_options.py"],
-    "tools/skills": ["recommend.py"],
+    "tools/skills": ["recommend.py", "scan.py", "triage.py", "onboard.py", "micro_eval.py", "evaluate.py", "context_load.py"],
     "skills": ["registry.json", "categories.json"],
 }
 SCRIPTS = ["choice_recorder.py", "guardrail.py", "enterprise_catalog.json"]

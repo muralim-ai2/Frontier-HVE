@@ -16,8 +16,7 @@ ROOT = Path(__file__).resolve().parents[2]
 TASKS_DIR = ROOT / "tests" / "skill_tasks"
 SKILLS_DIR = ROOT / "skills"
 EVALS_DIR = SKILLS_DIR / "evals"
-CACHE_DIR = ROOT / ".hve" / "evals" / "micro"
-ENV_FILE = ROOT / ".env.local"
+CACHE_DIR = Path.cwd() / ".hve" / "evals" / "micro"
 SCORE_MAX = 5
 SYSTEM = "You are a senior software engineer. Answer the task directly and concretely in at most 250 words."
 JUDGE_SYSTEM = ("You are a strict, impartial evaluator. You see a task, its checks, and two anonymous answers A and B. "
@@ -28,9 +27,9 @@ JUDGE_SYSTEM = ("You are a strict, impartial evaluator. You see a task, its chec
 Json = dict[str, Any]
 
 
-def read_env() -> dict[str, str]:
-    """Return the KEY=VALUE pairs of .env.local."""
-    lines = ENV_FILE.read_text(encoding="utf-8").splitlines()
+def read_env(env_file: Path) -> dict[str, str]:
+    """Return the KEY=VALUE pairs of an env file such as .env.local."""
+    lines = env_file.read_text(encoding="utf-8").splitlines()
     return dict(line.split("=", 1) for line in lines if line.strip() and not line.lstrip().startswith("#"))
 
 
@@ -83,43 +82,61 @@ def parse_json(text: str) -> Json:
     return json.loads(text[text.index("{"):text.rindex("}") + 1])
 
 
+def with_first(task_id: str) -> bool:
+    """Return whether the with-skill answer is shown as A, fixed by a hash of the task id (random-like, reproducible)."""
+    return int(hashlib.sha256(task_id.encode()).hexdigest(), 16) % 2 == 0
+
+
+def judge_prompt(task: Json, a: str, b: str) -> str:
+    """Return the judge's user prompt: the task, its numbered checks and the two anonymous answers."""
+    checks = "\n".join(f"{i}. {c}" for i, c in enumerate(task["checks"], 1))
+    return f"Task:\n{task['prompt']}\n\nChecks:\n{checks}\n\nAnswer A:\n{a}\n\nAnswer B:\n{b}"
+
+
+def unblind(verdict: Json, shown_first: bool) -> Json:
+    """Map a judge verdict on A and B back to with-skill and without-skill scores."""
+    first, second = (verdict["a"], verdict["b"]) if shown_first else (verdict["b"], verdict["a"])
+    return {"with": float(first["score"]), "without": float(second["score"]), "reason": verdict["reason"],
+            "with_shown_as": "A" if shown_first else "B"}
+
+
 def judge(client: Client, model: str, task: Json, with_skill: str, without_skill: str) -> Json:
     """Return the judge's scores for both answers, shown as A and B in an order fixed by the task id (blind, reproducible)."""
-    with_first = int(hashlib.sha256(task["id"].encode()).hexdigest(), 16) % 2 == 0
-    a, b = (with_skill, without_skill) if with_first else (without_skill, with_skill)
-    checks = "\n".join(f"{i}. {c}" for i, c in enumerate(task["checks"], 1))
-    prompt = f"Task:\n{task['prompt']}\n\nChecks:\n{checks}\n\nAnswer A:\n{a}\n\nAnswer B:\n{b}"
-    verdict = parse_json(client.chat(model, [{"role": "system", "content": JUDGE_SYSTEM}, {"role": "user", "content": prompt}])["content"])
-    first, second = (verdict["a"], verdict["b"]) if with_first else (verdict["b"], verdict["a"])
-    return {"with": float(first["score"]), "without": float(second["score"]), "reason": verdict["reason"], "with_shown_as": "A" if with_first else "B"}
+    shown_first = with_first(task["id"])
+    a, b = (with_skill, without_skill) if shown_first else (without_skill, with_skill)
+    messages = [{"role": "system", "content": JUDGE_SYSTEM}, {"role": "user", "content": judge_prompt(task, a, b)}]
+    return unblind(parse_json(client.chat(model, messages)["content"]), shown_first)
 
 
-def report(name: str, tasks: list[Json], answers: dict[tuple[str, bool], Json], verdicts: dict[str, Json], config: Json) -> Json:
-    """Return and write skills/evals/<name>.json: quality lift, wins, worst task, and per-session token overhead."""
+def summarize(name: str, rows: list[Json], config: Json, method: str, models: Json) -> Json:
+    """Return the eval of one skill from per-task rows: quality lift, wins, losses, worst task and per-call token overhead."""
+    added = statistics.mean(r["prompt_delta"] + r["completion_delta"] for r in rows)
+    return {"skill": name, "eval_method": method} | models | {
+        "quality_lift_pp": round(statistics.mean(r["delta"] for r in rows) / SCORE_MAX * 100, 1),
+        "token_overhead_pct": round(added / config["baseline_tokens_per_call"] * 100, 2), "lift_per_aiu": None,
+        "wins": sum(r["delta"] > 0 for r in rows), "losses": sum(r["delta"] < 0 for r in rows), "worst_delta": min(r["delta"] for r in rows),
+        "runs_with": [r["task"] for r in rows], "runs_without": [r["task"] for r in rows], "per_task": rows}
+
+
+def report(name: str, tasks: list[Json], answers: dict[tuple[str, bool], Json], verdicts: dict[str, Json], config: Json,
+           evals_dir: Path) -> Json:
+    """Return and write <evals_dir>/<name>.json from the answers' token usage and the unblinded verdicts."""
     rows = []
     for task in tasks:
         w, wo, v = answers[(task["id"], True)]["usage"], answers[(task["id"], False)]["usage"], verdicts[task["id"]]
         rows.append({"task": task["id"], "with": v["with"], "without": v["without"], "delta": v["with"] - v["without"], "reason": v["reason"],
                      "prompt_delta": w["prompt_tokens"] - wo["prompt_tokens"], "completion_delta": w["completion_tokens"] - wo["completion_tokens"]})
-    added = statistics.mean(r["prompt_delta"] + r["completion_delta"] for r in rows)
-    result = {"skill": name, "eval_method": "micro", "generator": config["generator"], "judge": config["judge"],
-              "quality_lift_pp": round(statistics.mean(r["delta"] for r in rows) / SCORE_MAX * 100, 1),
-              "token_overhead_pct": round(added / config["baseline_tokens_per_call"] * 100, 2), "lift_per_aiu": None,
-              "wins": sum(r["delta"] > 0 for r in rows), "losses": sum(r["delta"] < 0 for r in rows),
-              "worst_delta": min(r["delta"] for r in rows), "runs_with": [r["task"] for r in rows], "runs_without": [r["task"] for r in rows],
-              "per_task": rows}
-    EVALS_DIR.mkdir(exist_ok=True)
-    (EVALS_DIR / f"{name}.json").write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")
+    result = summarize(name, rows, config, "micro", {"generator": config["generator"], "judge": config["judge"]})
+    evals_dir.mkdir(parents=True, exist_ok=True)
+    (evals_dir / f"{name}.json").write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")
     return result
 
 
-def run(names: list[str]) -> list[Json]:
-    """Answer every task of the named skills in both conditions, judge each pair, and write one eval per skill."""
+def run(suites: dict[str, list[Json]], skills: dict[str, str], env_file: Path, evals_dir: Path) -> list[Json]:
+    """Answer every task of each skill in both conditions, judge each pair, and write one eval per skill."""
     config = json.loads((SKILLS_DIR / "categories.json").read_text(encoding="utf-8"))["micro_eval"]
-    env = read_env()
-    client = Client(env["AZURE_OPENAI_ENDPOINT"], access_token(), config["models"])
-    suites = {n: json.loads((TASKS_DIR / f"{n}.json").read_text(encoding="utf-8")) for n in names}
-    skills = {n: (SKILLS_DIR / "admitted" / n / "SKILL.md").read_text(encoding="utf-8") for n in names}
+    client = Client(read_env(env_file)["AZURE_OPENAI_ENDPOINT"], access_token(), config["models"])
+    names = list(suites)
     jobs = [(n, t, with_skill) for n in names for t in suites[n] for with_skill in (True, False)]
     start = time.time()
     with ThreadPoolExecutor(config["concurrency"]) as pool:
@@ -129,7 +146,7 @@ def run(names: list[str]) -> list[Json]:
         judged = list(pool.map(lambda t: judge(client, config["judge"], t, answers[(t["id"], True)]["content"],
                                                answers[(t["id"], False)]["content"]), pairs))
     verdicts = {t["id"]: v for t, v in zip(pairs, judged)}
-    results = [report(n, suites[n], answers, verdicts, config) for n in names]
+    results = [report(n, suites[n], answers, verdicts, config, evals_dir) for n in names]
     print(f"{len(jobs)} answers and {len(pairs)} judgements in {time.time() - start:.0f} s; {client.spent:,} tokens spent this run "
           "(cached calls cost nothing)", file=sys.stderr)
     return results
@@ -138,8 +155,10 @@ def run(names: list[str]) -> list[Json]:
 if __name__ == "__main__":
     args = sys.argv[1:]
     if not args:
-        raise SystemExit("usage: micro_eval.py all | <skill> [<skill> ...]")
+        raise SystemExit("usage: micro_eval.py all | <skill> [<skill> ...]   (run from the repository root)")
     selected = sorted(p.stem for p in TASKS_DIR.glob("*.json")) if args == ["all"] else args
-    for r in run(selected):
+    suite_map = {n: json.loads((TASKS_DIR / f"{n}.json").read_text(encoding="utf-8")) for n in selected}
+    skill_map = {n: (SKILLS_DIR / "admitted" / n / "SKILL.md").read_text(encoding="utf-8") for n in selected}
+    for r in run(suite_map, skill_map, ROOT / ".env.local", EVALS_DIR):
         print(f"{r['skill']:<22} lift {r['quality_lift_pp']:>6} pp  wins {r['wins']}/{len(r['per_task'])}  worst {r['worst_delta']:+}  "
               f"overhead {r['token_overhead_pct']}%")

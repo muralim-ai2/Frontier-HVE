@@ -56,15 +56,16 @@ def test_rendered_plugin_shape() -> None:
     with tempfile.TemporaryDirectory() as tmp:
         out = Path(tmp) / "plugin"
         agents = render(out)
-        assert len(agents) == 11, agents
+        assert len(agents) == 14, agents
         assert json.loads((out / "plugin.json").read_text(encoding="utf-8"))["name"] == "frontier-hve"
-        assert len(list((out / "skills").glob("*/SKILL.md"))) == 9
+        assert len(list((out / "skills").glob("*/SKILL.md"))) == 10
         assert not (out / "skills" / "ux-flows").exists() and (EXTENSION / "runtime" / "skills" / "admitted" / "ux-flows" / "SKILL.md").is_file()
         assert (out / "scripts" / "guardrail.py").exists()
         for name in agents:
             text = (out / "com.github.copilot" / "agents" / name).read_text(encoding="utf-8")
             assert "{{RUNTIME}}" not in text and re.search(r"^name: HVE ", text, re.M), name
-            assert not re.search(r"^(model|reasoning-effort):|budget", text, re.M), f"{name}: product agents use the picked model, no budget"
+            assert not re.search(r"^(model|reasoning-effort):|budget\.py|HARNESS_BUDGET", text, re.M), \
+                f"{name}: product agents use the picked model, no time budget"
             for script in re.findall(r'python "([^"]+\.py)"', text):
                 assert Path(script).is_file(), (name, script)
 
@@ -77,7 +78,7 @@ def test_rerender_updates_in_place() -> None:
         stale = out / "com.github.copilot" / "agents" / "old.agent.md"
         stale.write_text("old", encoding="utf-8")
         (out / "skills" / "old-skill").mkdir()
-        assert len(render(out, "0.1.1")) == 11
+        assert len(render(out, "0.1.1")) == 14
         assert json.loads((out / "plugin.json").read_text(encoding="utf-8"))["version"] == "0.1.1"
         assert not stale.exists() and not (out / "skills" / "old-skill").exists()
 
@@ -95,6 +96,10 @@ def test_rendered_hooks_run_in_a_workspace() -> None:
         prompt = start | {"hook_event_name": "UserPromptSubmit", "prompt": "Design the screens and states of a signup page."}
         assert run(hook(creator, "skill_loader.py"), ws, prompt, HARNESS_SKILLS_MIN_STATUS="provisional") is None
         assert (ws / ".hve" / "skills" / "ux-flows" / "SKILL.md").is_file(), list((ws / ".hve").rglob("SKILL.md"))
+        isolated = {**os.environ, "APPDATA": str(ws / "appdata"), "USERPROFILE": str(ws / "home"), "HOME": str(ws / "home")}
+        load = subprocess.run([sys.executable, str(EXTENSION / "runtime" / "tools" / "skills" / "context_load.py")], cwd=ws,
+                              capture_output=True, text=True, env=isolated)
+        assert load.returncode == 0 and json.loads(load.stdout)["total_tokens"] >= 0, load.stderr
         pre = {"hook_event_name": "PreToolUse", "timestamp": "2026-10-06T08:01:00+00:00", "tool_name": "read_file",
                "tool_input": {"filePath": "x"}, "tool_use_id": "t1"}
         assert run(hook(creator, "loop_guard.py"), ws, pre, HARNESS_PROJECT=".", HARNESS_STOP_POLICY="once") is None

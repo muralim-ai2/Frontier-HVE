@@ -34,4 +34,4 @@ A hook records the answer and `python <tools>/loop/loop.py status .` shows it in
 When a feature has several viable designs, new technology or high risk, do not guess: follow `parallel-options` with 2-3 approaches. Each approach gets its own branch and worktree under `.hve/discovery/`, is built and run, and is reviewed with `code-review`. Show the user how each one behaves and what it costs to maintain, then let them tick the winner.
 
 ## 6. Close out
-Report per feature: check command and exit code, evidence files, manual check result. Say plainly what is still a prototype and which experts to involve before production.
+Report per feature: check command and exit code, evidence files, manual check result. Say plainly what is still a prototype and which experts to involve before production. Then follow `check-context-load` and include its warnings, if any, so skill and instruction bloat is caught as the project grows.

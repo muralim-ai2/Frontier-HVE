@@ -41,9 +41,9 @@ def state_file(session_id: str) -> Path:
 
 
 def library() -> set[str]:
-    """Return the names of all admitted and candidate library skills."""
-    return {p.name for folder in ("admitted", "candidates") if (SKILLS_DIR / folder).is_dir()
-            for p in (SKILLS_DIR / folder).iterdir() if p.is_dir()}
+    """Return the names of all admitted and candidate library skills, including the workspace's own library."""
+    folders = [SKILLS_DIR / "admitted", SKILLS_DIR / "candidates", STATE_DIR / "skill-library"]
+    return {p.name for folder in folders if folder.is_dir() for p in folder.iterdir() if p.is_dir()}
 
 
 def install(sources: list[str]) -> None:

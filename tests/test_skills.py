@@ -119,11 +119,71 @@ def test_micro_eval_unblinds_and_reports() -> None:
     usage = {True: {"prompt_tokens": 520, "completion_tokens": 210}, False: {"prompt_tokens": 20, "completion_tokens": 200}}
     answers = {(t["id"], w): {"usage": usage[w]} for t in tasks for w in (True, False)}
     with tempfile.TemporaryDirectory() as tmp:
-        micro_eval.EVALS_DIR = Path(tmp)
-        result = micro_eval.report("x", tasks, answers, verdicts, {"generator": "g", "judge": "j", "baseline_tokens_per_call": 51000})
+        result = micro_eval.report("x", tasks, answers, verdicts, {"generator": "g", "judge": "j", "baseline_tokens_per_call": 51000},
+                                   Path(tmp))
+        assert (Path(tmp) / "x.json").is_file()
     wins = sum(v["with"] > v["without"] for v in verdicts.values())
     assert result["wins"] == wins and result["quality_lift_pp"] == round((wins * 2 - (5 - wins) * 2) / 5 / 5 * 100, 1), result
     assert result["token_overhead_pct"] == 1.0 and result["eval_method"] == "micro", result
+
+
+def tool(script: str, ws: Path, *args: str) -> dict[str, Any]:
+    """Run a tools/skills script in a workspace with an isolated home and VS Code user folder; return its JSON output."""
+    env = {**os.environ, "APPDATA": str(ws / "appdata"), "USERPROFILE": str(ws / "home"), "HOME": str(ws / "home")}
+    result = subprocess.run([sys.executable, str(REPO / "tools" / "skills" / script), *args], cwd=ws, capture_output=True, text=True,
+                            env=env)
+    assert result.returncode == 0, result.stderr
+    return json.loads(result.stdout)
+
+
+def test_context_load_counts_always_on_and_warns_on_growth() -> None:
+    """Skills, always-on instructions, the agent and MCP servers are counted; scoped instructions are not; duplicates and growth
+    are reported."""
+    with tempfile.TemporaryDirectory() as tmp:
+        ws = Path(tmp)
+        write_skill(ws / ".github" / "skills", "form-review", "Review web forms for labels, errors and keyboard access.")
+        write_skill(ws / ".github" / "skills", "form-check", "Review web forms for labels, errors and keyboard access quickly.")
+        (ws / ".github" / "copilot-instructions.md").write_text("x" * 4000, encoding="utf-8")
+        (ws / ".github" / "instructions").mkdir()
+        (ws / ".github" / "instructions" / "all.instructions.md").write_text("---\napplyTo: '**'\n---\n" + "y" * 400, encoding="utf-8")
+        (ws / ".github" / "instructions" / "src.instructions.md").write_text("---\napplyTo: 'src/**'\n---\nz", encoding="utf-8")
+        (ws / ".github" / "agents").mkdir()
+        (ws / ".github" / "agents" / "a.agent.md").write_text("---\nname: Builder\n---\n" + "w" * 800, encoding="utf-8")
+        (ws / ".vscode").mkdir()
+        (ws / ".vscode" / "mcp.json").write_text('{"servers": {"graph": {}}, // comment\n}', encoding="utf-8")
+        first = tool("context_load.py", ws, "--agent", "Builder", "--context-tokens", "100000")
+        assert first["skill_count"] == 2 and first["by_kind"]["mcp"] == 1500 and first["by_kind"]["agent"] > 200, first
+        assert {i["name"] for i in first["top"] if i["kind"] == "instructions"} == {"copilot-instructions.md", "all.instructions.md"}
+        assert len(first["duplicates"]) == 1 and first["unmeasured_skills"] == ["form-check", "form-review"] and not first["warnings"]
+        (ws / ".github" / "copilot-instructions.md").write_text("x" * 60000, encoding="utf-8")
+        second = tool("context_load.py", ws, "--agent", "Builder", "--context-tokens", "100000")
+        assert second["previous_total_tokens"] == first["total_tokens"] and len(second["warnings"]) == 2 and second["fixes"], second
+
+
+def test_workspace_skill_evaluator_flow() -> None:
+    """static -> blind -> record admits a skill whose with-answers win, into the workspace library the recommender then ranks."""
+    with tempfile.TemporaryDirectory() as tmp:
+        ws = Path(tmp)
+        skill = write_skill(ws / "incoming", "signup-ux", "Design UI signup screens with usability checks.")
+        static = tool("evaluate.py", ws, "static", str(skill))
+        assert static["ok"] and static["categories"] == ["ux"] and not static["gate_reasons"], static
+        folder = ws / ".hve" / "evals" / "signup-ux"
+        folder.mkdir(parents=True)
+        tasks = [{"id": f"signup-ux-{i}", "prompt": f"Design signup screen {i}.", "checks": ["c1", "c2", "c3"]} for i in range(5)]
+        (folder / "tasks.json").write_text(json.dumps(tasks), encoding="utf-8")
+        (folder / "answers.json").write_text(json.dumps({t["id"]: {"with": "GOOD", "without": "PLAIN"} for t in tasks}), encoding="utf-8")
+        prompts = tool("evaluate.py", ws, "blind", "signup-ux")
+        assert len(prompts) == 5 and all("Answer A" in p["prompt"] and "strict, impartial" in p["prompt"] for p in prompts)
+        verdicts = {}
+        for p in prompts:
+            good_is_a = p["prompt"].index("GOOD") < p["prompt"].index("PLAIN")
+            verdicts[p["task"]] = {"a": {"score": 5 if good_is_a else 3}, "b": {"score": 3 if good_is_a else 5}, "reason": "r"}
+        (folder / "verdicts.json").write_text(json.dumps(verdicts), encoding="utf-8")
+        recorded = tool("evaluate.py", ws, "record", str(skill))
+        assert recorded["admitted"] and recorded["quality_lift_pp"] == 40.0 and recorded["wins"] == 5, recorded
+        assert (ws / ".hve" / "skill-library" / "signup-ux" / "SKILL.md").is_file()
+        ranked = tool("recommend.py", ws, "admitted", "design the signup page ui")
+        assert any(r["name"] == "signup-ux" and r["path"].endswith(".hve/skill-library/signup-ux") for r in ranked["load"]), ranked
 
 
 def fire(root: Path, payload: dict[str, Any], **env: str) -> str:
@@ -198,5 +258,7 @@ if __name__ == "__main__":
     test_provisional_gate()
     test_eval_report_computes_lift()
     test_micro_eval_unblinds_and_reports()
+    test_context_load_counts_always_on_and_warns_on_growth()
+    test_workspace_skill_evaluator_flow()
     test_skill_loader_budget_offer_and_scoped_deny()
     print("test_skills: OK")

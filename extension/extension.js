@@ -88,7 +88,34 @@ async function offerTelemetry(workspace) {
 }
 
 /**
- * Run the full setup: Python check, plugin registration, workspace state, optional telemetry.
+ * Measure the always-on context load (skills, instructions, MCP) and show its size and any warnings; the report is .hve/context_load.json.
+ * @param {vscode.ExtensionContext} context
+ * @param {string} workspace
+ */
+async function reportContextLoad(context, workspace) {
+  const script = path.join(context.extensionPath, 'runtime', 'tools', 'skills', 'context_load.py');
+  const stdout = await new Promise((resolve, reject) => {
+    execFile('python', [script], { cwd: workspace, maxBuffer: 10 * 1024 * 1024 }, (error, out, err) => {
+      if (error) {
+        reject(new Error(`context_load.py failed: ${err || error.message}`));
+      } else {
+        resolve(out);
+      }
+    });
+  });
+  const report = JSON.parse(stdout);
+  const shares = Object.entries(report.share_pct).map(([window, pct]) => `${pct}% of ${Number(window) / 1000}K`).join(', ');
+  const summary = `Frontier HVE: ${report.total_tokens.toLocaleString()} tokens load into every request before you type `
+    + `(${report.skill_count} skills; ${shares}).`;
+  const warnings = report.warnings.length ? ` Warnings: ${report.warnings.join('; ')}. Run /check-context-load for fixes.` : '';
+  const open = await vscode.window.showInformationMessage(summary + warnings, 'Show report');
+  if (open) {
+    await vscode.window.showTextDocument(vscode.Uri.file(path.join(workspace, '.hve', 'context_load.json')));
+  }
+}
+
+/**
+ * Run the full setup: Python check, plugin registration, workspace state, optional telemetry, context-load report.
  * @param {vscode.ExtensionContext} context
  */
 async function setUp(context) {
@@ -112,6 +139,7 @@ async function setUp(context) {
   await registerPlugin(context);
   await setUpWorkspace(folders[0].uri.fsPath);
   await offerTelemetry(folders[0].uri.fsPath);
+  await reportContextLoad(context, folders[0].uri.fsPath);
   const reload = await vscode.window.showInformationMessage(
     'Frontier HVE is ready. Reload the window, then pick an HVE agent in the Chat view (Session Target: Local).', 'Reload Window');
   if (reload) {

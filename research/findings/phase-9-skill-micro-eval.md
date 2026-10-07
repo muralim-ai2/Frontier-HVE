@@ -2,6 +2,8 @@
 
 Evidence: [skills/evals/](../../skills/evals) (one JSON per skill, with per-task scores, judge reasons and token deltas), [skills/registry.json](../../skills/registry.json), task suites in [tests/skill_tasks/](../../tests/skill_tasks), runner [tools/skills/micro_eval.py](../../tools/skills/micro_eval.py), gate [tools/skills/onboard.py](../../tools/skills/onboard.py). Decisions D-037, D-038. Model responses are cached in `.hve/evals/micro/` (git-ignored).
 
+**Scope clarification (2026-10-07):** "all 13 skills" means the locally authored batch, not all 134 AgentX source skills. Ten were admitted and three rejected. The original notes do not establish exhaustive source selection or coverage of all relevant capabilities. See the [selection and coverage audit](phase-9-skill-selection-coverage.md) for verified counts, the documented selection method, visibility distinctions and unassessed candidates across the six requested areas.
+
 ## 1. Question
 
 Does adding a skill to the agent's instructions make its answers measurably better, and at what token cost? A skill only earns a place in the library (and in the agent's context) if the answer is yes.
@@ -74,6 +76,7 @@ This change was made after seeing the results, which weakens the claim for those
 
 ## 6. Limits
 
+- **Selection coverage is unproven.** The 13 authored candidates were a curated batch; no complete source-by-source triage/exclusion ledger was found. Passing candidates in every requested category does not establish exhaustive coverage of relevant AgentX skills. The [coverage audit](phase-9-skill-selection-coverage.md) lists follow-up candidates and the evidence needed.
 - **5 tasks and one judge pass per skill.** A one-point swing on a single task moves the lift by 4 pp. Treat results near the thresholds as provisional.
 - **Same author.** The agent that wrote the skills also wrote the tasks and checks, which can favour the skills. Independent tasks (from users or real sessions) are the stronger test.
 - **Micro tasks are not sessions.** They test whether a skill improves one answer, not whether it improves a multi-step build.
@@ -81,6 +84,8 @@ This change was made after seeing the results, which weakens the claim for those
 - **No position-swap pass.** Each pair was judged once in one A/B order; judging again with the order swapped would control position bias, for about 30K more tokens.
 
 ## 7. Next
+
+Before claiming complete source coverage, inventory the pinned upstream tree and record a disposition for every source skill, then evaluate additional relevant candidates as described in the [coverage audit](phase-9-skill-selection-coverage.md). This is separate from improving the existing 13:
 
 1. Human spot-check: 2 pairs per admitted skill, compared with the judge's scores.
 2. Revise code-hygiene (protect the input contract), ui-content (respect length limits) and accessibility (aim at what the model misses: testing, screen-reader announcements), then re-run only those (`python tools/skills/micro_eval.py <skill>`; the cached without-skill answers cost nothing, only the new with-skill answers and judgements do).

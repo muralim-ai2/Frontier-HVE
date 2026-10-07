@@ -13,6 +13,13 @@
     "micro_min_wins_or_ties": 3,
     "micro_max_task_loss": 1
   },
+  "context_load": {
+    "reference_windows": [128000, 200000, 1000000],
+    "share_warn_pct": 10,
+    "growth_warn_pct": 20,
+    "duplicate_similarity": 0.5,
+    "mcp_tokens_per_server_estimate": 1500
+  },
   "micro_eval": {
     "generator": "gpt-5.4-mini",
     "judge": "gpt-5.2-chat",
