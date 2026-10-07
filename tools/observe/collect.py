@@ -1,4 +1,4 @@
-"""Collect each finished benchmark session's output into tests/outputs/<mode>/<session_id>/ and write research/runs/<session_id>.run.json."""
+"""Collect each finished benchmark session's output into .hve/outputs/<mode>/<session_id>/ and write .hve/runs/<session_id>.run.json."""
 
 import hashlib
 import json
@@ -8,11 +8,11 @@ from pathlib import Path
 from typing import Any, TypedDict
 
 ROOT = Path(__file__).resolve().parents[2]
-RUNS_DIR = ROOT / "research" / "runs"
-OUTPUTS_DIR = ROOT / "tests" / "outputs"
+RUNS_DIR = ROOT / ".hve" / "runs"
+OUTPUTS_DIR = ROOT / ".hve" / "outputs"
 PROMPT_FILE = ROOT / "tests" / "prompts" / "color-palette.md"
 STOP_EVENTS = ("Stop", "SubagentStop")
-SKIP_DIRS = {"node_modules", ".next", ".git"}
+SKIP_DIRS = {"node_modules", ".next", ".git", ".worktrees"}
 FILE_BLOCK = re.compile(r"^[ \t#*`]*(?P<path>[\w./-]+\.\w+)[ \t*`:]*\n```[^\n]*\n(?P<code>.*?)\n```", re.MULTILINE | re.DOTALL)
 PASTED_ATTACHMENT = re.compile(r"^#attachment:Pasted text #\d+$")
 TERMINAL_NOTIFICATION = re.compile(r"^\[Terminal [\w-]+ notification: ")
@@ -21,7 +21,7 @@ Json = dict[str, Any]
 
 
 class RunManifest(TypedDict):
-    """One research/runs/<session_id>.run.json."""
+    """One .hve/runs/<session_id>.run.json."""
 
     session_id: str
     mode: str
@@ -93,7 +93,7 @@ def list_files(out: Path) -> list[str]:
 
 
 def collect(events_path: Path, prompt: str) -> RunManifest:
-    """Move or extract one finished session's output into tests/outputs/<mode>/<session_id>/ and return its manifest."""
+    """Move or extract one finished session's output into .hve/outputs/<mode>/<session_id>/ and return its manifest."""
     session_id = events_path.name.removesuffix(".events.jsonl")
     events = read_jsonl(events_path)
     stops = [e for e in events if e["event"] in STOP_EVENTS]
@@ -106,7 +106,7 @@ def collect(events_path: Path, prompt: str) -> RunManifest:
                 if r["type"] == "user.message" and not TERMINAL_NOTIFICATION.match(r["data"]["content"])]  # Copilot injects these
     if len(messages) != 1 or normalize(sent_prompt(messages[0], transcript_path)) != normalize(prompt):
         raise ValueError(f"session {session_id} is not a benchmark run: it needs exactly one user message equal to {PROMPT_FILE.name}; "
-                         "move its .events.jsonl and .jsonl to research/runs/smoke/ or research/runs/invalid/")
+                         "move its .events.jsonl and .jsonl to .hve/runs/smoke/ or .hve/runs/invalid/")
     out = OUTPUTS_DIR / mode / session_id
     if mode == "minimal":
         reply = "\n\n".join(r["data"]["content"] for r in transcript if r["type"] == "assistant.message" and r["data"]["content"])
@@ -130,7 +130,7 @@ def collect(events_path: Path, prompt: str) -> RunManifest:
 
 
 def main() -> None:
-    """Collect every session in research/runs/ that has no run manifest yet."""
+    """Collect every session in .hve/runs/ that has no run manifest yet."""
     prompt = PROMPT_FILE.read_text(encoding="utf-8")
     pending = [p for p in sorted(RUNS_DIR.glob("*.events.jsonl"))
                if not (RUNS_DIR / p.name.replace(".events.jsonl", ".run.json")).exists()]
@@ -138,7 +138,7 @@ def main() -> None:
     repeated = sorted({m for m in modes if modes.count(m) > 1})
     if repeated:
         raise RuntimeError(f"more than one uncollected session for mode(s) {repeated}: run collect after every run so "
-                           "tests/outputs/<mode>/current/ belongs to exactly one session")
+                           ".hve/outputs/<mode>/current/ belongs to exactly one session")
     for path in pending:
         manifest = collect(path, prompt)
         (RUNS_DIR / f"{manifest['session_id']}.run.json").write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")

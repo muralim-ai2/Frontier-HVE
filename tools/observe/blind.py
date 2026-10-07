@@ -7,7 +7,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
-RUNS_DIR = ROOT / "research" / "runs"
+RUNS_DIR = ROOT / ".hve" / "runs"
 BLIND_DIR = ROOT / "research" / "blind"
 RUBRIC_FILE = ROOT / "tests" / "prompts" / "color-palette.rubric.json"
 LABELS = "ABCDEFGHJKLMNPQRSTUVWXYZ"

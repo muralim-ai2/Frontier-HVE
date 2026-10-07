@@ -7,10 +7,9 @@ from pathlib import Path
 from typing import Any, TypedDict
 
 from interventions import record
+from hve_paths import RUNS_DIR
 
-ROOT = Path(__file__).resolve().parent.parent
-RUNS_DIR = ROOT / "research" / "runs"
-SKILLS_DIR = ROOT / "skills"
+SKILLS_DIR = Path(__file__).resolve().parent.parent / "skills"
 OVERRIDE_FILE = SKILLS_DIR / "eval_override.json"
 SESSION_ID = re.compile(r"^[\w-]+$")
 SKILL_REF = re.compile(r"([^\s\"'/\\]+)[/\\]+SKILL\.md", re.I)

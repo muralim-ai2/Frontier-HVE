@@ -89,7 +89,7 @@ def test_eval_report_computes_lift() -> None:
 def fire(root: Path, payload: dict[str, Any]) -> str:
     """Run the skill_loader hook with a payload and return its stdout after checking it exited 0."""
     result = subprocess.run([sys.executable, str(root / "hooks" / "skill_loader.py")], input=json.dumps(payload),
-                            capture_output=True, text=True)
+                            capture_output=True, text=True, cwd=root)
     assert result.returncode == 0, result.stderr
     return result.stdout
 
@@ -99,9 +99,10 @@ def test_skill_loader_loads_top_three_and_blocks_others() -> None:
     with tempfile.TemporaryDirectory() as tmp:
         root = Path(tmp)
         (root / "hooks").mkdir()
-        (root / "research" / "runs").mkdir(parents=True)
+        (root / ".hve" / "runs").mkdir(parents=True)
         shutil.copy(REPO / "hooks" / "skill_loader.py", root / "hooks")
         shutil.copy(REPO / "hooks" / "interventions.py", root / "hooks")
+        shutil.copy(REPO / "hooks" / "hve_paths.py", root / "hooks")
         shutil.copytree(REPO / "skills", root / "skills", ignore=shutil.ignore_patterns("admitted", "candidates", "evals"))
         admitted = [{"name": n, "task_categories": ["ux"], "quality_lift_pp": lift} for n, lift in
                     (("a", 11.0), ("b", 30.0), ("c", 20.0), ("d", 15.0), ("e", 50.0))]
@@ -109,7 +110,7 @@ def test_skill_loader_loads_top_three_and_blocks_others() -> None:
         (root / "skills" / "registry.json").write_text(json.dumps({"admitted": admitted, "rejected": []}), encoding="utf-8")
         base = {"session_id": "s1"}
         fire(root, base | {"hook_event_name": "UserPromptSubmit", "prompt": "Build a color palette page."})
-        assert json.loads((root / "research" / "runs" / "s1.skills.json").read_text(encoding="utf-8"))["skills"] == \
+        assert json.loads((root / ".hve" / "runs" / "s1.skills.json").read_text(encoding="utf-8"))["skills"] == \
             ["skills/admitted/b", "skills/admitted/c", "skills/admitted/d"]
         first = json.loads(fire(root, base | {"hook_event_name": "PreToolUse", "tool_input": {"filePath": "x.ts"}}))
         assert "skills/admitted/b/SKILL.md" in first["hookSpecificOutput"]["additionalContext"], first

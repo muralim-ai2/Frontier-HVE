@@ -7,15 +7,13 @@ from pathlib import Path
 
 from interventions import record
 
-ROOT = Path(__file__).resolve().parent.parent
-
 
 def main() -> None:
     """Block the stage agent's stop once while the flow is still at its stage and not escalated."""
     payload = json.load(sys.stdin)
     if payload["hook_event_name"] not in ("Stop", "SubagentStop"):
         raise ValueError(f"flow_guard.py does not handle hook event {payload['hook_event_name']!r}")
-    state = json.loads((ROOT / os.environ["HARNESS_PROJECT"] / ".harness" / "flow.json").read_text(encoding="utf-8"))
+    state = json.loads((Path.cwd() / os.environ["HARNESS_PROJECT"] / ".harness" / "flow.json").read_text(encoding="utf-8"))
     stage = os.environ["FLOW_STAGE"]
     if state["stage"] != stage or state["escalated"] or payload["stop_hook_active"]:
         return

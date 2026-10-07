@@ -25,8 +25,8 @@ def options_file(project: Path, feature: str) -> Path:
 
 
 def worktree(project: Path, feature: str, approach: str) -> Path:
-    """Return the worktree folder of one approach, next to the project folder."""
-    return project.parent / "worktrees" / f"{feature}--{approach}"
+    """Return the worktree folder of one approach, inside the project's ignored .worktrees/ folder."""
+    return project / ".worktrees" / f"{feature}--{approach}"
 
 
 def create(project: Path, feature: str, approaches: list[str]) -> Json:

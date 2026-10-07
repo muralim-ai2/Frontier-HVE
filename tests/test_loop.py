@@ -191,14 +191,14 @@ def test_no_fallback_patterns() -> None:
 
 
 def make_root(tmp: str) -> Path:
-    """Return a temp harness root with the guard hooks, a runs folder, a 20-minute budget at 08:00 UTC, and a project folder."""
+    """Return a temp workspace with the guard hooks, .hve/runs, a 20-minute budget at 08:00 UTC, and a project folder."""
     root = Path(tmp)
     (root / "hooks").mkdir()
-    for hook in ("loop_guard.py", "module_guard.py", "flow_guard.py", "interventions.py"):
+    for hook in ("loop_guard.py", "module_guard.py", "flow_guard.py", "interventions.py", "hve_paths.py"):
         shutil.copy(REPO / "hooks" / hook, root / "hooks")
-    (root / "research" / "runs").mkdir(parents=True)
-    (root / "research" / "runs" / "s1.budget.json").write_text(json.dumps({"start_ms": START_MS, "budget_ms": 1_200_000.0, "denied": []}),
-                                                                encoding="utf-8")
+    (root / ".hve" / "runs").mkdir(parents=True)
+    (root / ".hve" / "runs" / "s1.budget.json").write_text(json.dumps({"start_ms": START_MS, "budget_ms": 1_200_000.0, "denied": []}),
+                                                          encoding="utf-8")
     (root / "proj" / ".harness").mkdir(parents=True)
     return root
 
@@ -206,7 +206,7 @@ def make_root(tmp: str) -> Path:
 def fire(root: Path, hook: str, payload: dict[str, Any], **env: str) -> dict[str, Any] | None:
     """Run a hook with a payload; return its JSON output or None when it printed nothing."""
     result = subprocess.run([sys.executable, str(root / "hooks" / hook)], input=json.dumps({"session_id": "s1", **payload}),
-                            capture_output=True, text=True, env={**os.environ, **env})
+                            capture_output=True, text=True, env={**os.environ, **env}, cwd=root)
     assert result.returncode == 0, result.stderr
     return json.loads(result.stdout) if result.stdout.strip() else None
 
@@ -254,7 +254,7 @@ def test_loop_guard() -> None:
         (proj / ".harness" / "state.json").write_text(json.dumps(state), encoding="utf-8")
         stopped = pre("read_file", edit)
         assert stopped["continue"] is False and "Which check?" in stopped["stopReason"], stopped  # type: ignore[index]
-        kinds = [json.loads(line)["kind"] for line in (root / "research" / "runs" / "s1.interventions.jsonl").read_text().splitlines()]
+        kinds = [json.loads(line)["kind"] for line in (root / ".hve" / "runs" / "s1.interventions.jsonl").read_text().splitlines()]
         assert {"anti_gaming", "hook_bypass", "human_only", "push_blocked", "victory_check", "escalated"} <= set(kinds), kinds
 
 

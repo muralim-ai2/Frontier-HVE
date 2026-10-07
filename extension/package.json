@@ -1,0 +1,27 @@
+{
+  "name": "frontier-hve",
+  "displayName": "Frontier HVE",
+  "description": "Enterprise AI harness for GitHub Copilot: HVE agents with a verified feature loop, graph workflow, guards, budgets and human-ticked PRs.",
+  "version": "0.1.0",
+  "publisher": "muralim-ai2",
+  "license": "UNLICENSED",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/muralim-ai2/Frontier-HVE"
+  },
+  "engines": {
+    "vscode": "^1.100.0"
+  },
+  "categories": ["AI", "Chat"],
+  "extensionDependencies": ["GitHub.copilot-chat"],
+  "main": "./extension.js",
+  "activationEvents": ["onStartupFinished"],
+  "contributes": {
+    "commands": [
+      {
+        "command": "frontierHve.setup",
+        "title": "Frontier HVE: Set up"
+      }
+    ]
+  }
+}

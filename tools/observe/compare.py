@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Any, TypedDict
 
 ROOT = Path(__file__).resolve().parents[2]
-RUNS_DIR = ROOT / "research" / "runs"
+RUNS_DIR = ROOT / ".hve" / "runs"
 BLIND_DIR = ROOT / "research" / "blind"
 OUT_FILE = ROOT / "research" / "comparisons" / "comparison.json"
 METRICS = ("human_score", "ai_score", "prompt_tokens", "completion_tokens", "cache_ratio", "cost_aiu", "model_calls", "tool_calls",

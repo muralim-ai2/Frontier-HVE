@@ -83,8 +83,8 @@ def test_flow_guard_blocks_unfinished_stage() -> None:
     with tempfile.TemporaryDirectory() as tmp:
         root = Path(tmp)
         (root / "hooks").mkdir()
-        (root / "research" / "runs").mkdir(parents=True)
-        for hook in ("flow_guard.py", "interventions.py"):
+        (root / ".hve" / "runs").mkdir(parents=True)
+        for hook in ("flow_guard.py", "interventions.py", "hve_paths.py"):
             shutil.copy(REPO / "hooks" / hook, root / "hooks")
         project = make_flow(tmp)
         payload = {"hook_event_name": "SubagentStop", "agent_id": "a", "agent_type": "flow-designer", "stop_hook_active": False}
@@ -99,7 +99,8 @@ def test_choice_recorder() -> None:
     with tempfile.TemporaryDirectory() as tmp:
         cwd = Path(tmp)
         (cwd / "proj" / ".harness").mkdir(parents=True)
-        (cwd / "user_profile.json").write_text(json.dumps({"technical_level": None}), encoding="utf-8")
+        (cwd / ".hve").mkdir()
+        (cwd / ".hve" / "user_profile.json").write_text(json.dumps({"technical_level": None}), encoding="utf-8")
 
         def answer(header: str, question: str, selected: list[str]) -> None:
             """Fire the recorder for one answered question."""
@@ -111,17 +112,17 @@ def test_choice_recorder() -> None:
         answer("choose:palette", "Which option? [project: proj]", ["two"])
         answer("push", "Push which? [project: proj]", ["feature/a"])
         answer("push", "Push which? [project: proj]", ["feature/b", "not-a-branch"])
-        answer("technical-level", "How technical? [profile: user_profile.json]", ["executive"])
+        answer("technical-level", "How technical? [profile: .hve/user_profile.json]", ["executive"])
         assert json.loads((cwd / "proj" / ".harness" / "choices" / "palette.json").read_text())["approach"] == "two"
         assert json.loads((cwd / "proj" / ".harness" / "push_approved.json").read_text())["branches"] == ["feature/a", "feature/b"]
-        assert json.loads((cwd / "user_profile.json").read_text())["technical_level"] == "executive"
+        assert json.loads((cwd / ".hve" / "user_profile.json").read_text())["technical_level"] == "executive"
 
 
 def test_guardrail_flags_non_enterprise_prototype() -> None:
     """Over 5,000 lines, FalkorDB, Tesseract, SQLite and a Dockerfile give a review verdict naming a solution architect; the hook warns once."""
     with tempfile.TemporaryDirectory() as tmp:
         cwd = Path(tmp)
-        project = cwd / "tests" / "outputs" / "flow" / "current"
+        project = cwd / ".hve" / "outputs" / "flow" / "current"
         (project / ".harness").mkdir(parents=True)
         (project / "package.json").write_text(json.dumps({"dependencies": {"falkordb": "1", "tesseract.js": "5", "better-sqlite3": "9",
                                                                            "react": "19"}}), encoding="utf-8")

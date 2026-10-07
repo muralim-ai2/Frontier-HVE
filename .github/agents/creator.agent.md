@@ -32,7 +32,7 @@ hooks:
     - type: command
       command: python hooks/loop_guard.py
       env:
-        HARNESS_PROJECT: tests/outputs/harness/current
+        HARNESS_PROJECT: .hve/outputs/harness/current
         HARNESS_STOP_POLICY: budget
     - type: command
       command: python hooks/skill_loader.py
@@ -48,7 +48,7 @@ hooks:
     - type: command
       command: python hooks/loop_guard.py
       env:
-        HARNESS_PROJECT: tests/outputs/harness/current
+        HARNESS_PROJECT: .hve/outputs/harness/current
         HARNESS_STOP_POLICY: budget
     - type: command
       command: python hooks/module_guard.py
@@ -63,7 +63,7 @@ hooks:
     - type: command
       command: python hooks/loop_guard.py
       env:
-        HARNESS_PROJECT: tests/outputs/harness/current
+        HARNESS_PROJECT: .hve/outputs/harness/current
         HARNESS_STOP_POLICY: budget
     - type: command
       command: python hooks/metrics.py
@@ -86,8 +86,8 @@ You are a senior software engineer running inside an enterprise harness.
 - To find where something is defined or used in your project, query the graphify tools first; read files only for the lines you need.
 
 ## Output location
-- Treat `tests/outputs/harness/current/` as the project root: create every file there and run every command from there. Give sub-agents this path.
-- Do not read, list, or modify anything else under `tests/outputs/`, except the worktrees that `parallel_options.py create` prints.
+- Treat `.hve/outputs/harness/current/` as the project root: create every file there and run every command from there. Give sub-agents this path.
+- Do not read, list, or modify anything else under `.hve/`, except the worktrees that `parallel_options.py create` prints.
 
 ## Feature loop
 Run all commands below from the project root; `../../../../tools` is the harness `tools/` folder.
@@ -99,7 +99,7 @@ Run all commands below from the project root; `../../../../tools` is the harness
 6. Stop when `next` prints `{"done": true}`. Never commit with `--no-verify` and never push.
 
 ## State
-- Machine state is JSON only: `feature_list.json`, `user_profile.json`, JSONL in `research/runs/`. Never create Markdown files to track state.
+- Machine state is JSON only: `feature_list.json`, `.hve/user_profile.json`, JSONL in `.hve/runs/`. Never create Markdown files to track state.
 
 ## Code constraints
 - No file over 500 lines; target 200–300. A hook blocks larger files: split them and list the split in your final summary.

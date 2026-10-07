@@ -23,11 +23,22 @@ The design follows [reference/Enterprise AI Harness Blueprint v3.html](reference
 
 ---
 
-## Quick start
+## Install the Frontier HVE extension
+
+| Step | Action |
+|---|---|
+| 1. Build | `python extension/build.py`, then from `extension/`: `npx --yes @vscode/vsce package --skip-license` (creates `frontier-hve-<version>.vsix`) |
+| 2. Install | `code --install-extension extension/frontier-hve-<version>.vsix` (needs GitHub Copilot Chat and Python 3.11+) |
+| 3. Set up | Open the project folder, run **Frontier HVE: Set up** from the Command Palette, answer the technical-level question, and reload the window |
+| 4. Use | In the Chat view (Session Target: Local) pick an **HVE** agent: `HVE creator`, `HVE creator-flow`, `HVE creator-github`, `HVE single` or `HVE minimal` |
+
+Setup renders the HVE agents and skills as an agent plugin in the extension's storage and registers it in `chat.pluginLocations`. Workspace state goes to `<workspace>/.hve/` (profile, budgets, interventions); setup offers to add `.hve/` to `.gitignore`. The Copilot telemetry export is optional and only needed for research metrics (D-032).
+
+## Quick start (research workspace)
 
 | Step | Command or action |
 |---|---|
-| Check the setup | `bash init.sh` (needs OTel export in VS Code User settings, see D-005 in the [decision log](research/decisions/decision_log.md)) |
+| Check the setup | `bash init.sh` (needs the OTel export pointed at `.hve/runs/copilot-otel.jsonl`, see D-005 and D-032 in the [decision log](research/decisions/decision_log.md)) |
 | Run a benchmark | Set the model picker's reasoning effort to the agent's pin, then `python tools/observe/bench.py <minimal\|single\|creator\|creator-flow>`, open a new **Local** chat with that agent, and paste |
 | Compare runs | `python tools/observe/compare.py` |
 | Inspect one run | `python tools/observe/trajectory.py <session_id>` |
@@ -42,7 +53,9 @@ The design follows [reference/Enterprise AI Harness Blueprint v3.html](reference
 | `single` | One agent with file, search and terminal tools | [.github/agents/single.agent.md](.github/agents/single.agent.md) |
 | `creator` | Full harness: feature loop, sub-agents, guards, metrics, Graphify, admitted skills | [.github/agents/creator.agent.md](.github/agents/creator.agent.md) |
 | `creator-flow` | Graph workflow: Designer → Prototyper → Builder ⇄ Architect → Sweeper → Grower ⇄ Maintainer | [.github/agents/creator-flow.agent.md](.github/agents/creator-flow.agent.md) and six `flow-*` stage agents |
-| `creator-github` | Product work: GitHub PRs the user ticks, human-picked parallel options; needs the harness-assist plugin | [.github/agents/creator-github.agent.md](.github/agents/creator-github.agent.md) |
+| `creator-github` | Product work: GitHub PRs the user ticks, human-picked parallel options; tick recording and guardrail hooks are wired in the agent | [.github/agents/creator-github.agent.md](.github/agents/creator-github.agent.md) |
+
+The installed extension ships the same five agents with an **HVE** prefix ([extension/agents](extension/agents)); they work on the open workspace itself instead of `.hve/outputs/<mode>/current/`, and leave out the research-only metrics, Graphify and skill-loader hooks.
 
 All agents pin their model in the agent file; `metrics.py flush` rejects a run served by another model. `minimal` and `single` stop hard after 10 minutes. The three creator agents get 15 minutes; then VS Code asks the user to allow the next tool call, and each allowed call adds 15 more minutes (D-030).
 
@@ -83,20 +96,22 @@ Each benchmark mode pins its own model and records effort. The existing cross-mo
 Cordis's **"everything is a plugin"** philosophy is a design reference: keep capabilities separable rather than embedding every concern in an orchestrator. Here, agent manifests select tools, hooks enforce policy, MCP supplies Graphify, and harness-assist packages reusable workflows. **Cordis itself is not installed**, and its reversible-effect/plugin-lifecycle guarantees are not implemented. The composition uses Copilot's extension surfaces, not a new plugin kernel.
 
 ```
-.github/agents/            minimal, single, creator, creator-flow, creator-github, flow-* stage agents
+.github/agents/            minimal, single, creator, creator-flow, creator-github, flow-* stage agents (research)
+extension/                 VS Code extension: HVE agent templates, setup command, build script, plugin renderer
 hooks/                     budget, metrics, profile_detector, compaction, graph_refresh, skill_loader,
-                           loop_guard, flow_guard, module_guard, no_fallback (git pre-commit), interventions
-tools/observe/             bench, collect, compare, blind, trajectory
+                           loop_guard, flow_guard, module_guard, no_fallback (git pre-commit), interventions, hve_paths
+tools/observe/             bench, collect, compare, blind, trajectory, otel_prune (research only)
 tools/loop/                loop (init/next/verify/resume), diagnose (ledger + rules), flow (state machine)
 tools/git/                 branch_workflow (PR records, push queue), parallel_options (worktrees)
 tools/skills/              scan, triage, eval_skill, onboard
 skills/                    categories.json, registry.json, admitted/
-plugins/harness-assist/    skills + hooks for advanced users
-research/                  runs, comparisons, findings, blindspots, decisions, hypothesis
-tests/                     prompts, rubric, unit tests, collected outputs
+plugins/harness-assist/    skills and the choice-recorder and guardrail scripts
+.hve/                      workspace state: runs, outputs, blindspots, user_profile.json
+research/                  comparisons, findings, blind scoring, decisions, hypothesis
+tests/                     prompts, rubric, unit tests
 ```
 
-Machine state is JSON only (`feature_list.json`, `user_profile.json`, `.harness/*.json`, JSONL logs). Agent-scoped hooks run only on the Local session target.
+Machine state is JSON only (`feature_list.json`, `.hve/user_profile.json`, `.harness/*.json`, JSONL logs). Agent-scoped hooks run only on the Local session target.
 
 ## 3. System flow
 
@@ -104,7 +119,7 @@ Machine state is JSON only (`feature_list.json`, `user_profile.json`, `.harness/
 
 | Blueprint node | Frontier HVE implementation |
 |---|---|
-| Identity and behavior | Agent prompts; `technical_level` and preferences from [user_profile.json](user_profile.json) injected at session start |
+| Identity and behavior | Agent prompts; `technical_level` and preferences from [.hve/user_profile.json](.hve/user_profile.json) injected at session start |
 | Context and memory | Graphify MCP (creator), compaction hook, profile memory, explicit tool lists |
 | Model decision | Pinned model per mode, enforced at flush; reasoning effort recorded per call and checked by the bench (D-020). No dynamic routing |
 | Orchestration | Feature loop, `creator-flow` stages, sub-agents capped at 3 |
@@ -113,7 +128,7 @@ Machine state is JSON only (`feature_list.json`, `user_profile.json`, `.harness/
 | Verification | Locked shell checks per feature, no-fallback pre-commit scan, module guard, victory check |
 | Adaptation | Attempt ledger rules, Phase 9 skill gate with lift scoring |
 | Governance | Hooks deny, block, ask or stop deterministically (anti-gaming, hook bypass, unticked pushes, budget) |
-| Four metrics | `prompt_tokens`, `context_tokens`, `cache_tokens` / `cache_read_tokens`, `cost_nano_aiu` per call in `research/runs/<session>.jsonl` |
+| Four metrics | `prompt_tokens`, `context_tokens`, `cache_tokens` / `cache_read_tokens`, `cost_nano_aiu` per call in `.hve/runs/<session>.jsonl` |
 
 ## 4. Harness comparison: what is borrowed
 
@@ -240,7 +255,7 @@ See the [blueprint's ranked problems and research review](reference/Enterprise%2
 **SkillOpt-style admission: skills earn their place in context.** Discovery is not installation, and installation is not evidence of value. The gate is built; external skills have not yet been imported or admitted (D-022). NVIDIA SkillEvaluator is an optional scanner integration, not a currently running dependency.
 
 - **Skill gate (Phase 9, D-022)**: [scan.py](tools/skills/scan.py) blocks malformed or unsafe skills (prompt injection, external fetches, encoded payloads, destructive commands, secrets); [triage.py](tools/skills/triage.py) maps candidates to the selected categories ([skills/categories.json](skills/categories.json)); [eval_skill.py](tools/skills/eval_skill.py) runs paired with/without benchmarks and computes lift; [onboard.py](tools/skills/onboard.py) admits at a lift of 10 or more points and token overhead under 20%; [hooks/skill_loader.py](hooks/skill_loader.py) loads the top 3 admitted skills per task and denies all others.
-- **harness-assist plugin (D-029)**: [plugins/harness-assist](plugins/harness-assist) adds the skills `feature-checklist`, `run-tests`, `code-review`, `parallel-options`, `pr-push`, `explain-walkthrough` and `prototype-guardrail`, plus two hooks. The choice recorder turns the user's ticks in ask-questions answers into files the harness enforces. The prototype guardrail flags code over 5,000 lines, non-enterprise components (for example FalkorDB, Tesseract, SQLite, local vector stores) with their licensed Azure alternative, and self-built infrastructure, and names the experts to involve. Enable it with the `chat.pluginLocations` setting; keep it off for benchmark runs.
+- **harness-assist plugin (D-029)**: [plugins/harness-assist](plugins/harness-assist) adds the skills `feature-checklist`, `run-tests`, `code-review`, `parallel-options`, `pr-push`, `explain-walkthrough` and `prototype-guardrail`, plus two hook scripts wired into the creator agents. The choice recorder turns the user's ticks in ask-questions answers into files the harness enforces. The prototype guardrail flags code over 5,000 lines, files over 20 MB, non-enterprise components (for example FalkorDB, Tesseract, SQLite, local vector stores) with their licensed Azure alternative, and self-built infrastructure, and names the experts to involve. The extension ships these skills; in this repository enable them with the `chat.pluginLocations` setting.
 - **Technical level**: the profile records `executive`, `partial` or `developer` from explicit role statements or one question, and agents explain and recommend experts accordingly.
 - **Governance**: enforced by local hooks instead of the Microsoft Agent Governance Toolkit: budget stop or user-approved continuation, anti-gaming, git-hook bypass, human-only commands, force-push ban, and pushes or PRs only for branches the user ticked (D-026).
 - **Guardrails (D-025)**: [module_guard.py](hooks/module_guard.py) blocks files over 500 lines; [no_fallback.py](hooks/no_fallback.py) rejects commits that hide errors or ship TODOs.
@@ -253,7 +268,7 @@ The blueprint's three suites (Minecraft builder, FinCon, OpenHands) are not buil
 |---|---|
 | Pinned model and effort | Agent file pin; flush and bench reject mismatches |
 | Run | [bench.py](tools/observe/bench.py) follows a run live and stops waiting at a timeout |
-| Collect | [collect.py](tools/observe/collect.py) verifies the prompt and moves output to `tests/outputs/<mode>/<session>/` |
+| Collect | [collect.py](tools/observe/collect.py) verifies the prompt and moves output to `.hve/outputs/<mode>/<session>/` |
 | Score | [blind.py](tools/observe/blind.py) shuffles runs for human and AI scoring from screenshots |
 | Compare | [compare.py](tools/observe/compare.py) reports all five pillars' run metrics into [research/comparisons/](research/comparisons); its legacy sorter has not yet added cost to the priority order (section 6) |
 | Cache accounting | `cache_ratio` counts cache reads only (D-020) |
@@ -283,7 +298,7 @@ Baseline, one run per mode (details in [phase-2-baseline-blind-eval.md](research
 | B9 Sub-agent leakage | Built: 2K-token return instruction at sub-agent start |
 | B10 DSPy over-optimization | Not applicable (DSPy not used) |
 
-Blindspot-coded interventions are logged to [research/blindspots/](research/blindspots).
+Blindspot-coded interventions are logged to [.hve/blindspots/](.hve/blindspots).
 
 ## 11. Research adoption
 
@@ -305,10 +320,10 @@ The full source trail is in the [blueprint](reference/Enterprise%20AI%20Harness%
 | Every design decision with evidence (D-001 onwards) | [research/decisions/decision_log.md](research/decisions/decision_log.md) |
 | Hypotheses and their status | [research/hypothesis.md](research/hypothesis.md) |
 | Findings per phase | [research/findings/](research/findings) |
-| Run data: per-call metrics, hook events, run manifests, interventions | [research/runs/](research/runs) |
+| Run data: per-call metrics, hook events, run manifests, interventions | [.hve/runs/](.hve/runs) |
 | Mode comparison tables | [research/comparisons/](research/comparisons) |
 | Blind scoring rounds | [research/blind/](research/blind) |
-| Collected run outputs | [tests/outputs/](tests/outputs) |
+| Collected run outputs | [.hve/outputs/](.hve/outputs) |
 | Phase status, next actions, what is validated | [tracker.json](tracker.json) |
 | Original request and design rules | [reference/initial_request.md](reference/initial_request.md) |
 
@@ -323,3 +338,4 @@ The full source trail is in the [blueprint](reference/Enterprise%20AI%20Harness%
 | [tests/test_trajectory.py](tests/test_trajectory.py) | Context-rot detector and context growth |
 | [tests/test_loop.py](tests/test_loop.py) | Feature loop, rules R0–R7, guards, push gate, no-fallback scan, module guard, parallel options |
 | [tests/test_flow_plugin.py](tests/test_flow_plugin.py) | `creator-flow` edges, evidence and caps, stage guard, choice recorder, prototype guardrail, plugin skill scan |
+| [tests/test_extension.py](tests/test_extension.py) | Extension build, plugin rendering, and the rendered HVE agents' hooks and loop tools run from a temp workspace |

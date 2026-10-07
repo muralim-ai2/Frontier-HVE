@@ -25,17 +25,22 @@
     {
       "id": "N19",
       "issue": "Phases 5-8 are built and unit-tested; one live creator run validates 5.4, 6.6, 8.3 and the guards together. Agent design choices made while the user was unavailable: D-023 to D-025.",
-      "action": "User: review D-023 to D-029; set the picker effort to medium; run `python tools/observe/bench.py creator`, then `python tools/observe/bench.py creator-flow`; then `python tools/observe/trajectory.py <sid>` and `python tools/git/branch_workflow.py list tests/outputs/<mode>/<sid>`."
+      "action": "User: review D-023 to D-029; set the picker effort to medium; run `python tools/observe/bench.py creator`, then `python tools/observe/bench.py creator-flow`; then `python tools/observe/trajectory.py <sid>` and `python tools/git/branch_workflow.py list .hve/outputs/<mode>/<sid>`."
     },
     {
       "id": "N20",
-      "issue": "The harness-assist plugin (plugins/harness-assist) is not enabled. creator-github needs it: without its choice recorder, every push stays blocked. Its hooks are plugin-wide, so keep it disabled during benchmark runs (the guardrail could add context to creator runs).",
+      "issue": "The harness-assist skills are not enabled in this repo. The choice recorder and guardrail are now agent-scoped hooks of creator-github (D-032), so benchmark runs of other agents are unaffected.",
       "action": "User: for creator-github sessions, add `\"C:\\\\PwC_HarnessEngineering2\\\\enterprise-harness\\\\plugins\\\\harness-assist\": true` to the `chat.pluginLocations` setting; check that `vscode/askQuestions` and the `github.vscode-pull-request-github/*` tool ids resolve in creator-github's tool list."
     },
     {
       "id": "N21",
       "issue": "The OTel export grew to 344 MB unnoticed (D-031). Hidden costs of a request (storage, complexity) should be caught by the harness, not by the user.",
       "action": "Agent: otel_prune.py and the guardrail's 20 MB file check are built (not run as tests per user). Next: add a size/complexity budget check to the Architect stage evidence and to init.sh."
+    },
+    {
+      "id": "N22",
+      "issue": "Built (D-032): .hve/ state layout, HVE product agents and the Frontier HVE extension (extension/), covered by tests/test_extension.py. Not verified live: plugin agents loading from chat.pluginLocations, hook commands with absolute paths, tool ids.",
+      "action": "User: install the VSIX in a fresh window, run 'Frontier HVE: Set up', reload, and check that the HVE agents and skills appear (Session Target: Local) and that an HVE creator session writes .hve/runs/<sid>.budget.json."
     }
   ],
   "phases": [

@@ -1,4 +1,4 @@
-"""Hook that joins tool-call hook events with Copilot OTel chat spans into research/runs/<session_id>.jsonl."""
+"""Hook that joins tool-call hook events with Copilot OTel chat spans into .hve/runs/<session_id>.jsonl."""
 
 import gzip
 import json
@@ -10,9 +10,9 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Literal, TypedDict
 
-ROOT = Path(__file__).resolve().parent.parent
-RUNS_DIR = ROOT / "research" / "runs"
-AGENTS_DIR = ROOT / ".github" / "agents"
+from hve_paths import RUNS_DIR
+
+AGENTS_DIR = Path(__file__).resolve().parent.parent / ".github" / "agents"
 OTEL_FILE = RUNS_DIR / "copilot-otel.jsonl"
 OTEL_ARCHIVE_DIR = RUNS_DIR / "otel"
 MODE_AGENTS = {"minimal": "minimal", "single": "single", "harness": "creator", "flow": "creator-flow"}
@@ -55,7 +55,7 @@ class ChatSpan(TypedDict):
 
 
 class MetricRecord(TypedDict):
-    """One line of research/runs/<session_id>.jsonl."""
+    """One line of .hve/runs/<session_id>.jsonl."""
 
     session_id: str
     mode: str
@@ -271,7 +271,7 @@ def check_model_pin(records: list[MetricRecord]) -> None:
     served = sorted({r["model"] for r in records if r["subagent_session"] is None})
     if served != [pin]:
         raise ValueError(f"session {records[0]['session_id']} (mode={mode}) was served {served}, but {MODE_AGENTS[mode]}.agent.md pins {pin!r}: "
-                         "move its .events.jsonl and .jsonl to research/runs/invalid/ and re-run with the pinned model")
+                         "move its .events.jsonl and .jsonl to .hve/runs/invalid/ and re-run with the pinned model")
 
 
 def run_hook() -> None:
@@ -302,7 +302,7 @@ def flush() -> None:
             raise LookupError(f"no chat spans in {OTEL_FILE} matched copilot_chat.chat_session_id of {events_path.name}")
         if problems:
             raise RuntimeError(f"session {records[0]['session_id']} is incomplete: {'; '.join(problems)}: "
-                               "move its .events.jsonl and .jsonl to research/runs/invalid/ and re-run")
+                               "move its .events.jsonl and .jsonl to .hve/runs/invalid/ and re-run")
         check_model_pin(records)
 
 

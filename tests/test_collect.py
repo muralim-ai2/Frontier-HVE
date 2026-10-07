@@ -33,7 +33,7 @@ def add_session(root: Path, session_id: str, mode: str, user_text: str, reply: s
     ]
     transcript.write_text("".join(json.dumps(r) + "\n" for r in records), encoding="utf-8")
     event = {"event": "Stop", "mode": mode, "ts_ms": 0, "tool_use_id": None, "tool_name": None, "transcript_path": str(transcript)}
-    (root / "research" / "runs" / f"{session_id}.events.jsonl").write_text(json.dumps(event) + "\n", encoding="utf-8")
+    (root / ".hve" / "runs" / f"{session_id}.events.jsonl").write_text(json.dumps(event) + "\n", encoding="utf-8")
 
 
 def make_root(tmp: str) -> Path:
@@ -43,7 +43,7 @@ def make_root(tmp: str) -> Path:
     shutil.copy(REPO / "tools" / "observe" / "collect.py", root / "tools" / "observe")
     (root / "tests" / "prompts").mkdir(parents=True)
     (root / "tests" / "prompts" / "color-palette.md").write_bytes(PROMPT.encode("utf-8"))
-    (root / "research" / "runs").mkdir(parents=True)
+    (root / ".hve" / "runs").mkdir(parents=True)
     return root
 
 
@@ -58,21 +58,21 @@ def test_collects_minimal_reply_and_single_folder() -> None:
         root = make_root(tmp)
         add_session(root, MIN_ID, "minimal", "#attachment:Pasted text #1 ", REPLY, pasted=PROMPT)
         add_session(root, SINGLE_ID, "single", PROMPT, "Done.")
-        current = root / "tests" / "outputs" / "single" / "current"
+        current = root / ".hve" / "outputs" / "single" / "current"
         (current / "node_modules" / "x").mkdir(parents=True)
         (current / "node_modules" / "x" / "i.js").write_text("", encoding="utf-8")
         (current / "app").mkdir()
         (current / "app" / "page.tsx").write_text("export {}\n", encoding="utf-8")
         result = run_collect(root)
         assert result.returncode == 0, result.stderr
-        minimal_out = root / "tests" / "outputs" / "minimal" / MIN_ID
+        minimal_out = root / ".hve" / "outputs" / "minimal" / MIN_ID
         assert (minimal_out / "index.html").read_text(encoding="utf-8") == "<h1>Palette</h1>\n"
         assert (minimal_out / "src" / "app.js").read_text(encoding="utf-8") == "console.log(1);\n"
         assert (minimal_out / "response.md").exists()
         assert not current.exists()
-        manifest = json.loads((root / "research" / "runs" / f"{SINGLE_ID}.run.json").read_text(encoding="utf-8"))
+        manifest = json.loads((root / ".hve" / "runs" / f"{SINGLE_ID}.run.json").read_text(encoding="utf-8"))
         assert manifest["files"] == ["app/page.tsx"], manifest
-        assert manifest["output_dir"] == f"tests/outputs/single/{SINGLE_ID}"
+        assert manifest["output_dir"] == f".hve/outputs/single/{SINGLE_ID}"
         assert (manifest["started"], manifest["ended"]) == ("2026-10-06T08:00:00.000Z", "2026-10-06T08:01:00.000Z")
         assert run_collect(root).returncode == 0  # already collected sessions are skipped
 

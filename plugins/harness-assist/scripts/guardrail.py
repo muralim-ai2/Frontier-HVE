@@ -11,7 +11,8 @@ from typing import Any
 
 CATALOG = json.loads((Path(__file__).parent / "enterprise_catalog.json").read_text(encoding="utf-8"))
 CODE_SUFFIXES = {".py", ".js", ".jsx", ".ts", ".tsx", ".mjs", ".cjs", ".css", ".scss", ".html", ".vue", ".svelte", ".sql"}
-SKIP_DIRS = {"node_modules", ".next", ".git", ".harness", "dist", "build", "coverage", ".venv", "venv", "__pycache__"}
+SKIP_DIRS = {"node_modules", ".next", ".git", ".harness", ".worktrees", ".hve", "dist", "build", "coverage", ".venv", "venv",
+             "__pycache__"}
 REQUIREMENT_NAME = re.compile(r"^\s*([A-Za-z0-9_.\-]+)")
 IMAGE = re.compile(r"^\s*(?:image:|FROM)\s+([^\s:@]+)", re.I | re.M)
 INFRA_NAMES = re.compile(r"^(Dockerfile|docker-compose[\w.-]*\.ya?ml|Chart\.yaml|.*\.tf|.*\.bicep)$", re.I)
@@ -79,7 +80,7 @@ def hook() -> None:
     if payload["hook_event_name"] != "PostToolUse":
         raise ValueError(f"guardrail.py --hook does not handle {payload['hook_event_name']!r}")
     cwd = Path.cwd()
-    for harness in [cwd / ".harness", *cwd.glob("tests/outputs/*/current/.harness")]:
+    for harness in [cwd / ".harness", *cwd.glob(".hve/outputs/*/current/.harness")]:
         if not harness.is_dir():
             continue
         report = scan(harness.parent)

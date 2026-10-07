@@ -52,7 +52,7 @@ def fire(root: Path, event: str, ms: int, tool: str | None, call: str | None) ->
     else:
         payload["transcript_path"] = str(root / "transcript.jsonl")
     subprocess.run([sys.executable, str(root / "hooks" / "metrics.py")], input=json.dumps(payload), text=True,
-                   check=True, env={**os.environ, "HARNESS_MODE": "single"})
+                   check=True, env={**os.environ, "HARNESS_MODE": "single"}, cwd=root)
 
 
 def run_session(main_model: str, canceled: bool) -> tuple[subprocess.CompletedProcess[str], list[dict[str, Any]]]:
@@ -61,10 +61,11 @@ def run_session(main_model: str, canceled: bool) -> tuple[subprocess.CompletedPr
         root = Path(tmp)
         (root / "hooks").mkdir()
         shutil.copy(REPO / "hooks" / "metrics.py", root / "hooks")
+        shutil.copy(REPO / "hooks" / "hve_paths.py", root / "hooks")
         (root / ".github" / "agents").mkdir(parents=True)
         (root / ".github" / "agents" / "single.agent.md").write_text(
             "---\nname: single\nmodel: Claude Opus 5.5 (copilot)\n---\nmodel: not-the-pin\n", encoding="utf-8")
-        runs = root / "research" / "runs"
+        runs = root / ".hve" / "runs"
         runs.mkdir(parents=True)
         main = {"copilot_chat.chat_session_id": SESSION}
         sub = {"copilot_chat.chat_session_id": SUB, "copilot_chat.parent_chat_session_id": SESSION}
@@ -91,7 +92,7 @@ def run_session(main_model: str, canceled: bool) -> tuple[subprocess.CompletedPr
             ("PostToolUse", 3200, "runSubagent", "c2"), ("Stop", 4100, None, None),
         ]:
             fire(root, event, ms, tool, call)
-        flush = subprocess.run([sys.executable, str(root / "hooks" / "metrics.py"), "flush"], capture_output=True, text=True)
+        flush = subprocess.run([sys.executable, str(root / "hooks" / "metrics.py"), "flush"], capture_output=True, text=True, cwd=root)
         rows = [json.loads(line) for line in (runs / f"{SESSION}.jsonl").read_text(encoding="utf-8").splitlines()]
     return flush, rows
 

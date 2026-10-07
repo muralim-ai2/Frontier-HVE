@@ -5,7 +5,7 @@ description: Stop a vibe-coded prototype from growing into an unmanageable or no
 
 # Prototype guardrail
 
-1. Run `python <plugin root>/scripts/guardrail.py <project folder>` (the plugin root is two folders above this file). It returns JSON: `code_lines`, `largest_files`, `flagged` components with their enterprise alternative, `infrastructure_files`, `verdict`, `reasons`, `experts`. The plugin also runs it after each tool call in harness projects and warns once per new finding.
+1. Run `python <plugin root>/scripts/guardrail.py <project folder>` (the plugin root is two folders above this file). It returns JSON: `code_lines`, `largest_files`, `flagged` components with their enterprise alternative, `infrastructure_files`, `verdict`, `reasons`, `experts`. The HVE agents also run it after each tool call in harness projects and warn once per new finding.
 2. If `verdict` is `ok`, continue.
 3. If `verdict` is `review`:
    - Stop adding features, components or infrastructure.

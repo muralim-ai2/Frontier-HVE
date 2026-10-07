@@ -16,7 +16,7 @@ from scan import scan  # noqa: E402
 CANDIDATES_DIR = ROOT / "skills" / "candidates"
 EVALS_DIR = ROOT / "skills" / "evals"
 OVERRIDE_FILE = ROOT / "skills" / "eval_override.json"
-RUNS_DIR = ROOT / "research" / "runs"
+RUNS_DIR = ROOT / ".hve" / "runs"
 SCORE_MAX = 5
 Condition = Literal["with", "without"]
 Json = dict[str, Any]

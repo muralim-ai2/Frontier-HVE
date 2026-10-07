@@ -17,13 +17,13 @@ for mode in minimal single creator; do
   grep -qxF "model: ${MODEL[$mode]}" "$f" || fail "$f does not pin 'model: ${MODEL[$mode]}'"
 done
 
-python - <<'EOF' || fail "add the OTel block from research/decisions/decision_log.md (D-005) to your VS Code User settings, then reload"
+python - <<'EOF' || fail "point the Copilot OTel file export at .hve/runs/copilot-otel.jsonl (run 'Frontier HVE: Set up' with research metrics on, or see D-005), then reload"
 import json, os, pathlib, re, sys
 text = (pathlib.Path(os.environ["APPDATA"]) / "Code" / "User" / "settings.json").read_text(encoding="utf-8")
 value = lambda key: re.search(rf'"{re.escape(key)}"\s*:\s*("(?:[^"\\]|\\.)*"|true|false)', text)
 m = {k: value(f"github.copilot.chat.otel.{k}") for k in ("enabled", "exporterType", "outfile")}
 ok = (all(m.values()) and m["enabled"][1] == "true" and json.loads(m["exporterType"][1]) == "file"
-      and pathlib.Path(json.loads(m["outfile"][1])).resolve() == pathlib.Path("research/runs/copilot-otel.jsonl").resolve())
+      and pathlib.Path(json.loads(m["outfile"][1])).resolve() == pathlib.Path(".hve/runs/copilot-otel.jsonl").resolve())
 sys.exit(0 if ok else 1)
 EOF
 
@@ -31,5 +31,5 @@ python -c 'import ast, pathlib; ast.parse(pathlib.Path("hooks/metrics.py").read_
 
 [ -d .git ] || git init -q
 
-# Model access is proven by the first run: research/runs/<session>.jsonl records the model actually served.
+# Model access is proven by the first run: .hve/runs/<session>.jsonl records the model actually served.
 echo "init: OK (minimal: ${MODEL[minimal]}, single: ${MODEL[single]}, creator: ${MODEL[creator]}). Use Session Target 'Local' so agent hooks run."

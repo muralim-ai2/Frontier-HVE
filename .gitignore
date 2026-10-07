@@ -1,15 +1,19 @@
 node_modules/
 .next/
-tests/outputs/harness/graph/
-tests/outputs/*/worktrees/
-tests/outputs/*/current/
+.hve/outputs/harness/graph/
+.hve/outputs/*/current/
 skills/candidates/
 skills/eval_override.json
 
 # Copilot OTel export: hundreds of MB and contains full chat content
-research/runs/copilot-otel.jsonl
-research/runs/otel/
-research/runs/bench.lock
+.hve/runs/copilot-otel.jsonl
+.hve/runs/otel/
+.hve/runs/bench.lock
+
+# Extension build output (assembled by extension/build.py)
+extension/runtime/
+extension/skills/
+extension/*.vsix
 
 # Python and tool caches
 __pycache__/

@@ -9,8 +9,8 @@ from pathlib import Path
 from typing import Any
 
 from interventions import record
+from hve_paths import RUNS_DIR
 
-RUNS_DIR = Path(__file__).resolve().parent.parent / "research" / "runs"
 SESSION_ID = re.compile(r"^[\w-]+$")
 WARN_BEFORE_MS = 2 * 60_000
 GRACE_MS = 60_000

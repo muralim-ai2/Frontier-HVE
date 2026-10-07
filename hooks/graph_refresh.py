@@ -8,9 +8,10 @@ import subprocess
 import sys
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parent.parent
-PROJECT = ROOT / "tests" / "outputs" / "harness" / "current"
-GRAPH_DIR = ROOT / "tests" / "outputs" / "harness" / "graph"
+from hve_paths import OUTPUTS_DIR
+
+PROJECT = OUTPUTS_DIR / "harness" / "current"
+GRAPH_DIR = OUTPUTS_DIR / "harness" / "graph"
 GRAPH_FILE = GRAPH_DIR / "graph.json"
 STAGING_DIR = GRAPH_DIR / "staging"
 FINGERPRINT_FILE = GRAPH_DIR / "fingerprint.txt"

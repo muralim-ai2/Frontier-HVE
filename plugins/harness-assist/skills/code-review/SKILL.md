@@ -5,7 +5,7 @@ description: Review queued feature branches before pushing - correctness against
 
 # Code review
 
-For each branch from `python ../../../../tools/git/branch_workflow.py queue .`:
+For each branch from `python <tools>/git/branch_workflow.py queue .` (`<tools>` is the harness tools folder named in your agent instructions):
 
 1. Read the diff: `git diff <base_branch>..<branch> --stat`, then the changed hunks you need.
 2. Check, in order:

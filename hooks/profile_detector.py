@@ -4,11 +4,10 @@ import json
 import os
 import re
 import sys
-from pathlib import Path
 from typing import Literal, TypedDict
 
-ROOT = Path(__file__).resolve().parent.parent
-PROFILE_FILE = ROOT / "user_profile.json"
+from hve_paths import PROFILE_FILE
+
 CHARS_PER_TOKEN = 4
 OVER_SPEC_TOKENS = 500
 

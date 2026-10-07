@@ -8,7 +8,6 @@ from typing import Any
 
 from interventions import record
 
-ROOT = Path(__file__).resolve().parent.parent
 MAX_LINES = 500
 EDIT_TOOLS = {"create_file", "replace_string_in_file", "multi_replace_string_in_file", "insert_edit_into_file", "apply_patch"}
 PATCH_FILE = re.compile(r"^\*\*\* (?:Add|Update) File: (.+)$", re.M)
@@ -29,7 +28,7 @@ def oversized(tool_input: Any) -> list[tuple[str, int]]:
     """Return (path, line count) of edited files over the limit; relative paths are resolved against the workspace root."""
     found = []
     for raw in dict.fromkeys(edited_paths(tool_input)):
-        path = Path(raw) if Path(raw).is_absolute() else ROOT / raw
+        path = Path(raw) if Path(raw).is_absolute() else Path.cwd() / raw
         if path.name not in EXEMPT and path.is_file():
             lines = len(path.read_text(encoding="utf-8", errors="replace").splitlines())
             if lines > MAX_LINES:

@@ -8,7 +8,7 @@ description: Explain what is being built and the concepts involved (frontend, AP
 ## 1. Know the level
 Use `technical_level` from the session context (`executive`, `partial`, `developer`). If it is unknown, ask once with the ask-questions tool:
 - `header`: `technical-level`
-- `question`: `How technical should explanations be? [profile: user_profile.json]`
+- `question`: `How technical should explanations be? [profile: .hve/user_profile.json]`
 - options (single choice), `label` exactly: `executive` (business view, no code), `partial` (TPM or architect: concepts, some code), `developer` (deeply technical).
 A plugin hook saves the answer to the profile.
 

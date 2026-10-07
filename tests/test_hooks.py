@@ -15,18 +15,25 @@ EMPTY_PROFILE = {"prompt_style": None, "wants_evidence": None, "verbosity": None
 
 
 def make_root(tmp: str, profile: dict[str, Any]) -> Path:
-    """Return a temp harness root with the hooks and the given user_profile.json."""
+    """Return a temp workspace with the hooks, .hve/runs and the given .hve/user_profile.json."""
     root = Path(tmp)
     (root / "hooks").mkdir()
-    for hook in ("profile_detector.py", "compaction.py", "graph_refresh.py", "budget.py", "interventions.py"):
+    for hook in ("profile_detector.py", "compaction.py", "graph_refresh.py", "budget.py", "interventions.py", "hve_paths.py"):
         shutil.copy(REPO / "hooks" / hook, root / "hooks")
-    (root / "user_profile.json").write_text(json.dumps(profile), encoding="utf-8")
+    (root / ".hve" / "runs").mkdir(parents=True)
+    (root / ".hve" / "user_profile.json").write_text(json.dumps(profile), encoding="utf-8")
     return root
 
 
+def profile_of(root: Path) -> dict[str, Any]:
+    """Return the workspace's saved profile."""
+    return json.loads((root / ".hve" / "user_profile.json").read_text(encoding="utf-8"))
+
+
 def fire(root: Path, hook: str, payload: dict[str, str]) -> subprocess.CompletedProcess[str]:
-    """Run one hook with a payload on stdin."""
-    return subprocess.run([sys.executable, str(root / "hooks" / hook)], input=json.dumps(payload), capture_output=True, text=True)
+    """Run one hook with a payload on stdin, from the workspace root like VS Code does."""
+    return subprocess.run([sys.executable, str(root / "hooks" / hook)], input=json.dumps(payload), capture_output=True, text=True,
+                          cwd=root)
 
 
 def output(result: subprocess.CompletedProcess[str]) -> dict[str, Any]:
@@ -42,7 +49,7 @@ def test_bloat_request_is_challenged_and_learned() -> None:
         message = output(fire(root, "profile_detector.py", {"hook_event_name": "UserPromptSubmit",
                                                             "prompt": "Create markdown files to track progress and keep going until it's all done."}))
         assert "Markdown state files" in message["systemMessage"] and "open-ended loop" in message["systemMessage"], message
-        profile = json.loads((root / "user_profile.json").read_text(encoding="utf-8"))
+        profile = profile_of(root)
         assert profile["bloat_triggers"] == ["infinite_loop", "md_state_files"], profile
         assert profile["prompt_style"] == "simple"
 
@@ -64,7 +71,7 @@ def test_technical_level_from_role() -> None:
     with tempfile.TemporaryDirectory() as tmp:
         root = make_root(tmp, EMPTY_PROFILE)
         fire(root, "profile_detector.py", {"hook_event_name": "UserPromptSubmit", "prompt": "I'm the CTO, build me a dashboard."})
-        assert json.loads((root / "user_profile.json").read_text(encoding="utf-8"))["technical_level"] == "executive"
+        assert profile_of(root)["technical_level"] == "executive"
         fire(root, "profile_detector.py", {"hook_event_name": "UserPromptSubmit", "prompt": "As a TPM I need a status view."})
         context = output(fire(root, "profile_detector.py", {"hook_event_name": "SessionStart", "source": "new"}))
         assert "partially technical" in context["hookSpecificOutput"]["additionalContext"], context
@@ -75,7 +82,7 @@ def test_over_specified_prompt_and_invalid_profile() -> None:
     with tempfile.TemporaryDirectory() as tmp:
         root = make_root(tmp, EMPTY_PROFILE)
         fire(root, "profile_detector.py", {"hook_event_name": "UserPromptSubmit", "prompt": "Build a site. " * 200})
-        assert json.loads((root / "user_profile.json").read_text(encoding="utf-8"))["prompt_style"] == "over_specifier"
+        assert profile_of(root)["prompt_style"] == "over_specifier"
     with tempfile.TemporaryDirectory() as tmp:
         root = make_root(tmp, {**EMPTY_PROFILE, "verbosity": "chatty"})
         result = fire(root, "profile_detector.py", {"hook_event_name": "SessionStart", "source": "new"})
@@ -97,16 +104,16 @@ def test_graph_follows_project() -> None:
     env = {**os.environ, "PATH": bin_dir + os.pathsep + os.environ["PATH"]}
     with tempfile.TemporaryDirectory() as tmp:
         root = make_root(tmp, EMPTY_PROFILE)
-        graph = root / "tests" / "outputs" / "harness" / "graph" / "graph.json"
+        graph = root / ".hve" / "outputs" / "harness" / "graph" / "graph.json"
 
         def run(event: str) -> subprocess.CompletedProcess[str]:
             """Run graph_refresh.py for one hook event."""
             return subprocess.run([sys.executable, str(root / "hooks" / "graph_refresh.py")],
-                                  input=json.dumps({"hook_event_name": event}), capture_output=True, text=True, env=env)
+                                  input=json.dumps({"hook_event_name": event}), capture_output=True, text=True, env=env, cwd=root)
 
         assert run("SessionStart").returncode == 0
         assert json.loads(graph.read_text(encoding="utf-8"))["nodes"] == []
-        project = root / "tests" / "outputs" / "harness" / "current"
+        project = root / ".hve" / "outputs" / "harness" / "current"
         (project / "node_modules" / "x").mkdir(parents=True)
         (project / "node_modules" / "x" / "index.js").write_text("function junk() {}\n", encoding="utf-8")
         (project / "lib.ts").write_text("export function hexToRgb(h: string): number[] { return [0, 0, 0]; }\n"
@@ -125,14 +132,13 @@ def fire_budget(root: Path, event: str, minutes: float, env: dict[str, str], too
     stamp = f"2026-10-06T08:{int(minutes):02d}:{round(minutes % 1 * 60):02d}+00:00"
     payload = {"hook_event_name": event, "session_id": "s-1", "timestamp": stamp, "tool_use_id": tool_use_id or f"t{minutes}"}
     return subprocess.run([sys.executable, str(root / "hooks" / "budget.py")], input=json.dumps(payload),
-                          capture_output=True, text=True, env={**os.environ, **env})
+                          capture_output=True, text=True, env={**os.environ, **env}, cwd=root)
 
 
 def test_budget_nudges_then_stops() -> None:
     """Stop mode, 10 minutes: silent early, a wrap-up nudge at 8.5 min, a final-summary nudge at 10.5, a hard stop at 11.5."""
     with tempfile.TemporaryDirectory() as tmp:
         root = make_root(tmp, EMPTY_PROFILE)
-        (root / "research" / "runs").mkdir(parents=True)
         env = {"HARNESS_BUDGET_MIN": "10", "HARNESS_BUDGET_ON_END": "stop"}
         assert fire_budget(root, "SessionStart", 0, env).returncode == 0
         assert fire_budget(root, "PreToolUse", 1, env).stdout == ""
@@ -146,7 +152,6 @@ def test_budget_asks_user_to_continue() -> None:
     """Ask mode, 15 minutes: after the budget each tool call asks the user; an allowed call adds 15 minutes, so 20 min is quiet again."""
     with tempfile.TemporaryDirectory() as tmp:
         root = make_root(tmp, EMPTY_PROFILE)
-        (root / "research" / "runs").mkdir(parents=True)
         env = {"HARNESS_BUDGET_MIN": "15", "HARNESS_BUDGET_ON_END": "ask"}
         assert fire_budget(root, "SessionStart", 0, env).returncode == 0
         assert "left" in output(fire_budget(root, "PreToolUse", 14, env))["hookSpecificOutput"]["additionalContext"]
@@ -156,7 +161,7 @@ def test_budget_asks_user_to_continue() -> None:
         assert fire_budget(root, "PostToolUse", 16.5, env, "x1").returncode == 0
         assert fire_budget(root, "PreToolUse", 20, env).stdout == ""
         assert "left" in output(fire_budget(root, "PreToolUse", 28.5, env))["hookSpecificOutput"]["additionalContext"]
-        state = json.loads((root / "research" / "runs" / "s-1.budget.json").read_text(encoding="utf-8"))
+        state = json.loads((root / ".hve" / "runs" / "s-1.budget.json").read_text(encoding="utf-8"))
         assert state["extensions"] == 1 and state["budget_ms"] == 30 * 60_000, state
 
 

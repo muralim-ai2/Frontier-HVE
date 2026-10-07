@@ -10,16 +10,15 @@ from pathlib import Path
 from typing import Any
 
 from interventions import record
+from hve_paths import RUNS_DIR
 
-ROOT = Path(__file__).resolve().parent.parent
-RUNS_DIR = ROOT / "research" / "runs"
 READ_ONLY_TOOLS = {"read_file", "file_search", "grep_search", "list_dir", "semantic_search", "get_errors", "get_terminal_output",
                    "terminal_last_command", "manage_todo_list", "view_image", "vscode_askQuestions", "mcp_graphify_query_graph",
                    "mcp_graphify_get_node", "mcp_graphify_get_neighbors", "mcp_graphify_shortest_path",
                    "github-pull-request_pullRequestStatusChecks", "github-pull-request_currentActivePullRequest"}
 PR_TOOL = "github-pull-request_create_pull_request"
 PROTECTED = re.compile(r"feature_list\.json|progress\.txt|\.harness[/\\]", re.I)
-LOOP_SCRIPT = re.compile(r"^\s*python3?\s+\S*tools[/\\](loop[/\\](loop|flow)|git[/\\](parallel_options|branch_workflow))\.py"
+LOOP_SCRIPT = re.compile(r"^\s*python3?\s+\"?[^\"\s]*tools[/\\](loop[/\\](loop|flow)|git[/\\](parallel_options|branch_workflow))\.py\"?"
                          r"(\s+[\w./\\:-]+)*\s*$", re.I)
 HUMAN_ONLY = re.compile(r"loop\.py\s+resume\b|flow\.py\s+resume\b", re.I)
 HOOK_BYPASS = re.compile(r"--no-verify|core\.hooksPath|\.git[/\\]hooks", re.I)
@@ -31,8 +30,8 @@ Json = dict[str, Any]
 
 
 def project() -> Path:
-    """Return the agent's project folder from HARNESS_PROJECT (set per agent in its hook env)."""
-    return ROOT / os.environ["HARNESS_PROJECT"]
+    """Return the agent's project folder: HARNESS_PROJECT (set per agent in its hook env) under the workspace root."""
+    return Path.cwd() / os.environ["HARNESS_PROJECT"]
 
 
 def read(path: Path) -> Any:

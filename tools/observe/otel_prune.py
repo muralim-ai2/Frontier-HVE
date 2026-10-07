@@ -56,7 +56,7 @@ def prune() -> Json:
     uncollected = [s for s in sessions if not (RUNS_DIR / f"{s}.run.json").exists()]
     if uncollected:
         raise RuntimeError(f"uncollected sessions {uncollected} still need the live export: run tools/observe/collect.py or move them "
-                           "to research/runs/invalid/ first")
+                           "to .hve/runs/invalid/ first")
     pending = [s for s in sessions if not archive_file(s).exists()]
     size = OTEL_FILE.stat().st_size
     picked, window_end = scan_live(pending)

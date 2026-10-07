@@ -21,7 +21,7 @@ FIELDS = {"name", "description", "verify", "passes"}
 MIN_FEATURES = 3
 MAX_ATTEMPTS = 5
 VERIFY_TIMEOUT_S = 300
-GITIGNORE = ("node_modules/", ".next/", ".harness/")
+GITIGNORE = ("node_modules/", ".next/", ".harness/", ".worktrees/")
 Review = Literal["local", "github"]
 
 Json = dict[str, Any]
