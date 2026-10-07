@@ -83,7 +83,7 @@ def onboard(skill_dir: Path, source: str, provisional: bool) -> Json:
     if target.exists():
         shutil.rmtree(target)
     if reasons:
-        registry["rejected"].append(entry | {"reason": "; ".join(reasons), "rejected_date": date.today().isoformat()})
+        registry["rejected"].append(entry | {"status": "rejected", "reason": "; ".join(reasons), "rejected_date": date.today().isoformat()})
     else:
         shutil.copytree(skill_dir, target)
         registry["admitted"].append(entry | {"admitted_date": date.today().isoformat()})

@@ -277,7 +277,7 @@
       "name": "accessibility",
       "description": "Check UI against WCAG 2.2 AA with a POUR checklist - semantics, keyboard, focus, contrast, motion and labels - and verify with an automated axe run where possible.",
       "source": "authored (see skills/authored/NOTICE)",
-      "status": "admitted",
+      "status": "rejected",
       "task_categories": [
         "ux"
       ],
@@ -305,7 +305,7 @@
       "name": "code-hygiene",
       "description": "De-slop code after AI generation - remove over-engineering, dead code, speculative options and comments that restate the code; simplify without changing behavior.",
       "source": "authored (see skills/authored/NOTICE)",
-      "status": "admitted",
+      "status": "rejected",
       "task_categories": [
         "de-slop"
       ],
@@ -333,7 +333,7 @@
       "name": "ui-content",
       "description": "Write UI copy for usability - labels, buttons, empty states, errors, confirmations and onboarding - in clear, short, inclusive wording that tells users what to do next.",
       "source": "authored (see skills/authored/NOTICE)",
-      "status": "admitted",
+      "status": "rejected",
       "task_categories": [
         "ux"
       ],

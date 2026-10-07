@@ -112,3 +112,34 @@ The following is an **index/tree-level follow-up shortlist**, not a completed sk
 5. Publish the resulting coverage matrix and link each admission/rejection to its report. Continue loading only a relevant budgeted subset per task; a larger evaluated library does not require loading all of it.
 
 These are outstanding actions, not completed work. This audit added documentation only: no new skill bodies were imported or authored, no model evaluations were run, and no admission decisions or load budgets were changed.
+
+## 6. Update: positioning, full static screen and next step (later on 2026-10-07)
+
+### 6.1 Positioning: why a small first batch
+
+- **Scope was chosen by the user, not filtered by quality.** The first batch covered the six areas the user asked for (UX, architecture, de-slop, scrub, dreams/self-learning, research). The other source skills were not reviewed then; they were not rejected. "Not reviewed" is a scope decision, not a judgement.
+- **Two designs, two loading models.** The source library is built for a role-based fleet: a router (`Skills.md`) points each role at the few skills it needs, and each skill is a complete knowledge package (median 1,840 tokens, up to 4,700; rich descriptions for routing). Frontier HVE runs inside a single Copilot chat, where every discoverable skill costs every request. The harness therefore treats skills as a library that must earn its place with measured lift and is loaded per task within a budget. The source skills' depth is a strength in their design; it only needs a different loading path here.
+- **Build from scratch, keep the best.** Frontier HVE was built small on purpose, by a co-contributor of the source project, to keep the harness lean and evidence-driven. The first batch tested the approach (author short, measure lift, load per task); it worked: 10 of 13 passed. The next step brings the source skills over as they are and lets the same evidence decide.
+
+### 6.2 Full static screen of all 134 source skills
+
+Every `SKILL.md` at the pinned commit was screened with `tools/skills/scan.py` and the category matcher, with no model calls. One disposition per skill is persisted in [phase-9-source-skill-manifest.json](phase-9-source-skill-manifest.json) (path, size, scan result, scripts, source-runtime references, categories, authored counterpart, disposition, evaluation status).
+
+| Disposition | Skills | Meaning |
+|---|---:|---|
+| Tier 1: requested area | 33 | Scan passes, matches one of the requested areas, self-contained |
+| Tier 1, with scripts or source-runtime steps | 5 | As above, but PowerShell scripts or `.frontier` runtime steps that this harness does not ship; the instructions can still be evaluated |
+| Tier 2: outside requested areas | 62 | Scan passes; AI systems, data, languages, infrastructure, low-code, domains and similar: a scope decision is needed, not a quality one |
+| Tier 2, with scripts or source-runtime steps | 10 | As above, with scripts or runtime steps |
+| Review: scanner flag | 24 | The conservative scanner flagged strings such as destructive commands, secret patterns, URLs or fetch calls. Most are expected in security, DevOps and language skills that teach those topics; each needs a human look, not a rejection |
+
+Other facts from the screen: 110 of 134 pass the scan; 17 ship PowerShell scripts; 24 reference the source runtime; no skill is under the 800-token limit set for short authored skills, and 53 are over 2,000 tokens; 128 have descriptions over 200 characters. Ten source skills have an authored counterpart in the first batch (for example `accessibility`, `scrub`, `api-design`).
+
+The registry caveat in section 1 is fixed: rejected entries now carry `status: "rejected"`.
+
+### 6.3 Next step (agreed with the user): copy, do not rewrite, and evaluate
+
+1. Copy source skills verbatim into an imported library (`skills/imported/agentx/`), with the source `LICENSE` and `NOTICE` kept beside them (Apache-2.0 attribution; files unmodified).
+2. Imported skills are never discoverable and never always-on. They are ranked per task like the rest of the library. A skill larger than the loadout budget (2,000 tokens) cannot auto-load; it is offered, ranked, and loads only when the user ticks it.
+3. Evaluate with the same micro paired method and gate, in tiers by token budget: tier 1 first (38 skills), then tier 2 by user priority; scanner-flagged skills after a human look. The ten with authored counterparts are compared on the same tasks, so the better version wins on evidence.
+4. Record each result in the manifest (`evaluation`) and the registry, so coverage is always visible: reviewed, evaluated, admitted, rejected, or not in scope.
