@@ -2,7 +2,7 @@
   "name": "frontier-hve",
   "displayName": "Frontier HVE",
   "description": "Enterprise AI harness for GitHub Copilot: HVE agents with a verified feature loop, graph workflow, guards and human-ticked PRs.",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "publisher": "muralim-ai2",
   "license": "UNLICENSED",
   "repository": {

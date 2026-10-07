@@ -1,4 +1,4 @@
-"""PostToolUse hook: record the user's ticks from ask-questions answers (option choice, PRs to push, technical level) for the harness to enforce."""
+"""PostToolUse hook: record the user's ticks from ask-questions answers (option choice, PRs to push, build preference) for the harness to enforce."""
 
 import json
 import re
@@ -9,7 +9,7 @@ from typing import Any
 
 ASK_TOOL = "vscode_askQuestions"
 TAG = re.compile(r"\[(project|profile):\s*([^\]]+)\]")
-LEVELS = ("executive", "partial", "developer")
+PREFERENCES = {"no code": "no_code", "low code": "low_code", "pro code": "pro_code"}
 
 Json = dict[str, Any]
 
@@ -37,12 +37,12 @@ def record(question: Json, selected: list[str], cwd: Path) -> None:
         earlier = json.loads(path.read_text(encoding="utf-8"))["branches"] if path.exists() else []
         branches = sorted(set(earlier) | {s for s in selected if s.startswith("feature/")})
         path.write_text(json.dumps({"branches": branches, "ts_ms": time.time() * 1000}), encoding="utf-8")
-    elif header == "technical-level":
+    elif header == "build-preference":
         profile = (cwd / tags["profile"].strip()).resolve()
-        if profile.name != "user_profile.json" or not profile.is_file() or len(selected) != 1 or selected[0] not in LEVELS:
-            raise ValueError(f"technical-level needs [profile: .../user_profile.json] and one of {LEVELS}, got {profile}, {selected}")
+        if profile.name != "user_profile.json" or not profile.is_file() or len(selected) != 1 or selected[0] not in PREFERENCES:
+            raise ValueError(f"build-preference needs [profile: .../user_profile.json] and one of {list(PREFERENCES)}, got {profile}, {selected}")
         data = json.loads(profile.read_text(encoding="utf-8"))
-        data["technical_level"] = selected[0]
+        data["build_preference"] = PREFERENCES[selected[0]]
         profile.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
 
 
@@ -55,7 +55,7 @@ def main() -> None:
     answers = (json.loads(response) if isinstance(response, str) else response)["answers"]
     for question in payload["tool_input"]["questions"]:
         header = question["header"]
-        if (header.startswith("choose:") or header in ("push", "technical-level")) and not answers[header].get("skipped"):
+        if (header.startswith("choose:") or header in ("push", "build-preference")) and not answers[header].get("skipped"):
             record(question, answers[header]["selected"], Path.cwd())
 
 

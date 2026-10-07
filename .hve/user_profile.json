@@ -3,6 +3,8 @@
   "wants_evidence": null,
   "verbosity": null,
   "output_format": null,
-  "technical_level": null,
+  "build_preference": null,
+  "depth_evidence": 0,
+  "explanation_depth": null,
   "bloat_triggers": []
 }

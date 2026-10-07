@@ -9,7 +9,7 @@ description: Stop a vibe-coded prototype from growing into an unmanageable or no
 2. If `verdict` is `ok`, continue.
 3. If `verdict` is `review`:
    - Stop adding features, components or infrastructure.
-   - Tell the user, at their technical level: what was found, why it matters (licensing, support, security, scale, data residency), and the enterprise alternative for each flagged component (for example Azure AI Search instead of a local vector store, Azure AI Document Intelligence instead of Tesseract).
+   - Tell the user, at their explanation depth: what was found, why it matters (licensing, support, security, scale, data residency), and the enterprise alternative for each flagged component (for example Azure AI Search instead of a local vector store, Azure AI Document Intelligence instead of Tesseract).
    - Recommend the listed experts, always including a solution architect when components or infrastructure are flagged.
    - Offer a complexity report. With the user's yes, write `complexity_report.json` in the project root: current architecture (components and how they connect), each flagged item with risk and enterprise alternative, size hot spots, open questions for the architect, and a suggested next step. For deeper comparison of options, use a stronger research model or the researcher skill if it is admitted.
 4. Continue only with the user's decision. Do not swap components yourself without it.

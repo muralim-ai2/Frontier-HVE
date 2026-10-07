@@ -9,12 +9,13 @@ const { renderPlugin } = require('./render');
 
 const MIN_PYTHON = [3, 11];
 const EMPTY_PROFILE = {
-  prompt_style: null, wants_evidence: null, verbosity: null, output_format: null, technical_level: null, bloat_triggers: [],
+  prompt_style: null, wants_evidence: null, verbosity: null, output_format: null, build_preference: null, depth_evidence: 0,
+  explanation_depth: null, bloat_triggers: [],
 };
-const LEVELS = [
-  { label: 'executive', description: 'Business view, no code' },
-  { label: 'partial', description: 'TPM or architect: concepts and some code' },
-  { label: 'developer', description: 'Deeply technical' },
+const PREFERENCES = [
+  { label: 'No code', value: 'no_code', description: 'Describe the outcome; the agent writes the code and explains as it goes' },
+  { label: 'Low code', value: 'low_code', description: 'Read and adjust code with guidance' },
+  { label: 'Pro code', value: 'pro_code', description: 'Write and review code yourself' },
 ];
 
 /**
@@ -47,7 +48,7 @@ async function registerPlugin(context) {
 }
 
 /**
- * Create <workspace>/.hve with runs/ and the user profile, ask for the technical level, and optionally ignore .hve in git.
+ * Create <workspace>/.hve with runs/ and the user profile, ask how the user prefers to build, and optionally ignore .hve in git.
  * @param {string} workspace
  */
 async function setUpWorkspace(workspace) {
@@ -55,11 +56,11 @@ async function setUpWorkspace(workspace) {
   fs.mkdirSync(path.join(state, 'runs'), { recursive: true });
   const profileFile = path.join(state, 'user_profile.json');
   const profile = fs.existsSync(profileFile) ? JSON.parse(fs.readFileSync(profileFile, 'utf8')) : { ...EMPTY_PROFILE };
-  const level = await vscode.window.showQuickPick(LEVELS, {
-    title: 'Frontier HVE: how technical should explanations be?', placeHolder: 'Choose your technical level', ignoreFocusOut: true,
+  const preference = await vscode.window.showQuickPick(PREFERENCES, {
+    title: 'Frontier HVE: how do you prefer to build?', placeHolder: 'A starting point; the agents adapt to how you work', ignoreFocusOut: true,
   });
-  if (level) {
-    profile.technical_level = level.label;
+  if (preference) {
+    profile.build_preference = preference.value;
   }
   fs.writeFileSync(profileFile, JSON.stringify(profile, null, 2) + '\n');
   const gitignore = path.join(workspace, '.gitignore');

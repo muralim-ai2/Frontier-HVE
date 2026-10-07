@@ -12,7 +12,8 @@ CHARS_PER_TOKEN = 4
 OVER_SPEC_TOKENS = 500
 
 BloatTrigger = Literal["md_state_files", "infinite_loop", "agent_swarm", "skip_verification"]
-TechnicalLevel = Literal["executive", "partial", "developer"]
+BuildPreference = Literal["no_code", "low_code", "pro_code"]
+Depth = Literal["guided", "balanced", "expert"]
 
 
 class Profile(TypedDict):
@@ -22,7 +23,9 @@ class Profile(TypedDict):
     wants_evidence: Literal[True] | None
     verbosity: Literal["concise"] | None
     output_format: Literal["tables", "prose", "code"] | None
-    technical_level: TechnicalLevel | None
+    build_preference: BuildPreference | None
+    depth_evidence: int
+    explanation_depth: Depth | None
     bloat_triggers: list[BloatTrigger]
 
 
@@ -31,24 +34,35 @@ ALLOWED: dict[str, tuple[object, ...]] = {
     "wants_evidence": (None, True),
     "verbosity": (None, "concise"),
     "output_format": (None, "tables", "prose", "code"),
-    "technical_level": (None, "executive", "partial", "developer"),
+    "build_preference": (None, "no_code", "low_code", "pro_code"),
+    "explanation_depth": (None, "guided", "balanced", "expert"),
 }
+PRIOR: dict[BuildPreference, int] = {"no_code": -3, "low_code": 0, "pro_code": 3}
+EVIDENCE_CAP = 6
+DEPTH_THRESHOLD = 2
 ROLE = r"\b(?:i'?m|i am|as)\s+(?:an?\s+|the\s+)?(?:senior\s+|staff\s+|principal\s+|lead\s+)?"
-LEVELS: dict[TechnicalLevel, re.Pattern[str]] = {
-    "executive": re.compile(ROLE + r"(?:ceo|cto|cio|cfo|coo|vp|vice president|director|executive|business (?:owner|leader))\b"
-                            r"|\bnon-?technical\b|\bnot (?:very )?technical\b", re.I),
-    "partial": re.compile(ROLE + r"(?:tpm|technical program manager|program manager|product manager|product owner|"
-                          r"solution architect|architect|business analyst)\b|\bpartially technical\b", re.I),
-    "developer": re.compile(ROLE + r"(?:developer|software engineer|engineer|programmer|data scientist|ml engineer|ai engineer)\b", re.I),
+ROLE_GUIDED = re.compile(ROLE + r"(?:ceo|cfo|coo|vp|vice president|director|executive|business (?:owner|leader))\b"
+                         r"|\bnon-?technical\b|\bnot (?:very )?technical\b|\bi (?:don'?t|do not|can'?t) code\b", re.I)
+ROLE_BALANCED = re.compile(ROLE + r"(?:tpm|technical program manager|program manager|product manager|product owner|"
+                           r"solution architect|architect|business analyst)\b", re.I)
+ROLE_EXPERT = re.compile(ROLE + r"(?:developer|software engineer|engineer|programmer|data scientist|ml engineer|ai engineer)\b", re.I)
+EXPERT_SIGNS = re.compile(
+    r"```|\b\w+\(\)|\b[\w/.-]+\.(?:py|ts|tsx|js|jsx|java|go|rs|cs|sql|ya?ml|toml)\b|\bTraceback\b|\b\w+Error\b|"
+    r"\b(?:refactor|regex|async|await|mutex|race condition|dependency injection|type hints?|generics|ORM|schema migration|"
+    r"idempotent|rebase|cherry-pick|mock(?:s|ing)?|unit tests?|big-?o|memoi[sz]e)\b", re.I)
+GUIDED_SIGNS = re.compile(
+    r"\bwhat (?:is|are|does) (?:an? |the )?(?:pr|pull request|api|repo|repository|branch|commit|middleware|backend|frontend|"
+    r"database|ci|pipeline|deployment|terminal|git|framework)\b|\bexplain (?:what|how|it)\b|\bi don'?t (?:understand|know (?:how|what))\b|"
+    r"\bin plain (?:english|terms|language)\b|\bjust make it work\b|\bmake it look\b|\bwhat do i (?:click|run|do next)\b", re.I)
+DEPTH_CONTEXT: dict[Depth, str] = {
+    "guided": ("Explanation depth: guided. Explain in plain business terms with the explain-walkthrough skill, avoid jargon, "
+               "and recommend the right experts (UI/UX, backend, full-stack, data scientist, AI engineer, solution architect, DevOps) "
+               "before moving from prototype to production."),
+    "balanced": ("Explanation depth: balanced. Explain new concepts briefly with the explain-walkthrough skill and recommend experts "
+                 "before production infrastructure."),
+    "expert": "Explanation depth: expert. Skip basic explanations.",
 }
-LEVEL_CONTEXT: dict[TechnicalLevel, str] = {
-    "executive": ("Technical level: executive (non-technical). Explain in business terms with the explain-walkthrough skill, avoid jargon, "
-                  "and recommend the right experts (UI/UX, backend, full-stack, data scientist, AI engineer, solution architect, DevOps) "
-                  "before moving from prototype to production."),
-    "partial": ("Technical level: partially technical (for example TPM or architect). Explain new concepts briefly with the "
-                "explain-walkthrough skill and recommend experts before production infrastructure."),
-    "developer": "Technical level: developer. Skip basic explanations.",
-}
+DEPTH_NOTE = "The depth is inferred from how the user works; adapt silently and never label, classify or quiz the user."
 EVIDENCE = re.compile(r"\b(with evidence|cite (your )?sources?|show me (the )?proof|with citations)\b", re.I)
 CONCISE = re.compile(r"\b(in (under )?\d+ words|keep it (short|brief)|be (brief|concise)|briefly)\b", re.I)
 FORMATS = {
@@ -73,13 +87,15 @@ CHALLENGES: dict[BloatTrigger, str] = {
 def load_profile() -> Profile:
     """Return user_profile.json after checking every field against its allowed values."""
     data = json.loads(PROFILE_FILE.read_text(encoding="utf-8"))
-    if set(data) != set(ALLOWED) | {"bloat_triggers"}:
-        raise ValueError(f"{PROFILE_FILE} fields {sorted(data)} differ from {sorted(set(ALLOWED) | {'bloat_triggers'})}")
+    if set(data) != set(ALLOWED) | {"bloat_triggers", "depth_evidence"}:
+        raise ValueError(f"{PROFILE_FILE} fields {sorted(data)} differ from {sorted(set(ALLOWED) | {'bloat_triggers', 'depth_evidence'})}")
     for key, allowed in ALLOWED.items():
         if data[key] not in allowed:
             raise ValueError(f"{PROFILE_FILE} {key}={data[key]!r}, expected one of {allowed}")
     if not set(data["bloat_triggers"]) <= set(BLOAT):
         raise ValueError(f"{PROFILE_FILE} bloat_triggers {data['bloat_triggers']} not all in {sorted(BLOAT)}")
+    if not isinstance(data["depth_evidence"], int) or abs(data["depth_evidence"]) > EVIDENCE_CAP:
+        raise ValueError(f"{PROFILE_FILE} depth_evidence={data['depth_evidence']!r}, expected an int within ±{EVIDENCE_CAP}")
     return data  # type: ignore[return-value]
 
 
@@ -88,6 +104,32 @@ def save_profile(profile: Profile) -> None:
     tmp = PROFILE_FILE.with_suffix(f".{os.getpid()}.tmp")
     tmp.write_text(json.dumps(profile, indent=2) + "\n", encoding="utf-8")
     os.replace(tmp, PROFILE_FILE)
+
+
+def prior(profile: Profile) -> int:
+    """Return the depth score the stated build preference starts from."""
+    return PRIOR[profile["build_preference"]] if profile["build_preference"] else 0
+
+
+def depth_signal(prompt: str, profile: Profile) -> int:
+    """Return the depth evidence after one prompt: role statements weigh 3, working signs 1, capped at the evidence cap."""
+    evidence = profile["depth_evidence"]
+    if ROLE_GUIDED.search(prompt):
+        evidence -= 3
+    elif ROLE_EXPERT.search(prompt):
+        evidence += 3
+    elif ROLE_BALANCED.search(prompt):
+        evidence -= max(-3, min(3, prior(profile) + evidence))
+    evidence += bool(EXPERT_SIGNS.search(prompt)) - bool(GUIDED_SIGNS.search(prompt))
+    return max(-EVIDENCE_CAP, min(EVIDENCE_CAP, evidence))
+
+
+def infer_depth(profile: Profile) -> Depth | None:
+    """Return the explanation depth from the stated build preference plus prompt evidence, or None when nothing is known."""
+    if profile["build_preference"] is None and profile["depth_evidence"] == 0:
+        return None
+    score = prior(profile) + profile["depth_evidence"]
+    return "expert" if score >= DEPTH_THRESHOLD else "guided" if score <= -DEPTH_THRESHOLD else "balanced"
 
 
 def detect(prompt: str, profile: Profile) -> tuple[Profile, list[BloatTrigger]]:
@@ -101,9 +143,8 @@ def detect(prompt: str, profile: Profile) -> tuple[Profile, list[BloatTrigger]]:
     for output_format, pattern in FORMATS.items():
         if pattern.search(prompt):
             updated["output_format"] = output_format  # type: ignore[typeddict-item]
-    for level, pattern in LEVELS.items():
-        if pattern.search(prompt):
-            updated["technical_level"] = level
+    updated["depth_evidence"] = depth_signal(prompt, profile)
+    updated["explanation_depth"] = infer_depth(updated)
     triggers = [trigger for trigger, pattern in BLOAT.items() if pattern.search(prompt)]
     updated["bloat_triggers"] = sorted(set(profile["bloat_triggers"]) | set(triggers))
     return updated, triggers
@@ -120,8 +161,9 @@ def session_context(profile: Profile) -> str:
         lines.append("Keep replies short.")
     if profile["output_format"]:
         lines.append(f"Prefer {profile['output_format']} in replies.")
-    if profile["technical_level"]:
-        lines.append(LEVEL_CONTEXT[profile["technical_level"]])
+    depth = infer_depth(profile)
+    if depth:
+        lines.append(f"{DEPTH_CONTEXT[depth]} {DEPTH_NOTE}")
     if profile["bloat_triggers"]:
         lines.append(f"The user has asked for token-wasteful patterns before ({', '.join(profile['bloat_triggers'])}): "
                      "challenge them with the token-cost reason and the better alternative instead of complying.")

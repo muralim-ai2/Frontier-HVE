@@ -21,4 +21,4 @@ Run from the project root; `<tools>` is the harness tools folder named in your a
 5. If the repository does not add Copilot code review automatically, ask the user to select "Request review from Copilot" on each PR.
 6. Report each PR's GitHub Actions checks with the PR status-checks tool. Do not merge; merging is the human reviewer's decision.
 
-For an `executive` or `partial` user, explain in one line what a PR is and what happens after the review (see `explain-walkthrough`).
+At `guided` or `balanced` explanation depth, explain in one line what a PR is and what happens after the review (see `explain-walkthrough`).

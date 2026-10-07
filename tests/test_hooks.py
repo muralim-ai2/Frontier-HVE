@@ -10,8 +10,8 @@ from pathlib import Path
 from typing import Any
 
 REPO = Path(__file__).resolve().parent.parent
-EMPTY_PROFILE = {"prompt_style": None, "wants_evidence": None, "verbosity": None, "output_format": None, "technical_level": None,
-                 "bloat_triggers": []}
+EMPTY_PROFILE = {"prompt_style": None, "wants_evidence": None, "verbosity": None, "output_format": None, "build_preference": None,
+                 "depth_evidence": 0, "explanation_depth": None, "bloat_triggers": []}
 
 
 def make_root(tmp: str, profile: dict[str, Any]) -> Path:
@@ -66,15 +66,24 @@ def test_preference_persists_into_next_session() -> None:
         assert "Keep replies short." in text and "Prefer tables" in text, text
 
 
-def test_technical_level_from_role() -> None:
-    """'I'm the CTO' sets executive, 'as a TPM' then sets partial, and the next session starts with the level's guidance."""
+def test_depth_is_inferred_not_asked() -> None:
+    """A stated 'pro code' preference starts at expert; a TPM role and vibe-coding prompts move it to balanced; code talk moves it back."""
+    with tempfile.TemporaryDirectory() as tmp:
+        root = make_root(tmp, {**EMPTY_PROFILE, "build_preference": "pro_code"})
+        context = output(fire(root, "profile_detector.py", {"hook_event_name": "SessionStart", "source": "new"}))
+        text = context["hookSpecificOutput"]["additionalContext"]
+        assert "Explanation depth: expert" in text and "never label" in text, text
+        fire(root, "profile_detector.py", {"hook_event_name": "UserPromptSubmit", "prompt": "As a TPM I need a status view."})
+        assert profile_of(root)["explanation_depth"] == "balanced"
+        fire(root, "profile_detector.py", {"hook_event_name": "UserPromptSubmit", "prompt": "What is a pull request? Just make it work."})
+        assert profile_of(root)["explanation_depth"] == "balanced" and profile_of(root)["depth_evidence"] == -4
+        for prompt in ("Refactor parse() in app.py", "Add unit tests with mocks", "Fix the TypeError in api.ts", "Use async here"):
+            fire(root, "profile_detector.py", {"hook_event_name": "UserPromptSubmit", "prompt": prompt})
+        assert profile_of(root)["explanation_depth"] == "expert", profile_of(root)
     with tempfile.TemporaryDirectory() as tmp:
         root = make_root(tmp, EMPTY_PROFILE)
-        fire(root, "profile_detector.py", {"hook_event_name": "UserPromptSubmit", "prompt": "I'm the CTO, build me a dashboard."})
-        assert profile_of(root)["technical_level"] == "executive"
-        fire(root, "profile_detector.py", {"hook_event_name": "UserPromptSubmit", "prompt": "As a TPM I need a status view."})
-        context = output(fire(root, "profile_detector.py", {"hook_event_name": "SessionStart", "source": "new"}))
-        assert "partially technical" in context["hookSpecificOutput"]["additionalContext"], context
+        fire(root, "profile_detector.py", {"hook_event_name": "UserPromptSubmit", "prompt": "I don't code, build me a dashboard."})
+        assert profile_of(root)["explanation_depth"] == "guided" and profile_of(root)["build_preference"] is None
 
 
 def test_over_specified_prompt_and_invalid_profile() -> None:
@@ -168,7 +177,7 @@ def test_budget_asks_user_to_continue() -> None:
 if __name__ == "__main__":
     test_bloat_request_is_challenged_and_learned()
     test_preference_persists_into_next_session()
-    test_technical_level_from_role()
+    test_depth_is_inferred_not_asked()
     test_over_specified_prompt_and_invalid_profile()
     test_subagent_start_gets_return_cap()
     test_graph_follows_project()

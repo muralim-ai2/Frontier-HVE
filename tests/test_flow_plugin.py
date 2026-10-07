@@ -95,12 +95,12 @@ def test_flow_guard_blocks_unfinished_stage() -> None:
 
 
 def test_choice_recorder() -> None:
-    """Tagged answers become the option choice, a cumulative push approval, and the profile's technical level."""
+    """Tagged answers become the option choice, a cumulative push approval, and the profile's build preference."""
     with tempfile.TemporaryDirectory() as tmp:
         cwd = Path(tmp)
         (cwd / "proj" / ".harness").mkdir(parents=True)
         (cwd / ".hve").mkdir()
-        (cwd / ".hve" / "user_profile.json").write_text(json.dumps({"technical_level": None}), encoding="utf-8")
+        (cwd / ".hve" / "user_profile.json").write_text(json.dumps({"build_preference": None}), encoding="utf-8")
 
         def answer(header: str, question: str, selected: list[str]) -> None:
             """Fire the recorder for one answered question."""
@@ -112,10 +112,10 @@ def test_choice_recorder() -> None:
         answer("choose:palette", "Which option? [project: proj]", ["two"])
         answer("push", "Push which? [project: proj]", ["feature/a"])
         answer("push", "Push which? [project: proj]", ["feature/b", "not-a-branch"])
-        answer("technical-level", "How technical? [profile: .hve/user_profile.json]", ["executive"])
+        answer("build-preference", "How do you prefer to build? [profile: .hve/user_profile.json]", ["low code"])
         assert json.loads((cwd / "proj" / ".harness" / "choices" / "palette.json").read_text())["approach"] == "two"
         assert json.loads((cwd / "proj" / ".harness" / "push_approved.json").read_text())["branches"] == ["feature/a", "feature/b"]
-        assert json.loads((cwd / ".hve" / "user_profile.json").read_text())["technical_level"] == "executive"
+        assert json.loads((cwd / ".hve" / "user_profile.json").read_text())["build_preference"] == "low_code"
 
 
 def test_guardrail_flags_non_enterprise_prototype() -> None:

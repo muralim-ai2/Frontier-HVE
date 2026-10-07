@@ -29,7 +29,7 @@ The design follows [reference/Enterprise AI Harness Blueprint v3.html](reference
 |---|---|
 | 1. Build | `python extension/build.py`, then from `extension/`: `npx --yes @vscode/vsce package --skip-license` (creates `frontier-hve-<version>.vsix`) |
 | 2. Install | `code --install-extension extension/frontier-hve-<version>.vsix` (needs GitHub Copilot Chat and Python 3.11+) |
-| 3. Set up | Open the project folder, run **Frontier HVE: Set up** from the Command Palette, answer the technical-level question, and reload the window |
+| 3. Set up | Open the project folder, run **Frontier HVE: Set up** from the Command Palette, pick how you prefer to build (no code, low code or pro code), and reload the window |
 | 4. Use | In the Chat view (Session Target: Local) pick an **HVE** agent: `HVE creator`, `HVE creator-flow`, `HVE creator-github`, `HVE single` or `HVE minimal` |
 
 Setup renders the HVE agents and skills as an agent plugin in the extension's storage and registers it in `chat.pluginLocations`. Workspace state goes to `<workspace>/.hve/` (profile, budgets, interventions); setup offers to add `.hve/` to `.gitignore`. The Copilot telemetry export is optional and only needed for research metrics (D-032).
@@ -119,7 +119,7 @@ Machine state is JSON only (`feature_list.json`, `.hve/user_profile.json`, `.har
 
 | Blueprint node | Frontier HVE implementation |
 |---|---|
-| Identity and behavior | Agent prompts; `technical_level` and preferences from [.hve/user_profile.json](.hve/user_profile.json) injected at session start |
+| Identity and behavior | Agent prompts; inferred `explanation_depth` and preferences from [.hve/user_profile.json](.hve/user_profile.json) injected at session start |
 | Context and memory | Graphify MCP (creator), compaction hook, profile memory, explicit tool lists |
 | Model decision | Pinned model per mode, enforced at flush; reasoning effort recorded per call and checked by the bench (D-020). No dynamic routing |
 | Orchestration | Feature loop, `creator-flow` stages, sub-agents capped at 3 |
@@ -218,7 +218,7 @@ Budget hooks act at tool boundaries; they cannot interrupt an already-running co
 | P3 | Sandbox isolation | Partial: worktrees for options, guarded state, push gate. No Docker or gVisor sandbox |
 | P4 | Model dependency and cost | Measured, not routed: cost per call recorded (D-017); models pinned for comparability |
 | P5 | Human in the loop | Built: time-budget stop or user-approved extension, retry rules, escalation questions, ticked option choice and PR pushes |
-| P6 | Prompt fragility | Partial: typed profile with technical level; DSPy/GEPA not used |
+| P6 | Prompt fragility | Partial: typed profile with inferred explanation depth; DSPy/GEPA not used |
 | P7 | Sub-agents | Built: at most 3, one role each, under 2K-token returns |
 | P8 | Skill selection | Built: Phase 9 gate (scan, paired eval, lift thresholds, top 3 per task) |
 
@@ -256,7 +256,7 @@ See the [blueprint's ranked problems and research review](reference/Enterprise%2
 
 - **Skill gate (Phase 9, D-022)**: [scan.py](tools/skills/scan.py) blocks malformed or unsafe skills (prompt injection, external fetches, encoded payloads, destructive commands, secrets); [triage.py](tools/skills/triage.py) maps candidates to the selected categories ([skills/categories.json](skills/categories.json)); [eval_skill.py](tools/skills/eval_skill.py) runs paired with/without benchmarks and computes lift; [onboard.py](tools/skills/onboard.py) admits at a lift of 10 or more points and token overhead under 20%; [hooks/skill_loader.py](hooks/skill_loader.py) loads the top 3 admitted skills per task and denies all others.
 - **harness-assist plugin (D-029)**: [plugins/harness-assist](plugins/harness-assist) adds the skills `feature-checklist`, `run-tests`, `code-review`, `parallel-options`, `pr-push`, `explain-walkthrough` and `prototype-guardrail`, plus two hook scripts wired into the creator agents. The choice recorder turns the user's ticks in ask-questions answers into files the harness enforces. The prototype guardrail flags code over 5,000 lines, files over 20 MB, non-enterprise components (for example FalkorDB, Tesseract, SQLite, local vector stores) with their licensed Azure alternative, and self-built infrastructure, and names the experts to involve. The extension ships these skills; in this repository enable them with the `chat.pluginLocations` setting.
-- **Technical level**: the profile records `executive`, `partial` or `developer` from explicit role statements or one question, and agents explain and recommend experts accordingly.
+- **Explanation depth (D-034)**: the user is never asked how technical they are. Setup asks only how they prefer to build (no code, low code, pro code) as a starting point; the profile then infers `guided`, `balanced` or `expert` from role statements and how prompts are written, so a stated preference can be outweighed by behavior. Agents adapt silently and never label the user.
 - **Governance**: enforced by local hooks instead of the Microsoft Agent Governance Toolkit: budget stop or user-approved continuation, anti-gaming, git-hook bypass, human-only commands, force-push ban, and pushes or PRs only for branches the user ticked (D-026).
 - **Guardrails (D-025)**: [module_guard.py](hooks/module_guard.py) blocks files over 500 lines; [no_fallback.py](hooks/no_fallback.py) rejects commits that hide errors or ship TODOs.
 
@@ -333,7 +333,7 @@ The full source trail is in the [blueprint](reference/Enterprise%20AI%20Harness%
 |---|---|
 | [tests/test_metrics.py](tests/test_metrics.py) | Hook and OTel join, token, cache, cost and effort fields, model pin |
 | [tests/test_collect.py](tests/test_collect.py) | Run collection and prompt verification |
-| [tests/test_hooks.py](tests/test_hooks.py) | Profile memory and technical level, compaction, graph refresh, budget |
+| [tests/test_hooks.py](tests/test_hooks.py) | Profile memory and inferred explanation depth, compaction, graph refresh, budget |
 | [tests/test_skills.py](tests/test_skills.py) | Skill scan, triage, onboarding thresholds, lift report, skill loader |
 | [tests/test_trajectory.py](tests/test_trajectory.py) | Context-rot detector and context growth |
 | [tests/test_loop.py](tests/test_loop.py) | Feature loop, rules R0–R7, guards, push gate, no-fallback scan, module guard, parallel options |

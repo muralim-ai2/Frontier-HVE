@@ -11,8 +11,8 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parent.parent
 EXTENSION = REPO / "extension"
 COMMAND = re.compile(r"command: '(.+)'")
-EMPTY_PROFILE = {"prompt_style": None, "wants_evidence": None, "verbosity": None, "output_format": None, "technical_level": None,
-                 "bloat_triggers": []}
+EMPTY_PROFILE = {"prompt_style": None, "wants_evidence": None, "verbosity": None, "output_format": None, "build_preference": None,
+                 "depth_evidence": 0, "explanation_depth": None, "bloat_triggers": []}
 
 
 def render(out: Path, version: str = "0.0.0-test") -> list[str]:
@@ -28,7 +28,7 @@ def workspace(tmp: str) -> Path:
     """Return a temp workspace set up the way the extension's setup command leaves it."""
     ws = Path(tmp) / "ws"
     (ws / ".hve" / "runs").mkdir(parents=True)
-    (ws / ".hve" / "user_profile.json").write_text(json.dumps(EMPTY_PROFILE | {"technical_level": "partial"}), encoding="utf-8")
+    (ws / ".hve" / "user_profile.json").write_text(json.dumps(EMPTY_PROFILE | {"build_preference": "low_code"}), encoding="utf-8")
     return ws
 
 
@@ -90,7 +90,7 @@ def test_rendered_hooks_run_in_a_workspace() -> None:
         creator = (out / "com.github.copilot" / "agents" / "hve-creator.agent.md").read_text(encoding="utf-8")
         start = {"hook_event_name": "SessionStart", "timestamp": "2026-10-06T08:00:00+00:00", "source": "new"}
         context = run(hook(creator, "profile_detector.py"), ws, start)
-        assert context and "partially technical" in json.dumps(context), context
+        assert context and "Explanation depth: balanced" in json.dumps(context), context
         pre = {"hook_event_name": "PreToolUse", "timestamp": "2026-10-06T08:01:00+00:00", "tool_name": "read_file",
                "tool_input": {"filePath": "x"}, "tool_use_id": "t1"}
         assert run(hook(creator, "loop_guard.py"), ws, pre, HARNESS_PROJECT=".", HARNESS_STOP_POLICY="once") is None
