@@ -1,5 +1,6 @@
 {
   "code_lines_limit": 5000,
+  "file_mb_limit": 20,
   "components": [
     {"pattern": "^(falkordb|redisgraph|neo4j|neo4j-driver|memgraph|arangojs|python-arango)$", "category": "graph database",
      "enterprise": "Azure Cosmos DB (Gremlin API) or Azure Database for PostgreSQL with Apache AGE, chosen by a solution architect"},
@@ -28,6 +29,7 @@
     "self-managed cache or queue": "backend developer, DevOps",
     "self-built authentication": "security, backend developer",
     "size": "solution architect, full-stack developer",
+    "storage": "solution architect, DevOps / platform engineer",
     "infrastructure": "DevOps / platform engineer, solution architect"
   }
 }

@@ -31,6 +31,11 @@
       "id": "N20",
       "issue": "The harness-assist plugin (plugins/harness-assist) is not enabled. creator-github needs it: without its choice recorder, every push stays blocked. Its hooks are plugin-wide, so keep it disabled during benchmark runs (the guardrail could add context to creator runs).",
       "action": "User: for creator-github sessions, add `\"C:\\\\PwC_HarnessEngineering2\\\\enterprise-harness\\\\plugins\\\\harness-assist\": true` to the `chat.pluginLocations` setting; check that `vscode/askQuestions` and the `github.vscode-pull-request-github/*` tool ids resolve in creator-github's tool list."
+    },
+    {
+      "id": "N21",
+      "issue": "The OTel export grew to 344 MB unnoticed (D-031). Hidden costs of a request (storage, complexity) should be caught by the harness, not by the user.",
+      "action": "Agent: otel_prune.py and the guardrail's 20 MB file check are built (not run as tests per user). Next: add a size/complexity budget check to the Architect stage evidence and to init.sh."
     }
   ],
   "phases": [

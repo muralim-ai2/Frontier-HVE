@@ -58,10 +58,15 @@ def scan(project: Path) -> Json:
     infra = sorted(p.relative_to(project).as_posix() for p in files
                    if INFRA_NAMES.match(p.name) or ".github/workflows/" in p.relative_to(project).as_posix())
     code_lines = sum(sizes.values())
+    large = sorted((p.relative_to(project).as_posix(), round(p.stat().st_size / 1e6, 1)) for p in files
+                   if p.stat().st_size > CATALOG["file_mb_limit"] * 1e6)
     reasons = ([f"{code_lines} lines of code (limit {CATALOG['code_lines_limit']})"] if code_lines > CATALOG["code_lines_limit"] else [])
+    reasons += [f"{name} is {mb} MB (limit {CATALOG['file_mb_limit']} MB): unbounded logs, exports or data files need retention"
+                for name, mb in large]
     reasons += [f"{f['name']} ({f['category']}) in {f['manifest']}: enterprise option is {f['enterprise']}" for f in flagged]
     reasons += [f"self-built infrastructure: {', '.join(infra)}"] if infra else []
-    areas = ({"size"} if code_lines > CATALOG["code_lines_limit"] else set()) | {f["category"] for f in flagged} | ({"infrastructure"} if infra else set())
+    areas = ({"size"} if code_lines > CATALOG["code_lines_limit"] else set()) | ({"storage"} if large else set())
+    areas |= {f["category"] for f in flagged} | ({"infrastructure"} if infra else set())
     return {"project": project.as_posix(), "code_lines": code_lines, "largest_files": sorted(
                 ({"path": p.relative_to(project).as_posix(), "lines": n} for p, n in sizes.items()), key=lambda f: -f["lines"])[:5],
             "flagged": flagged, "infrastructure_files": infra, "verdict": "review" if reasons else "ok", "reasons": reasons,

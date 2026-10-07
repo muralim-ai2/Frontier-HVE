@@ -1,5 +1,6 @@
 """Hook that joins tool-call hook events with Copilot OTel chat spans into research/runs/<session_id>.jsonl."""
 
+import gzip
 import json
 import os
 import re
@@ -13,6 +14,7 @@ ROOT = Path(__file__).resolve().parent.parent
 RUNS_DIR = ROOT / "research" / "runs"
 AGENTS_DIR = ROOT / ".github" / "agents"
 OTEL_FILE = RUNS_DIR / "copilot-otel.jsonl"
+OTEL_ARCHIVE_DIR = RUNS_DIR / "otel"
 MODE_AGENTS = {"minimal": "minimal", "single": "single", "harness": "creator", "flow": "creator-flow"}
 MODEL_LINE = re.compile(r"^model:\s*(.+)$", re.MULTILINE)
 STOP_EVENTS = ("Stop", "SubagentStop")
@@ -140,25 +142,43 @@ def parse_chat_span(rec: Json, session_id: str) -> ChatSpan:
         raise KeyError(f"chat span {rec['spanId']} in {OTEL_FILE} lacks {missing}") from missing
 
 
-def load_chat_spans(session_id: str) -> tuple[list[ChatSpan], list[str], dict[str, str | None], dict[str, float]]:
-    """Return the session's and its sub-agents' completed chat spans in end order, ids of its errored or canceled chat spans, the conversation (None = the session itself) of each tool call id, and the latest exported span end per VS Code window."""
+def belongs(attrs: Json, session_id: str) -> bool:
+    """Return True for spans of the session or its sub-agents; utility calls carry no chat_session_id (decision D-006)."""
+    return "copilot_chat.chat_session_id" in attrs and session_id in (attrs["copilot_chat.chat_session_id"],
+                                                                    attrs.get("copilot_chat.parent_chat_session_id"))
+
+
+def archive_file(session_id: str) -> Path:
+    """Return the gzip archive path of a pruned session's OTel records."""
+    return OTEL_ARCHIVE_DIR / f"{session_id}.otel.jsonl.gz"
+
+
+def otel_records(session_id: str) -> tuple[list[Json], dict[str, float]]:
+    """Return the OTel records to read for a session and the per-window export watermark: its archive once pruned, else the live export."""
+    archive = archive_file(session_id)
+    if archive.exists():
+        lines = gzip.decompress(archive.read_bytes()).decode("utf-8").splitlines()
+        return [json.loads(line) for line in lines[1:]], json.loads(lines[0])["window_end"]
     if not OTEL_FILE.exists():
         raise FileNotFoundError(f"{OTEL_FILE} missing: add the Copilot OTel file-export settings to VS Code User settings (decision D-005) and reload the window")
+    return read_jsonl(OTEL_FILE), {}
+
+
+def load_chat_spans(session_id: str) -> tuple[list[ChatSpan], list[str], dict[str, str | None], dict[str, float]]:
+    """Return the session's and its sub-agents' completed chat spans in end order, ids of its errored or canceled chat spans, the conversation (None = the session itself) of each tool call id, and the latest exported span end per VS Code window."""
     spans: list[ChatSpan] = []
     failed: list[str] = []
     tools: dict[str, str | None] = {}
-    window_end: dict[str, float] = {}
-    for rec in read_jsonl(OTEL_FILE):
+    records, window_end = otel_records(session_id)
+    for rec in records:
         if "ended" not in rec:  # log and metric records share the file with spans
             continue
         window = rec["resource"]["attributes"]["session.id"]
         window_end[window] = max(window_end.get(window, 0.0), hrtime_to_ms(rec["endTime"]))
         attrs = rec["attributes"]
-        if "copilot_chat.chat_session_id" not in attrs:
-            continue  # utility calls (title, categorization) carry no chat_session_id (decision D-006)
-        conversation = attrs["copilot_chat.chat_session_id"]
-        if session_id not in (conversation, attrs.get("copilot_chat.parent_chat_session_id")):
+        if not belongs(attrs, session_id):
             continue
+        conversation = attrs["copilot_chat.chat_session_id"]
         operation = attrs.get("gen_ai.operation.name")
         if operation == "execute_tool":
             tools[attrs["gen_ai.tool.call.id"]] = None if conversation == session_id else conversation
@@ -213,19 +233,25 @@ def build_records(session_id: str, events: list[HookEvent], spans: list[ChatSpan
     return sorted(records, key=lambda r: r["ts"]), unmatched
 
 
-def rebuild(events_path: Path) -> tuple[list[MetricRecord], list[str]]:
-    """Rewrite the session's metrics JSONL from its hook events and the OTel export; return its records and any data-completeness problems."""
+def compute(events_path: Path) -> tuple[list[MetricRecord], list[str]]:
+    """Return the session's metrics records from its hook events and OTel records, and any data-completeness problems."""
     session_id = events_path.name.removesuffix(".events.jsonl")
     events: list[HookEvent] = read_jsonl(events_path)  # type: ignore[assignment]
     spans, failed, tools, window_end = load_chat_spans(session_id)
     records, unmatched = build_records(session_id, events, spans, tools, window_end[spans[-1]["window"]]) if spans else ([], [])
-    out = RUNS_DIR / f"{session_id}.jsonl"
-    tmp = out.with_suffix(f".{os.getpid()}.tmp")
-    tmp.write_text("".join(json.dumps(r) + "\n" for r in records), encoding="utf-8")
-    os.replace(tmp, out)
     problems = [f"errored or canceled chat calls {failed} whose tokens OTel does not report"] if failed else []
     if unmatched:
         problems.append(f"tool calls {unmatched} without an OTel execute_tool span, so their conversation is unknown")
+    return records, problems
+
+
+def rebuild(events_path: Path) -> tuple[list[MetricRecord], list[str]]:
+    """Rewrite the session's metrics JSONL; return its records and any data-completeness problems."""
+    records, problems = compute(events_path)
+    out = RUNS_DIR / events_path.name.replace(".events.jsonl", ".jsonl")
+    tmp = out.with_suffix(f".{os.getpid()}.tmp")
+    tmp.write_text("".join(json.dumps(r) + "\n" for r in records), encoding="utf-8")
+    os.replace(tmp, out)
     return records, problems
 
 

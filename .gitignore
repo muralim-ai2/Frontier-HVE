@@ -8,6 +8,8 @@ skills/eval_override.json
 
 # Copilot OTel export: hundreds of MB and contains full chat content
 research/runs/copilot-otel.jsonl
+research/runs/otel/
+research/runs/bench.lock
 
 # Python and tool caches
 __pycache__/

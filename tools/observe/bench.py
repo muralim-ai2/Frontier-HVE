@@ -1,16 +1,18 @@
-"""Guide one benchmark run of one agent in a new chat, log its progress live, then flush and collect."""
+"""Guide one benchmark run of one agent in a new chat, log its progress live, flush and collect, then prune the OTel export."""
 
 import json
+import os
 import subprocess
 import sys
 import time
 from datetime import datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "hooks"))
 from metrics import request_effort  # noqa: E402
+from otel_prune import LOCK_FILE, prune  # noqa: E402
 
 RUNS_DIR = ROOT / "research" / "runs"
 OTEL_FILE = RUNS_DIR / "copilot-otel.jsonl"
@@ -129,6 +131,25 @@ def session_ids() -> set[str]:
 
 
 def run(agent: str) -> str:
+    """Run one benchmark under the bench lock, then prune the OTel export; return the session id."""
+    return guarded(lambda: watch(agent))
+
+
+def guarded(work: Callable[[], str]) -> str:
+    """Hold the bench lock while work runs (otel_prune refuses meanwhile), then archive collected runs and empty the live export."""
+    if LOCK_FILE.exists():
+        raise FileExistsError(f"{LOCK_FILE} exists: another bench run is active (if none is, the last one crashed; delete the lock file)")
+    LOCK_FILE.write_text(str(os.getpid()), encoding="utf-8")
+    try:
+        session_id = work()
+    finally:
+        LOCK_FILE.unlink()
+    pruned = prune()
+    print(f"OTel export pruned: archived {pruned['archived']}, freed {pruned['freed_mb']} MB", flush=True)
+    return session_id
+
+
+def watch(agent: str) -> str:
     """Put the prompt on the clipboard, wait for the user to start a new chat with the agent, follow it live, flush and collect; return the session id."""
     current = ROOT / "tests" / "outputs" / AGENT_MODES[agent] / "current"
     if current.exists():
@@ -184,6 +205,12 @@ if __name__ == "__main__":
     elif len(args) == 3 and args[0] in AGENT_MODES and args[1] == "--resume" and (RUNS_DIR / f"{args[2]}.budget.json").exists():
         resumed = Bench(args[0], 0)
         resumed.log(f"resuming session {args[2]}; replaying its log so far")
-        follow(resumed, args[2])
+
+        def resume() -> str:
+            """Follow the started session to the end and return its id."""
+            follow(resumed, args[2])
+            return args[2]
+
+        guarded(resume)
     else:
         raise SystemExit(f"usage: bench.py {{{'|'.join(AGENT_MODES)}}} [--resume <session_id of a started run>]")
