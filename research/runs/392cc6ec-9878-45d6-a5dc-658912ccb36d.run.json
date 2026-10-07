@@ -1,0 +1,29 @@
+{
+  "session_id": "392cc6ec-9878-45d6-a5dc-658912ccb36d",
+  "mode": "minimal",
+  "prompt_file": "tests/prompts/color-palette.md",
+  "prompt_sha256": "7ae624620ac0e4691334e917ed086716b058af0035bf2ba9ce4e94e095fafcd8",
+  "started": "2026-10-06T18:41:34.257Z",
+  "ended": "2026-10-06T18:45:18.008Z",
+  "output_dir": "tests/outputs/minimal/392cc6ec-9878-45d6-a5dc-658912ccb36d",
+  "files": [
+    "color-palette-generator/package.json",
+    "color-palette-generator/tsconfig.json",
+    "color-palette-generator/postcss.config.mjs",
+    "color-palette-generator/eslint.config.mjs",
+    "color-palette-generator/.env.example",
+    "color-palette-generator/lib/color.ts",
+    "color-palette-generator/lib/palette.ts",
+    "color-palette-generator/lib/export.ts",
+    "color-palette-generator/lib/storage.ts",
+    "color-palette-generator/app/PaletteGenerator.tsx",
+    "color-palette-generator/lib/seo.ts",
+    "color-palette-generator/app/layout.tsx",
+    "color-palette-generator/app/page.tsx",
+    "color-palette-generator/app/robots.ts",
+    "color-palette-generator/app/sitemap.ts",
+    "color-palette-generator/app/globals.css",
+    "color-palette-generator/public/og-image.svg",
+    "color-palette-generator/tests/palette.test.ts"
+  ]
+}

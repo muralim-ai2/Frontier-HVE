@@ -1,0 +1,37 @@
+{
+  "max_skills_per_session": 3,
+  "thresholds": {
+    "min_quality_lift_pp": 10,
+    "max_token_overhead_pct": 20
+  },
+  "categories": {
+    "ux": {
+      "skill_pattern": "\\b(ux|ui|user experience|usability|accessib\\w*|wcag|design system|interaction design|visual design)\\b",
+      "task_pattern": "\\b(ui|ux|interface|page|screen|layout|design|palette|component|frontend|accessib\\w*)\\b"
+    },
+    "architecture": {
+      "skill_pattern": "\\b(architect\\w*|adr|system design|tech(nical)? spec|design doc\\w*|c4 model|module boundar\\w*)\\b",
+      "task_pattern": "\\b(app|application|service|api|system|architect\\w*|backend|database)\\b"
+    },
+    "de-slop": {
+      "skill_pattern": "\\b(de-?slop\\w*|slop|over-?engineer\\w*|simplif\\w*|dead code|bloat\\w*|verbos\\w*)\\b",
+      "task_pattern": "."
+    },
+    "scrub": {
+      "skill_pattern": "\\b(scrub\\w*|sanitiz\\w*|redact\\w*|secrets?|pii|clean-?up)\\b",
+      "task_pattern": "."
+    },
+    "graph-workflow-agents": {
+      "skill_pattern": "\\b(grower|sweeper|maintainer|knowledge graph|code graph|graph workflow)\\b",
+      "task_pattern": "\\b(graph|maintain\\w*|refactor\\w*|clean ?up)\\b"
+    },
+    "self-learning": {
+      "skill_pattern": "\\b(dreams?|dreaming|self-?learn\\w*|self-?improv\\w*|reflect\\w*|retrospective|lessons? learned)\\b",
+      "task_pattern": "."
+    },
+    "research": {
+      "skill_pattern": "\\b(research\\w*|literature|investigat\\w*|citations?|evidence)\\b",
+      "task_pattern": "\\b(research|investigate|compare|evaluate|find out|survey)\\b"
+    }
+  }
+}

@@ -1,0 +1,159 @@
+# Decision log
+
+## D-001 — Pinned model: Claude Sonnet 5.5 (copilot)
+- Requested pin `claude-sonnet-4-20260514` is absent from this account's Copilot model list (available Sonnets: `claude-sonnet-5`, `claude-sonnet-5.5`).
+- An unavailable pin can fall back to the picker model and break cross-mode consistency. Pinned the latest available Sonnet in all 3 modes.
+- Check: every record in `research/runs/*.jsonl` carries the served `model`; a mismatch invalidates the run.
+
+## D-002 — Token metrics source: Copilot OTel file export, not hook payloads
+- VS Code hook payloads (`PreToolUse`/`PostToolUse`/`Stop`) carry `session_id`, `tool_name`, `tool_use_id`, `timestamp` — no token counts or model.
+- Copilot OTel `chat` spans carry `gen_ai.usage.input_tokens`, `gen_ai.usage.output_tokens`, `gen_ai.usage.cache_read.input_tokens`, `gen_ai.response.model`, and `copilot_chat.chat_session_id`.
+- `hooks/metrics.py` joins hook events (tool name, latency from Pre→Post timestamps) with chat spans (tokens, model) by session ID and time. Both sources are runtime-produced; no LLM-authored data.
+- Spans are batch-exported (~5 s lag), so the last turn of a session is finalized by `python hooks/metrics.py flush`.
+
+## D-003 — Per-mode models (supersedes D-001 for minimal and single)
+- minimal: `GPT-6 Astra (copilot)`. single: `Claude Opus 5.5 (copilot)` with `reasoning-effort: high`. creator: `Claude Sonnet 5.5 (copilot)`.
+- User request. Mode comparisons now confound model with harness; `compare.py` must group by `model` as well as `mode`.
+
+## D-004 — creator model: GPT-5.6 Sol (copilot), reasoning-effort medium
+- User edit to `creator.agent.md`; supersedes the creator entry in D-003. All three modes now use different model families (GPT-6 Astra, Claude Opus 5.5, GPT-5.6 Sol).
+
+## D-005 — OTel settings live in User settings; sessions run on the Local harness
+- Evidence (2026-10-05 smoke test): `single` ran tools but `research/runs/` stayed empty. The `github.copilot.chat.otel.*` settings are `application`-scoped, so `.vscode/settings.json` ignores them. Agent-scoped frontmatter hooks run only on the Local harness; the session ran on the Copilot (Agent Host) target.
+- Fix: add to VS Code User settings, then reload:
+  ```json
+  "github.copilot.chat.otel.enabled": true,
+  "github.copilot.chat.otel.exporterType": "file",
+  "github.copilot.chat.otel.outfile": "C:\\PwC_HarnessEngineering2\\enterprise-harness\\research\\runs\\copilot-otel.jsonl"
+  ```
+- Run every benchmark session with Session Target = Local. `init.sh` checks the User settings.
+
+## D-006 — Token scope: session + sub-agent turns; model pin enforced at flush (extends D-002)
+- Evidence (session a187413b, now in `research/runs/invalid/`): `single` served `gpt-5.6-sol` instead of its pin, and its `execution_subagent` turns (`gpt-5.6-luna`, chat spans with `copilot_chat.parent_chat_session_id` = session) were missing from the session JSONL.
+- Included: chat spans whose `chat_session_id` is the session or whose `parent_chat_session_id` is the session and that carry their own `chat_session_id` (sub-agents). Rows carry `subagent_session` (null for the session's own turns); `context_tokens` is cumulative per conversation.
+- Excluded: Copilot utility calls (title, categorization; `gpt-4o-mini`) that have a parent but no `chat_session_id`. They are mode-independent overhead the harness cannot change.
+- `metrics.py flush` fails when any of the session's own turns was served by a model other than the agent file's `model:` (display name → id: lowercase, drop ` (copilot)`, spaces → `-`). Sub-agent turns are exempt; their model is recorded per row.
+- `single` lists explicit tools instead of the `read`/`edit`/`search`/`execute` tool sets, which include sub-agent tools (`executionSubagent`, possibly `searchSubagent`).
+
+## D-007 — Errored or canceled chat calls invalidate a run
+- Evidence (minimal session 91dd46e1, now in `research/runs/invalid/`): the user canceled the first request; its chat span has `status.code` 2, `error.type`, and no `gen_ai.usage.*` or `gen_ai.response.model`. `metrics.py` crashed on it in the Stop hook, so no session JSONL was written.
+- Errored chat spans are now excluded from rows, so hooks keep working, and `metrics.py flush` fails for the session: its token totals are incomplete, so it cannot be a benchmark run.
+
+## D-008 — Run outputs live under tests/outputs/; scored by human and AI from screenshots
+- User decision (N7). `single` and `creator` build in `tests/outputs/<mode>/current/` (set in each agent body). `minimal` has no file tools, so `tools/observe/collect.py` writes its reply to `response.md` and extracts each path-labelled code block into a file.
+- After each run, `python tools/observe/collect.py` moves `current/` to `tests/outputs/<mode>/<session_id>/` and writes `research/runs/<session_id>.run.json` (mode, prompt file + sha256, start/end from the transcript, output dir, files). The transcript path comes from the Stop hook payload, so the record is runtime data, not model text.
+- A benchmark session has exactly one user message equal to `tests/prompts/color-palette.md`; anything else fails collect and goes to `research/runs/smoke/` or `invalid/`.
+- Contamination guard: finished run folders are in `search.exclude`, and agent bodies forbid reading other runs. A terminal command can still list them; this is instruction-level, not enforced.
+
+## D-009 — minimal: told it has no tools, ≤200 lines of code inline
+- Evidence (run 91dd46e1): with only "Respond to the user's request", GPT-6 Astra called the built-in `tool_search` 3–4 times and replied that it was blocked. Copilot's built-in agent prompt pushes it to act with tools.
+- User decision (N8, option a): minimal's body states it has no tools and must reply with complete source inline, at most 200 lines in total, each file preceded by its path. The research question becomes "what does the raw output of a frontier model look like under a 200-line budget".
+
+## D-010 — creator runs without the one-feature-per-session loop until Phase 5
+- `feature_list.json` is empty until `initializer.py` (Phase 5) decomposes the prompt. A hand-seeded list would be an agent-authored decomposition that Phase 5 replaces, and multi-session runs would make Phase 2 runs incomparable with single's one-session runs.
+- Phase 2 creator = sub-agents + verification rules in one session. The loop section is removed from `creator.agent.md` and returns in Phase 5; H1's "more loop iterations" part is tested then.
+
+## D-011 — Baseline before benchmark; minimal reasoning-effort high; tool calls joined by call id
+- User decision: Phase 2 now runs each mode once as a baseline via `tools/observe/bench.py` (no manual chat steps). The 3-runs-per-mode benchmark happens once all phases are implemented.
+- minimal pins `reasoning-effort: high` (same as single). Evidence: unpinned, run 91dd46e1 followed the picker (`xhigh`, then `medium`).
+- Tool rows are attributed to their conversation through OTel `execute_tool` spans (`gen_ai.tool.call.id` = hook `tool_use_id` before `__vscode`), not by time. Time-based attribution misassigns a parent tool call made while a sub-agent runs. `flush` fails if a settled tool call has no `execute_tool` span.
+
+## D-012 — Phase 2 deferred; Phases 3 and 4 built before the baseline exists
+- User decision (2026-10-06): Phase 2 takes too long now. Phases 3–4 are built and unit-tested; their token deltas (3.5, 3.6, 4.4) cannot be measured until the Phase 2 baseline runs exist.
+
+## D-013 — Tokenomics within what Local hooks can do
+- Local hooks reference: `PostToolUse` can only add context or block; it cannot replace a tool result, and no hook can edit the system message. So history-rewriting observation masking and a schema-stripping `deferred_tools.py` are not implementable as hooks.
+- Observation masking → sub-agents: `hooks/compaction.py` answers `SubagentStart` with "return under 2,000 tokens, summarize tool output". Verbose reads happen in the sub-agent and only the summary enters the parent's context.
+- Deferred tools → Copilot already defers schemas behind `tool_search` (seen in run 91dd46e1). creator now lists 9 explicit tools + `agent` + `todo` instead of tool sets, dropping unused schemas and `executionSubagent` (which runs a different model).
+- Graphify and Headroom wait for user approval (N12): supply-chain and managed-device policy questions.
+
+## D-014 — Persistent memory via SessionStart/UserPromptSubmit hooks (creator only)
+- `hooks/profile_detector.py` validates `user_profile.json` against fixed allowed values, learns preferences from each prompt (`UserPromptSubmit`), and injects them as context at `SessionStart`. Episodic memory stays in the conversation and is never written.
+- `UserPromptSubmit` output supports only a user-visible `systemMessage`, so the challenge is shown to the user deterministically; the model-side challenge comes from creator's instructions plus the SessionStart note of past triggers.
+- Only creator gets these hooks: single and minimal are controls. Benchmark caveat: the profile changes between runs (the color-palette prompt marks the user an over-specifier), so benchmark runs must start from the same profile file.
+
+## D-015 — Headroom not adopted for now
+- `headroom wrap vscode` reroutes all Copilot traffic in VS Code (every chat and mode) through a local proxy via User settings, needs its own Copilot OAuth token in a plaintext file, and fails closed when stopped. It cannot be scoped to one agent.
+- User decision (2026-10-06): do not implement; regular chat must not be affected. Evaluation notes: `research/findings/phase-3-tokenomics.md` §2.
+
+## D-016 — Graphify for creator only, code-only and local
+- Official package `graphifyy` 0.9.71 (latest on the Microsoft PyPI proxy), installed as a uv tool. `graphify extract --code-only` makes no LLM or network calls; the query log is disabled.
+- `hooks/graph_refresh.py` indexes only `tests/outputs/harness/current/` and publishes `tests/outputs/harness/graph/graph.json` atomically (empty graph when there is no code, because the MCP server exits on a missing file). `.vscode/mcp.json` serves it; creator gets 4 query tools.
+- Expected value on the empty-start color-palette task is low; measured later as creator with vs without Graphify.
+
+## D-017 — Cost per call from Copilot OTel
+- Every completed chat span carries `copilot_chat.copilot_usage_nano_aiu` (140/140 spans checked). `metrics.py` records it per row as `cost_nano_aiu`; cost per task = sum over unique `turn_id`. User request.
+
+## D-018 — 10-minute wall-clock budget per run; agents work autonomously
+- User decision (2026-10-06, time constraint): single and creator must finish within 10 minutes and run without pausing for confirmation.
+- `hooks/budget.py`: SessionStart records the start; PreToolUse is silent until 8 min, then adds a wrap-up note, at 10 min tells the agent to stop and summarize, and after a 1-minute grace denies the tool call with `continue: false`. Deterministic, not an instruction the model can ignore.
+- Evidence for the bench rewrite: the first `code chat` run produced no hook events and no OTel spans for a new session (only this conversation's), so the chat did not run on the Local harness; the old bench waited silently until interrupted. `bench.py` now runs one agent, logs progress live to the terminal and `research/runs/bench.log`, and fails after 120 s without a SessionStart hook.
+- Second attempt (2026-10-06): `code chat -m minimal -r -` again created no chat session in any VS Code workspace store. `code chat` is dropped. `bench.py` now copies the prompt to the clipboard (20,472 characters, identical to earlier pasted prompts), tells the user to open a new Local chat with the agent and paste, then detects the session through the SessionStart hook (5-minute limit) and runs unattended from there.
+
+## D-019 — A pasted prompt arrives as an attachment; collect verifies it from the chat session store
+- Evidence (minimal run 392cc6ec): VS Code turned the 20,472-character paste into `#attachment:Pasted text #1`; the transcript holds only that reference. The attachment value in `workspaceStorage/<ws>/chatSessions/<session>.jsonl` equals `tests/prompts/color-palette.md` after newline normalization.
+- `collect.py` accepts a single user message that is either the prompt itself or one pasted-text attachment whose stored value equals the prompt. The chat session store is not a stable VS Code API; if its layout changes, collect fails loudly rather than accepting the run.
+- Evidence (single run 6a754bb3): when a background terminal finished, Copilot injected a `[Terminal <id> notification: command completed ...]` user message and started a second top-level `invoke_agent` span; the first one ended at 4 min while the agent was still working. `collect.py` ignores these injected messages; `bench.py` now treats a run as finished only when the Stop hook follows the last PreToolUse, a top-level agent span ended after that Stop, and 15 s pass without new events or spans.
+
+## D-020 — `reasoning-effort` in agent frontmatter is not honored; the model picker decides (N14)
+- Evidence (OTel `copilot_chat.request.options`, `reasoning.effort` for GPT, `output_config.effort` for Claude): minimal pins `high` but sent `medium` (392cc6ec); creator pins `medium` but sent `high` (fcd288c9); only single matched (`high`, 6a754bb3). The effort comes from the model picker, not the agent file.
+- Metrics rows now carry `reasoning_effort` (the effort actually sent) and `cache_read_tokens`; `compare.py` groups by mode, model, and effort, and computes `cache_ratio` from cache reads only (cache writes are not savings).
+- `bench.py` fails a new run at the first main-agent call whose effort differs from the agent file's pin, telling the user to set the picker. `flush` does not fail retroactively, so the three baselines stay valid with their effort recorded as a confound: minimal ran at medium, creator at high.
+
+## D-021 — Background terminals end runs early; agents must not leave them running (N15)
+- Evidence (creator fcd288c9): Stop at 12.2 min, then an injected terminal-notification turn and a second Stop at 16.9 min. The budget hook only acts on tool calls, so it cannot stop a running command.
+- single and creator now must run every command in the foreground and leave nothing running when they stop. `bench.py` waits 30 s (was 15 s) of quiet before collecting. A late notification turn can still appear; collect then fails on the locked folder rather than recording a partial run.
+
+## D-022 — Phase 9 skill gate: methods only, skills imported later from a separate repo
+- User decision (2026-10-07): bring over only these skill groups from the external skill source: UX, architecture, de-slop, scrub, graph workflow agents (Grower/Sweeper/Maintainer), dreams/self-learning, researcher. Set up the gate now; no skills are imported yet. The keyword patterns per category in `skills/categories.json` are first guesses to revise once the skills are read.
+- `tools/skills/scan.py`: structure checks (VS Code skips a skill whose `name` is invalid or differs from its folder; description ≤ 1024 chars; ≤ 500 lines) and security rules (prompt injection, external fetch, URLs in scripts, encoded payloads/eval, destructive commands, secrets, binary files). Any finding blocks. `--skillevaluator` adds NVIDIA SkillEvaluator's keyless `quality-check` (not installed; v0.5.0, experimental).
+- SkillEvaluator Tier 3 (paired live eval) needs provider API keys, Docker, and Claude Code/Codex/OpenCode as the agent, not Copilot. The paired eval therefore uses our bench: `tools/skills/eval_skill.py run` alternates without/with runs of creator, `report` computes lift (score delta in points of the 0–5 scale), token overhead, latency and cost deltas from blind scores and OTel metrics.
+- `tools/skills/onboard.py` admits only at lift ≥ 10 pp and token overhead < 20% and a matching category; otherwise records the reasons in `skills/registry.json`.
+- Task-use gate `hooks/skill_loader.py` (creator): VS Code auto-discovers only `.github/skills/`, `.claude/skills/`, `.agents/skills/` and the user skill folders, so `skills/admitted/` stays invisible unless the hook announces it. On UserPromptSubmit it picks the top 3 admitted skills by lift for the prompt's categories (or `skills/eval_override.json` during an eval); on the first PreToolUse it tells the agent to read them; it denies reading any other `SKILL.md`, including user or plugin skills.
+
+## D-023 — Phase 5 loop: one creator chat, a fresh sub-agent per feature, script-owned state (supersedes D-010)
+- The user was unavailable for the design questions (2026-10-06) and asked for autonomous decisions; these are the agent's choices for review.
+- Context reset per feature = a fresh sub-agent that gets only the feature description, verify command and paths. A new chat per feature would need the user to paste a prompt each time ("dont ask me to manually run things").
+- `tools/loop/loop.py` replaces the planned `initializer.py`/`worker.py` (one module, shared state): `init` validates `feature_list.json` (≥ 3 features, exact fields, non-trivial shell `verify`), locks names/descriptions/verify in `.harness/state.json`, writes `progress.txt`, runs `git init` with the B1 pre-commit hook; `next` checks out a stacked `feature/<name>` branch; `verify` runs the locked command, commits, and only then flips `passes` (no-commit-no-flip by construction), logs progress, and writes a PR record.
+- Guards (`hooks/loop_guard.py`): edits to `feature_list.json`, `progress.txt`, `.harness/` after `init` are denied except through the loop scripts (anti-gaming, B5); `loop.py` also re-checks the lock; 5 failed verifies escalate and the next tool call stops the agent; Stop is blocked while features fail, unless escalated or the budget is spent (victory check).
+- creator's budget is 20 minutes (was 10) because one session now builds every feature; bench waits up to 30 minutes. single keeps 10, so creator vs single now also differs in time budget.
+
+## D-024 — Phase 6 without Jaeger: Copilot OTel + JSONL + an interventions log
+- Jaeger needs Docker on this managed device, and Copilot already exports OTel spans per session, turn, and tool (D-002). `hooks/tracing.py` would duplicate them, so 6.1/6.2 are not built.
+- Hook interventions (loop guard, module guard, skill loader, budget stop) go to `research/runs/<sid>.interventions.jsonl`; blindspot-coded ones (B1, B5) also go to `research/blindspots/detected_blindspots.jsonl`.
+- `tools/observe/trajectory.py <sid>` prints per model call: time, main/sub-agent, model/effort, prompt, cache-read and completion tokens, tools (failed ones marked), then interventions, feature status, a context-rot check (10-call window success rate falling > 20 points below the first window), and context growth. Growth uses `prompt_tokens` per call (the context actually sent), not `context_tokens`, which is cumulative by definition (D-006). `--growth` compares runs.
+
+## D-025 — Phase 8: local PR records, autonomous module splits, instruction-level role isolation
+- No git remote and no `gh` CLI here, and pushing needs approval. PRs are local JSON records in `.harness/prs/` (diff stats, verify result, scan status, scope-creep flag at > 1,500 added lines). Branches stack (`feature/b` starts from `feature/a`) so the loop runs without waiting for review; the human runs `branch_workflow.py approve` in feature order (squash merge, `-X theirs`), then `tag`. The agent cannot run `approve`, `tag`, or `--no-verify` (loop guard).
+- `hooks/no_fallback.py` runs as the project's git pre-commit hook: Python AST (except bodies that only pass/continue or return None), JS/TS empty `catch {}` and `.catch(() => {})`, and `TODO`/`FIXME` comments.
+- `hooks/module_guard.py` (PostToolUse) blocks after an edit leaves a file over 500 lines. Because runs are autonomous (D-018), the agent splits it right away and lists the split in its final summary for review, instead of waiting for approval.
+- `tools/git/parallel_options.py`: one worktree and branch per approach, verify each, the passing one with the smallest diff wins (a proxy: quality and tokens per branch would need a session per branch), the feature branch fast-forwards to it, losing branches stay as evidence.
+- Role isolation is instruction-level: SubagentStart tells every sub-agent to work in exactly one role. A hook cannot see which role a sub-agent's edits belong to.
+
+## D-026 — Review modes and creator variants (supersedes D-025's approve/tag)
+- User decision (2026-10-06): benchmark runs drop human approval; product work uses real PRs. `loop.py init --review local|github` stores the mode. `local` (creator, creator-flow): one stacked branch per feature as a record, PR records with status `recorded`. `github` (creator-github): status `queued`; `branch_workflow.py approve/tag` and the local squash merge are removed.
+- `creator-github` (new agent): no time budget and no benchmark metrics (product work, kept out of `collect.py`); stop policy `once` (the victory check pushes back one time). Pushes and PR creation are denied by the loop guard unless the loop is `github` and the human ticked every named branch; force pushes are always denied. `creator-azdo` is deferred until someone needs Azure DevOps.
+- The loop guard reads its project and stop policy from hook env (`HARNESS_PROJECT`, `HARNESS_STOP_POLICY`), so each variant guards its own folder under `tests/outputs/<variant>/current/`.
+
+## D-027 — Attempt ledger and deterministic rules instead of open-ended retries
+- User decision: each failure gets one rule-chosen fix, then the human. `loop.py next` records attempt 0 (the check must fail before any work, else R5). Every failed `verify` appends a ledger entry (`.harness/attempts/<feature>.jsonl`): check exit code, error fingerprint (output with paths, numbers and hex removed), `HARNESS_CHECKS passed/total` if printed, file hashes, and tool failures, repeated commands and retrieval misses from the loop guard's tool log.
+- Rules, first match (tools/loop/diagnose.py): R6 environment (registry 403 → AGENTS.md proxy fix, else human); R5 same failure as the baseline again → human; R1 same error with the same files as an earlier attempt (A→B→A) → human; R2 same error twice → fresh sub-agent, different approach or parallel options; R3 a tool failing 3+ times or a repeated command → fixed tool hint; R4 2+ retrieval misses → graph and exact paths; R0 new error → retry. A rule firing a second time for a feature → R7 human. 5 attempts → human. `loop.py resume <note>` is human-only.
+- Parallel options use the ledger too: every option is ledgered with its approach; options rank by passing, share of checks, smallest diff; all options failing with one fingerprint → R5. Benchmark loops adopt the best automatically; GitHub loops keep the worktrees, print `preview` commands per port, and `choose` adopts only the option the human ticked. Tokens per option are not attributed yet (no reliable sub-agent → approach mapping).
+- Not verified live: hooks fire PostToolUse only on success, so a failed tool shows as a pre-call without a post-call; the ask-questions tool's hook name (`vscode_askQuestions`) and response shape are taken from this chat's tool.
+
+## D-028 — creator-flow: the user's graph workflow as an evidence-gated state machine
+- Stages and edges from the user's picture (designer → prototyper → builder ⇄ architect → sweeper → grower ⇄ maintainer → done; prototyper → designer). `tools/loop/flow.py` moves only along drawn edges, each with deterministic evidence: design.json fields; prototype check passes; every feature check passes; no file over 500 lines and a clean no-fallback scan; lint passes, all checks still pass and code did not grow; roadmap items linked to features; final health check. Back-edges need a note and are capped at 2 (benchmark: Grower one pass, `new-opportunity-found` cap 0); the cap escalates to the human.
+- Stage agents `flow-designer`, `flow-prototyper`, `flow-architect`, `flow-sweeper`, `flow-grower`, `flow-maintainer` (not user-invocable) finish by running the transition themselves; their Stop hook (`flow_guard.py`, treated as SubagentStop) sends a stage back once if it did not move. The orchestrator runs the Builder stage as the creator feature loop.
+- Benchmark mode `flow`: 40-minute budget, `bench.py creator-flow`, collected like creator. Skill categories map to stages (UX/research → Designer, architecture → Architect, de-slop/scrub → Sweeper, graph workflow → Grower/Maintainer). Not verified live: the `agents:` frontmatter list and custom-agent sub-agent invocation.
+
+## D-029 — harness-assist plugin for advanced users; technical level in the profile
+- `plugins/harness-assist` (Agent Plugins 1.0): skills `feature-checklist`, `run-tests`, `code-review`, `parallel-options`, `pr-push`, `explain-walkthrough`, `prototype-guardrail`; plugin-wide PostToolUse hooks `choice_recorder.py` and `guardrail.py --hook`. All 7 skills pass the Phase 9 scan.
+- Human ticks are enforced, not trusted to the model: the agent asks with the ask-questions tool using fixed headers (`choose:<feature>`, `push`, `technical-level`) and a `[project: ...]` or `[profile: ...]` tag; the recorder writes the user's selection into the project's `.harness/` (which the agent cannot edit), and `parallel_options.py choose`, `branch_workflow.py pushed` and the loop guard's push gate read only that. Push approvals accumulate across sessions.
+- `user_profile.json` gains `technical_level` (`executive`, `partial`, `developer`), learned from explicit role statements ("I'm the CTO", "as a TPM") or the explain skill's one-time question; SessionStart tells the agent how to explain and when to recommend experts (UI/UX, backend/full-stack, data scientist, AI engineer, solution architect, DevOps, security).
+- Prototype guardrail: review verdict above 5,000 code lines, for catalogued non-enterprise components (graph DBs such as FalkorDB, OCR such as Tesseract, embedded DBs such as SQLite, local vector stores, self-hosted LLMs, self-managed queues, self-built auth) with their licensed Azure alternative, and for self-built infrastructure files; it names the experts (always a solution architect for components or infra) and offers a `complexity_report.json`. Thresholds and the catalogue are data (`scripts/enterprise_catalog.json`).
+- The skills call harness tools by relative path, so the plugin works in this harness workspace (or the separate repo once the tools move there). Plugin-wide hooks run in every session while enabled; keep it disabled for benchmark runs (N20).
+
+## D-030 — 15-minute budget with a user continue prompt for creator, creator-flow and creator-github (supersedes the 20- and 40-minute budgets in D-023 and D-028)
+- User decision (2026-10-06): 40 minutes is too long; the creator agents get 15 minutes, and the user decides whether to continue.
+- `hooks/budget.py` now needs `HARNESS_BUDGET_ON_END` at SessionStart. `stop` (minimal, single: 10 minutes) keeps the old behaviour: nudge 2 minutes before the end, final-summary nudge, hard stop after 1 minute of grace. `ask` (creator, creator-flow, creator-github: 15 minutes): after the nudge, every tool call returns `permissionDecision: ask`, so VS Code asks the user to allow it. When an asked call runs (its PostToolUse fires), the budget grows by another 15 minutes and is logged as `budget_extended`; a denied call tells the agent to stop and summarize. There is no hard stop in `ask` mode: the user decides.
+- Benchmark caveat: in `ask` mode a run's wall-clock time includes the time the prompt waits for the user, and extended runs are not comparable with 15-minute ones. `bench.py` still waits up to 50 minutes.

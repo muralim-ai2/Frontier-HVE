@@ -1,0 +1,8 @@
+{
+  "prompt_style": "over_specifier",
+  "wants_evidence": null,
+  "verbosity": null,
+  "output_format": null,
+  "technical_level": null,
+  "bloat_triggers": []
+}

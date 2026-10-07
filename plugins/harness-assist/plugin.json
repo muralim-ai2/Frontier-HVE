@@ -1,0 +1,8 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "harness-assist",
+  "version": "0.1.0",
+  "description": "Enterprise harness companion: feature checklists, tests, code review, parallel options and PR pushes the user ticks, level-aware explanations, and a prototype complexity guardrail.",
+  "license": "UNLICENSED",
+  "keywords": ["harness", "pull-requests", "code-review", "guardrails", "explanations"]
+}

@@ -1,0 +1,25 @@
+node_modules/
+.next/
+tests/outputs/harness/graph/
+tests/outputs/*/worktrees/
+tests/outputs/*/current/
+skills/candidates/
+skills/eval_override.json
+
+# Copilot OTel export: hundreds of MB and contains full chat content
+research/runs/copilot-otel.jsonl
+
+# Python and tool caches
+__pycache__/
+*.pyc
+.venv/
+venv/
+graphify-out/
+*.tmp
+
+# Local secrets and editor state
+.env
+.env.*
+*.pem
+*.key
+*.pfx

@@ -1,0 +1,268 @@
+10:13:25 +00:00 [minimal] sending color-palette.md to a new 'minimal' chat (code chat -m minimal)
+10:13:26 +00:00 [minimal] waiting for the chat's SessionStart hook (fails after 120 s)
+10:13:56 +00:30 [minimal] still waiting for the SessionStart hook
+10:14:26 +01:00 [minimal] still waiting for the SessionStart hook
+10:15:42 +00:00 [minimal] sending color-palette.md to a new 'minimal' chat (code chat -m minimal)
+10:15:42 +00:00 [minimal] waiting for the chat's SessionStart hook (fails after 120 s)
+10:16:12 +00:30 [minimal] still waiting for the SessionStart hook
+10:16:42 +01:00 [minimal] still waiting for the SessionStart hook
+10:22:50 +00:00 [minimal] color-palette.md is on the clipboard. In VS Code: 1) Chat view > New Chat (+)  2) Session Target = Local, agent = minimal  3) paste (Ctrl+V) and send. Waiting up to 5 min for the chat to start.
+10:23:20 +00:30 [minimal] still waiting for a new Local chat with agent 'minimal'
+10:24:34 +00:00 [minimal] color-palette.md is on the clipboard. In VS Code: 1) Chat view > New Chat (+)  2) Session Target = Local, agent = minimal  3) paste (Ctrl+V) and send. Waiting up to 5 min for the chat to start.
+10:26:11 +00:00 [minimal] color-palette.md is on the clipboard. In VS Code: 1) Chat view > New Chat (+)  2) Session Target = Local, agent = minimal  3) paste (Ctrl+V) and send. Waiting up to 5 min for the chat to start.
+10:27:31 +00:01 [minimal] color-palette.md is on the clipboard. In VS Code: 1) Chat view > New Chat (+)  2) Session Target = Local, agent = minimal  3) paste (Ctrl+V) and send. Waiting up to 5 min for the chat to start.
+10:28:01 +00:31 [minimal] still waiting for a new Local chat with agent 'minimal'
+10:28:31 +01:01 [minimal] still waiting for a new Local chat with agent 'minimal'
+10:29:01 +01:31 [minimal] still waiting for a new Local chat with agent 'minimal'
+10:29:31 +02:01 [minimal] still waiting for a new Local chat with agent 'minimal'
+10:30:01 +02:31 [minimal] still waiting for a new Local chat with agent 'minimal'
+10:30:31 +03:01 [minimal] still waiting for a new Local chat with agent 'minimal'
+10:31:01 +03:31 [minimal] still waiting for a new Local chat with agent 'minimal'
+10:31:31 +04:01 [minimal] still waiting for a new Local chat with agent 'minimal'
+10:32:01 +04:31 [minimal] still waiting for a new Local chat with agent 'minimal'
+11:15:32 +00:00 [minimal] color-palette.md is on the clipboard. In VS Code: 1) Chat view > New Chat (+)  2) Session Target = Local, agent = minimal  3) paste (Ctrl+V) and send. Waiting up to 5 min for the chat to start.
+11:16:02 +00:30 [minimal] still waiting for a new Local chat with agent 'minimal'
+11:16:07 +00:35 [minimal] session 72695e97-40b5-48d0-acfa-3fa8d5da4b97 detected; following it live
+11:17:30 +00:00 [minimal] resuming session 72695e97-40b5-48d0-acfa-3fa8d5da4b97; replaying its log so far
+11:17:31 +00:00 [minimal] chat finished; flushing metrics and collecting output
+11:18:28 +00:00 [minimal] resuming session 72695e97-40b5-48d0-acfa-3fa8d5da4b97; replaying its log so far
+11:41:01 +00:00 [minimal] color-palette.md is on the clipboard. In VS Code: 1) Chat view > New Chat (+)  2) Session Target = Local, agent = minimal  3) paste (Ctrl+V) and send. Waiting up to 5 min for the chat to start.
+11:41:31 +00:30 [minimal] still waiting for a new Local chat with agent 'minimal'
+11:41:36 +00:35 [minimal] session 392cc6ec-9878-45d6-a5dc-658912ccb36d detected; following it live
+11:42:07 +01:05 [minimal] working (0 model calls so far)
+11:42:37 +01:35 [minimal] working (0 model calls so far)
+11:43:07 +02:06 [minimal] working (0 model calls so far)
+11:43:37 +02:36 [minimal] working (0 model calls so far)
+11:44:07 +03:06 [minimal] working (0 model calls so far)
+11:44:37 +03:36 [minimal] working (0 model calls so far)
+11:45:07 +04:06 [minimal] working (0 model calls so far)
+11:45:23 +04:21 [minimal] Stop hook fired
+11:45:23 +04:21 [minimal] model call 1 (main, gpt-6-astra): 13,718 prompt / 11,843 completion tokens
+11:45:33 +04:31 [minimal] chat finished; flushing metrics and collecting output
+11:55:36 +00:00 [single] color-palette.md is on the clipboard. In VS Code: 1) Chat view > New Chat (+)  2) Session Target = Local, agent = single  3) paste (Ctrl+V) and send. Waiting up to 5 min for the chat to start.
+11:56:01 +00:25 [single] session 6a754bb3-0cca-4452-942e-651580bdeff4 detected; following it live
+11:56:06 +00:30 [single] model call 1 (main, claude-opus-5.5): 33,679 prompt / 319 completion tokens
+11:56:11 +00:35 [single] tool run_in_terminal started
+11:56:16 +00:40 [single] tool run_in_terminal finished
+11:56:26 +00:50 [single] tool create_file started
+11:56:26 +00:50 [single] model call 2 (main, claude-opus-5.5): 34,134 prompt / 744 completion tokens
+11:56:31 +00:55 [single] tool create_file finished
+11:56:31 +00:55 [single] working (2 model calls so far)
+11:56:36 +01:00 [single] tool run_in_terminal started
+11:56:36 +01:00 [single] model call 3 (main, claude-opus-5.5): 34,934 prompt / 203 completion tokens
+11:56:46 +01:10 [single] tool run_in_terminal finished
+11:56:51 +01:15 [single] tool create_file started
+11:56:51 +01:15 [single] tool create_file started
+11:56:51 +01:15 [single] tool create_file finished
+11:56:51 +01:15 [single] model call 4 (main, claude-opus-5.5): 35,297 prompt / 1,267 completion tokens
+11:56:57 +01:20 [single] tool create_file started
+11:56:57 +01:20 [single] tool create_file finished
+11:56:57 +01:20 [single] tool create_file finished
+11:56:57 +01:20 [single] tool create_file started
+11:57:02 +01:25 [single] tool create_file finished
+11:57:02 +01:26 [single] working (4 model calls so far)
+11:57:07 +01:31 [single] tool create_file started
+11:57:07 +01:31 [single] tool create_file started
+11:57:07 +01:31 [single] tool create_file finished
+11:57:12 +01:36 [single] tool create_file finished
+11:57:32 +01:56 [single] working (4 model calls so far)
+11:58:03 +02:26 [single] model call 5 (main, claude-opus-5.5): 37,052 prompt / 5,466 completion tokens
+11:58:03 +02:27 [single] working (5 model calls so far)
+11:58:31 +02:55 [single] tool create_file started
+11:58:37 +03:00 [single] working (5 model calls so far)
+11:58:42 +03:05 [single] tool create_file finished
+11:59:07 +03:31 [single] working (5 model calls so far)
+11:59:12 +03:36 [single] tool create_file started
+11:59:12 +03:36 [single] model call 6 (main, claude-opus-5.5): 42,578 prompt / 4,649 completion tokens
+11:59:17 +03:41 [single] tool create_file finished
+11:59:17 +03:41 [single] tool create_file started
+11:59:17 +03:41 [single] tool create_file started
+11:59:17 +03:41 [single] tool create_file finished
+11:59:22 +03:46 [single] tool create_file finished
+11:59:28 +03:51 [single] tool create_file started
+11:59:33 +03:57 [single] tool create_file finished
+11:59:38 +04:02 [single] working (6 model calls so far)
+12:00:03 +04:27 [single] tool create_file started
+12:00:03 +04:27 [single] tool create_file finished
+12:00:03 +04:27 [single] model call 7 (main, claude-opus-5.5): 47,558 prompt / 3,846 completion tokens
+12:00:08 +04:32 [single] tool create_file started
+12:00:08 +04:32 [single] tool create_file finished
+12:00:08 +04:32 [single] tool create_file started
+12:00:08 +04:32 [single] tool create_file started
+12:00:08 +04:32 [single] working (7 model calls so far)
+12:00:13 +04:37 [single] tool create_file finished
+12:00:13 +04:37 [single] tool create_file finished
+12:00:13 +04:37 [single] tool create_file finished
+12:00:13 +04:37 [single] tool create_file started
+12:00:18 +04:42 [single] tool create_file started
+12:00:18 +04:42 [single] tool create_file finished
+12:00:18 +04:42 [single] chat finished; flushing metrics and collecting output
+12:07:24 +00:00 [single] resuming session 6a754bb3-0cca-4452-942e-651580bdeff4; replaying its log so far
+12:07:24 +00:00 [single] tool run_in_terminal started
+12:07:24 +00:00 [single] tool run_in_terminal finished
+12:07:24 +00:00 [single] tool create_file started
+12:07:24 +00:00 [single] tool create_file finished
+12:07:24 +00:00 [single] tool run_in_terminal started
+12:07:24 +00:00 [single] tool run_in_terminal finished
+12:07:24 +00:00 [single] tool create_file started
+12:07:24 +00:00 [single] tool create_file started
+12:07:24 +00:00 [single] tool create_file finished
+12:07:24 +00:00 [single] tool create_file started
+12:07:24 +00:00 [single] tool create_file finished
+12:07:24 +00:00 [single] tool create_file finished
+12:07:24 +00:00 [single] tool create_file started
+12:07:24 +00:00 [single] tool create_file finished
+12:07:24 +00:00 [single] tool create_file started
+12:07:24 +00:00 [single] tool create_file started
+12:07:24 +00:00 [single] tool create_file finished
+12:07:24 +00:00 [single] tool create_file finished
+12:07:24 +00:00 [single] tool create_file started
+12:07:24 +00:00 [single] tool create_file finished
+12:07:24 +00:00 [single] tool create_file started
+12:07:24 +00:00 [single] tool create_file finished
+12:07:24 +00:00 [single] tool create_file started
+12:07:24 +00:00 [single] tool create_file started
+12:07:24 +00:00 [single] tool create_file finished
+12:07:24 +00:00 [single] tool create_file finished
+12:07:24 +00:00 [single] tool create_file started
+12:07:24 +00:00 [single] tool create_file finished
+12:07:24 +00:00 [single] tool create_file started
+12:07:24 +00:00 [single] tool create_file finished
+12:07:24 +00:00 [single] tool create_file started
+12:07:24 +00:00 [single] tool create_file finished
+12:07:24 +00:00 [single] tool create_file started
+12:07:24 +00:00 [single] tool create_file started
+12:07:24 +00:00 [single] tool create_file finished
+12:07:24 +00:00 [single] tool create_file finished
+12:07:24 +00:00 [single] tool create_file finished
+12:07:24 +00:00 [single] tool create_file started
+12:07:24 +00:00 [single] tool create_file started
+12:07:24 +00:00 [single] tool create_file finished
+12:07:24 +00:00 [single] tool create_file finished
+12:07:24 +00:00 [single] tool create_file started
+12:07:24 +00:00 [single] tool create_file started
+12:07:24 +00:00 [single] tool create_file finished
+12:07:24 +00:00 [single] tool create_file started
+12:07:24 +00:00 [single] tool create_file finished
+12:07:24 +00:00 [single] tool create_file started
+12:07:24 +00:00 [single] tool create_file finished
+12:07:24 +00:00 [single] tool create_file finished
+12:07:24 +00:00 [single] tool create_file started
+12:07:24 +00:00 [single] tool create_file finished
+12:07:24 +00:00 [single] tool create_file started
+12:07:24 +00:00 [single] tool create_file started
+12:07:24 +00:00 [single] tool create_file finished
+12:07:24 +00:00 [single] tool create_file started
+12:07:24 +00:00 [single] tool create_file finished
+12:07:24 +00:00 [single] tool create_file started
+12:07:24 +00:00 [single] tool create_file finished
+12:07:24 +00:00 [single] tool create_file started
+12:07:24 +00:00 [single] tool create_file finished
+12:07:24 +00:00 [single] tool create_file started
+12:07:24 +00:00 [single] tool create_file started
+12:07:24 +00:00 [single] tool create_file finished
+12:07:24 +00:00 [single] tool create_file finished
+12:07:24 +00:00 [single] tool create_file finished
+12:07:24 +00:00 [single] tool run_in_terminal started
+12:07:24 +00:00 [single] tool run_in_terminal finished
+12:07:24 +00:00 [single] tool replace_string_in_file started
+12:07:24 +00:00 [single] tool replace_string_in_file started
+12:07:24 +00:00 [single] tool replace_string_in_file finished
+12:07:24 +00:00 [single] tool replace_string_in_file finished
+12:07:24 +00:00 [single] tool run_in_terminal started
+12:07:24 +00:00 [single] tool run_in_terminal finished
+12:07:24 +00:00 [single] Stop hook fired
+12:07:24 +00:00 [single] model call 1 (main, claude-opus-5.5): 33,679 prompt / 319 completion tokens
+12:07:24 +00:00 [single] model call 2 (main, claude-opus-5.5): 34,134 prompt / 744 completion tokens
+12:07:24 +00:00 [single] model call 3 (main, claude-opus-5.5): 34,934 prompt / 203 completion tokens
+12:07:24 +00:00 [single] model call 4 (main, claude-opus-5.5): 35,297 prompt / 1,267 completion tokens
+12:07:24 +00:00 [single] model call 5 (main, claude-opus-5.5): 37,052 prompt / 5,466 completion tokens
+12:07:24 +00:00 [single] model call 6 (main, claude-opus-5.5): 42,578 prompt / 4,649 completion tokens
+12:07:24 +00:00 [single] model call 7 (main, claude-opus-5.5): 47,558 prompt / 3,846 completion tokens
+12:07:24 +00:00 [single] model call 8 (main, claude-opus-5.5): 52,136 prompt / 4,269 completion tokens
+12:07:24 +00:00 [single] model call 9 (main, claude-opus-5.5): 56,750 prompt / 9,085 completion tokens
+12:07:24 +00:00 [single] model call 10 (main, claude-opus-5.5): 66,502 prompt / 253 completion tokens
+12:07:24 +00:00 [single] model call 11 (main, claude-opus-5.5): 67,669 prompt / 469 completion tokens
+12:07:24 +00:00 [single] model call 12 (main, claude-opus-5.5): 68,318 prompt / 245 completion tokens
+12:07:24 +00:00 [single] model call 13 (main, claude-opus-5.5): 68,707 prompt / 1,639 completion tokens
+12:07:39 +00:15 [single] chat finished; flushing metrics and collecting output
+12:08:01 +00:37 [single] done: 13 model calls, 645,314 prompt / 32,454 completion tokens, cost 110.80 AI units, 36 tool calls, 34 files in tests/outputs/single/6a754bb3-0cca-4452-942e-651580bdeff4
+12:10:47 +00:00 [creator] color-palette.md is on the clipboard. In VS Code: 1) Chat view > New Chat (+)  2) Session Target = Local, agent = creator  3) paste (Ctrl+V) and send. Waiting up to 5 min for the chat to start.
+12:11:17 +00:30 [creator] still waiting for a new Local chat with agent 'creator'
+12:11:22 +00:35 [creator] session fcd288c9-d579-440b-ab0c-cfccee188c2e detected; following it live
+12:11:27 +00:40 [creator] tool mcp_graphify_query_graph started
+12:11:32 +00:45 [creator] model call 1 (main, gpt-5.6-sol): 27,129 prompt / 168 completion tokens
+12:11:52 +01:05 [creator] working (1 model calls so far)
+12:11:57 +01:10 [creator] tool mcp_graphify_query_graph finished
+12:12:03 +01:15 [creator] tool list_dir started
+12:12:03 +01:15 [creator] model call 2 (main, gpt-5.6-sol): 27,350 prompt / 199 completion tokens
+12:12:08 +01:20 [creator] tool file_search started
+12:12:08 +01:20 [creator] tool file_search finished
+12:12:13 +01:25 [creator] tool create_directory started
+12:12:18 +01:30 [creator] tool create_directory finished
+12:12:18 +01:30 [creator] model call 3 (main, gpt-5.6-sol): 27,622 prompt / 346 completion tokens
+12:12:23 +01:35 [creator] tool run_in_terminal started
+12:12:23 +01:35 [creator] working (3 model calls so far)
+12:12:28 +01:40 [creator] tool run_in_terminal finished
+12:12:28 +01:40 [creator] model call 4 (main, gpt-5.6-sol): 28,003 prompt / 473 completion tokens
+12:12:53 +02:06 [creator] working (4 model calls so far)
+12:13:18 +02:31 [creator] tool apply_patch started
+12:13:18 +02:31 [creator] model call 5 (main, gpt-5.6-sol): 28,497 prompt / 4,860 completion tokens
+12:13:23 +02:36 [creator] tool apply_patch finished
+12:13:23 +02:36 [creator] model call 6 (main, gpt-5.6-sol): 33,588 prompt / 204 completion tokens
+12:13:23 +02:36 [creator] working (6 model calls so far)
+12:13:28 +02:41 [creator] tool run_in_terminal started
+12:13:54 +03:06 [creator] working (6 model calls so far)
+12:14:24 +03:37 [creator] working (6 model calls so far)
+12:14:54 +04:07 [creator] working (6 model calls so far)
+12:15:25 +04:37 [creator] tool run_in_terminal finished
+12:15:25 +04:37 [creator] working (6 model calls so far)
+12:15:30 +04:42 [creator] tool apply_patch started
+12:15:30 +04:42 [creator] tool apply_patch finished
+12:15:30 +04:43 [creator] model call 7 (main, gpt-5.6-sol): 33,986 prompt / 188 completion tokens
+12:15:35 +04:48 [creator] tool run_in_terminal started
+12:15:40 +04:53 [creator] model call 8 (main, gpt-5.6-sol): 34,217 prompt / 94 completion tokens
+12:15:56 +05:08 [creator] working (8 model calls so far)
+12:16:26 +05:39 [creator] working (8 model calls so far)
+12:16:57 +06:10 [creator] working (8 model calls so far)
+12:17:28 +06:41 [creator] working (8 model calls so far)
+12:17:58 +07:11 [creator] tool run_in_terminal finished
+12:17:58 +07:11 [creator] working (8 model calls so far)
+12:18:09 +07:22 [creator] model call 9 (main, gpt-5.6-sol): 34,642 prompt / 103 completion tokens
+12:18:29 +07:42 [creator] working (9 model calls so far)
+12:18:35 +07:47 [creator] tool get_terminal_output started
+12:18:40 +07:52 [creator] tool get_terminal_output finished
+12:18:50 +08:03 [creator] tool get_terminal_output started
+12:18:50 +08:03 [creator] model call 10 (main, gpt-5.6-sol): 34,856 prompt / 432 completion tokens
+12:18:56 +08:08 [creator] tool get_terminal_output finished
+12:18:56 +08:08 [creator] tool get_terminal_output started
+12:18:56 +08:08 [creator] model call 11 (main, gpt-5.6-sol): 35,399 prompt / 96 completion tokens
+12:19:01 +08:13 [creator] tool get_terminal_output finished
+12:19:01 +08:14 [creator] model call 12 (main, gpt-5.6-sol): 35,603 prompt / 124 completion tokens
+12:19:01 +08:14 [creator] working (12 model calls so far)
+12:19:17 +08:29 [creator] tool get_terminal_output started
+12:19:22 +08:35 [creator] tool get_terminal_output finished
+12:19:32 +08:45 [creator] working (12 model calls so far)
+12:19:43 +08:55 [creator] tool apply_patch started
+12:19:43 +08:55 [creator] model call 13 (main, gpt-5.6-sol): 35,838 prompt / 1,215 completion tokens
+12:19:48 +09:00 [creator] tool apply_patch finished
+12:20:03 +09:16 [creator] working (13 model calls so far)
+12:20:33 +09:46 [creator] working (13 model calls so far)
+12:20:43 +09:56 [creator] tool apply_patch started
+12:20:44 +09:56 [creator] model call 14 (main, gpt-5.6-sol): 37,164 prompt / 5,773 completion tokens
+12:20:54 +10:07 [creator] tool apply_patch finished
+12:20:55 +10:07 [creator] model call 15 (main, gpt-5.6-sol): 43,246 prompt / 195 completion tokens
+12:21:00 +10:12 [creator] tool run_in_terminal started
+12:21:05 +10:18 [creator] working (15 model calls so far)
+12:21:35 +10:48 [creator] working (15 model calls so far)
+12:22:05 +11:18 [creator] working (15 model calls so far)
+12:22:37 +11:49 [creator] working (15 model calls so far)
+12:23:07 +12:20 [creator] working (15 model calls so far)
+12:23:22 +12:35 [creator] tool run_in_terminal finished
+12:23:27 +12:40 [creator] model call 16 (main, gpt-5.6-sol): 43,841 prompt / 53 completion tokens
+12:23:32 +12:45 [creator] Stop hook fired
+12:23:37 +12:50 [creator] model call 17 (main, gpt-5.6-sol): 43,938 prompt / 212 completion tokens
+12:23:37 +12:50 [creator] working (17 model calls so far)
+12:24:07 +13:20 [creator] working (17 model calls so far)
+12:24:38 +13:51 [creator] working (17 model calls so far)
+12:24:43 +13:56 [creator] chat finished; flushing metrics and collecting output

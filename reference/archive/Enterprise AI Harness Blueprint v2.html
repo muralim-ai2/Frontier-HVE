@@ -1,0 +1,517 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Enterprise AI Harness Blueprint v2</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:#fff;--fg:#1a1a1a;--muted:#6b7280;--accent:#dc2626;--accent-light:#fef2f2;
+  --surface:#f3f4f6;--surface2:#e5e7eb;--border:#d1d5db;
+  --proven:#059669;--proven-bg:#ecfdf5;--risky:#d97706;--risky-bg:#fffbeb;
+  --danger:#dc2626;--danger-bg:#fef2f2;--blue:#2563eb;--blue-bg:#eff6ff;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#111827;--fg:#f9fafb;--muted:#9ca3af;--surface:#1f2937;--surface2:#374151;--border:#4b5563;
+  --accent-light:#1c1012;--proven-bg:#0c1f17;--risky-bg:#1a1508;--danger-bg:#1c1012;--blue-bg:#0f172a;
+}}
+:root[data-theme="dark"]{
+  --bg:#111827;--fg:#f9fafb;--muted:#9ca3af;--surface:#1f2937;--surface2:#374151;--border:#4b5563;
+  --accent-light:#1c1012;--proven-bg:#0c1f17;--risky-bg:#1a1508;--danger-bg:#1c1012;--blue-bg:#0f172a;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--fg);line-height:1.6;max-width:1200px;margin:0 auto;padding:2rem 1.5rem}
+h1{font-size:1.75rem;font-weight:700;margin-bottom:.25rem}
+h2{font-size:1.25rem;font-weight:700;margin:2.5rem 0 1rem;border-bottom:2px solid var(--accent);padding-bottom:.5rem}
+h3{font-size:1rem;font-weight:600;margin:1.5rem 0 .5rem}
+p{margin-bottom:.75rem;max-width:72ch}
+.sub{color:var(--muted);font-size:.9rem;margin-bottom:2rem}
+code{font-family:'JetBrains Mono',monospace;font-size:.85em;background:var(--surface);padding:.15em .4em;border-radius:3px}
+.mono{font-family:'JetBrains Mono',monospace;font-size:.85em}
+.dw{overflow-x:auto;margin:1.5rem 0}.dw svg{display:block;margin:0 auto}
+table{width:100%;border-collapse:collapse;margin:1rem 0;font-size:.875rem}
+th{background:var(--surface);font-weight:600;text-align:left;padding:.6rem .75rem;border:1px solid var(--border)}
+td{padding:.6rem .75rem;border:1px solid var(--border);vertical-align:top}
+tr:nth-child(even){background:var(--surface)}
+.tag{display:inline-block;font-size:.75rem;font-weight:600;padding:.15em .5em;border-radius:3px}
+.tag-p{background:var(--proven-bg);color:var(--proven)}
+.tag-r{background:var(--risky-bg);color:var(--risky)}
+.tag-d{background:var(--danger-bg);color:var(--danger)}
+.tag-b{background:var(--blue-bg);color:var(--blue)}
+.cg{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:1rem;margin:1rem 0}
+.cd{background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:1rem}
+.cd h4{font-size:.9rem;font-weight:600;margin-bottom:.5rem}
+.cd p{font-size:.85rem;color:var(--muted);margin-bottom:.25rem}
+.mr{display:grid;grid-template-columns:repeat(4,1fr);gap:.75rem;margin:1rem 0}
+.mb{background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:1rem;text-align:center}
+.mb .l{font-size:.75rem;color:var(--muted);text-transform:uppercase;letter-spacing:.05em}
+.mb .v{font-family:'JetBrains Mono',monospace;font-size:1.1rem;font-weight:600;margin-top:.25rem}
+.ev{background:var(--blue-bg);border-left:3px solid var(--blue);padding:.75rem 1rem;margin:.75rem 0;font-size:.85rem;border-radius:0 4px 4px 0}
+.ev strong{color:var(--blue)}
+.warn{background:var(--danger-bg);border-left:3px solid var(--danger);padding:.75rem 1rem;margin:.75rem 0;font-size:.85rem;border-radius:0 4px 4px 0}
+.warn strong{color:var(--danger)}
+.ref{font-size:.85rem;margin-bottom:.5rem;padding-left:1rem;text-indent:-1rem}
+.rt{font-size:.7rem;font-weight:600;padding:.1em .35em;border-radius:2px;margin-left:.25rem}
+.toc{background:var(--surface);padding:1rem 1.25rem;border-radius:6px;margin-bottom:2rem}
+.toc a{color:var(--accent);text-decoration:none;font-size:.85rem}
+.toc ol{padding-left:1.25rem}.toc li{margin-bottom:.25rem}
+pre{background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:1rem;overflow-x:auto;font-family:'JetBrains Mono',monospace;font-size:.8rem;margin:1rem 0;line-height:1.5}
+@media(max-width:700px){.mr{grid-template-columns:repeat(2,1fr)}body{padding:1rem}h1{font-size:1.4rem}}
+</style>
+</head>
+<body>
+
+<h1>Enterprise AI Harness Blueprint <span style="color:var(--accent)">v2</span></h1>
+<p class="sub">dsh (Cordis) + Python Tools · Anthropic Long-Running Pattern · Blindspot Detection · 3 Weeks</p>
+
+<nav class="toc"><ol>
+<li><a href="#s1">Engineering Progression (5 Layers)</a></li>
+<li><a href="#s2">Architecture: dsh Orchestrator + Python Tools</a></li>
+<li><a href="#s3">System Flow: Problem → Decision → Execution</a></li>
+<li><a href="#s4">Anthropic Long-Running Agent Pattern</a></li>
+<li><a href="#s5">Ranked Problems × Proven vs Rabbit Hole</a></li>
+<li><a href="#s6">Vetted Tooling & Skill Ecosystem</a></li>
+<li><a href="#s7">3 Personas × 3 Test Suites + 4 Metrics</a></li>
+<li><a href="#s8">Blindspot Detection Checklist</a></li>
+<li><a href="#s9">Research Adoption List</a></li>
+<li><a href="#s10">3-Week Roadmap</a></li>
+</ol></nav>
+
+<!-- ═══ S1 ═══ -->
+<h2 id="s1">1. Engineering Progression: What Each Layer Adds</h2>
+<p>Each layer widens what you control. The model stays fixed — only the harness changes.</p>
+
+<div class="dw">
+<svg viewBox="0 0 980 500" xmlns="http://www.w3.org/2000/svg" width="980" style="max-width:100%;height:auto">
+<defs><marker id="ah" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><polygon points="0 0,8 3,0 6" fill="#888"/></marker></defs>
+<line x1="30" y1="28" x2="950" y2="28" stroke="#888" stroke-width="2" marker-end="url(#ah)"/>
+<text x="490" y="18" text-anchor="middle" font-size="13" fill="#888" font-family="Inter,sans-serif">Widening scope of what you engineer →</text>
+
+<!-- 5 columns -->
+<g font-family="Inter,sans-serif">
+<!-- Prompt -->
+<rect x="10" y="45" width="182" height="400" rx="8" fill="#f9fafb" stroke="#d1d5db"/>
+<text x="101" y="70" text-anchor="middle" font-size="13" font-weight="700">Prompt Eng.</text>
+<text x="101" y="86" text-anchor="middle" font-size="10" fill="#dc2626">Single call</text>
+<text x="101" y="102" text-anchor="middle" font-size="10" fill="#6b7280">Optimize the input</text>
+<rect x="20" y="112" width="162" height="28" rx="3" fill="none" stroke="#d1d5db" stroke-dasharray="4,3"/><text x="101" y="130" text-anchor="middle" font-size="9" font-weight="600">Instruction &amp; role</text>
+<rect x="20" y="145" width="162" height="28" rx="3" fill="none" stroke="#d1d5db" stroke-dasharray="4,3"/><text x="101" y="163" text-anchor="middle" font-size="9" font-weight="600">Examples &amp; few-shot</text>
+<rect x="20" y="178" width="162" height="28" rx="3" fill="none" stroke="#d1d5db" stroke-dasharray="4,3"/><text x="101" y="196" text-anchor="middle" font-size="9" font-weight="600">Output format</text>
+<rect x="20" y="211" width="162" height="28" rx="3" fill="none" stroke="#d1d5db" stroke-dasharray="4,3"/><text x="101" y="229" text-anchor="middle" font-size="9" font-weight="600">Wording iteration</text>
+<text x="101" y="420" text-anchor="middle" font-size="9" fill="#6b7280" font-style="italic">Ceiling: prompt boundary</text>
+
+<!-- Context -->
+<rect x="200" y="45" width="182" height="400" rx="8" fill="#f9fafb" stroke="#d1d5db"/>
+<text x="291" y="70" text-anchor="middle" font-size="13" font-weight="700">Context Eng.</text>
+<text x="291" y="86" text-anchor="middle" font-size="10" fill="#dc2626">Across steps</text>
+<text x="291" y="102" text-anchor="middle" font-size="10" fill="#6b7280">Optimize what it sees</text>
+<rect x="210" y="112" width="162" height="28" rx="3" fill="none" stroke="#d1d5db" stroke-dasharray="4,3"/><text x="291" y="130" text-anchor="middle" font-size="9" font-weight="600">Retrieval &amp; loading</text>
+<rect x="210" y="145" width="162" height="28" rx="3" fill="none" stroke="#d1d5db" stroke-dasharray="4,3"/><text x="291" y="163" text-anchor="middle" font-size="9" font-weight="600">Memory &amp; state</text>
+<rect x="210" y="178" width="162" height="28" rx="3" fill="none" stroke="#d1d5db" stroke-dasharray="4,3"/><text x="291" y="196" text-anchor="middle" font-size="9" font-weight="600">Compression &amp; filtering</text>
+<rect x="210" y="211" width="162" height="28" rx="3" fill="none" stroke="#d1d5db" stroke-dasharray="4,3"/><text x="291" y="229" text-anchor="middle" font-size="9" font-weight="600">Context budgeting</text>
+<text x="291" y="420" text-anchor="middle" font-size="9" fill="#6b7280" font-style="italic">Ceiling: context window</text>
+
+<!-- Harness -->
+<rect x="390" y="45" width="182" height="400" rx="8" fill="#eee" stroke="#9ca3af"/>
+<text x="481" y="70" text-anchor="middle" font-size="13" font-weight="700">Harness Eng.</text>
+<text x="481" y="86" text-anchor="middle" font-size="10" fill="#dc2626">Whole system</text>
+<text x="481" y="102" text-anchor="middle" font-size="10" fill="#6b7280">Optimize how it runs</text>
+<rect x="400" y="112" width="162" height="28" rx="3" fill="none" stroke="#9ca3af" stroke-dasharray="4,3"/><text x="481" y="130" text-anchor="middle" font-size="9" font-weight="600">Tools &amp; sandbox</text>
+<rect x="400" y="145" width="162" height="28" rx="3" fill="none" stroke="#9ca3af" stroke-dasharray="4,3"/><text x="481" y="163" text-anchor="middle" font-size="9" font-weight="600">Orchestration</text>
+<rect x="400" y="178" width="162" height="28" rx="3" fill="none" stroke="#9ca3af" stroke-dasharray="4,3"/><text x="481" y="196" text-anchor="middle" font-size="9" font-weight="600">Verification</text>
+<rect x="400" y="211" width="162" height="28" rx="3" fill="none" stroke="#9ca3af" stroke-dasharray="4,3"/><text x="481" y="229" text-anchor="middle" font-size="9" font-weight="600">Governance &amp; security</text>
+<rect x="400" y="244" width="162" height="28" rx="3" fill="none" stroke="#9ca3af" stroke-dasharray="4,3"/><text x="481" y="262" text-anchor="middle" font-size="9" font-weight="600">Adaptation</text>
+
+<!-- Loop -->
+<rect x="580" y="45" width="182" height="400" rx="8" fill="#eee" stroke="#9ca3af"/>
+<text x="671" y="70" text-anchor="middle" font-size="13" font-weight="700">Loop Eng.</text>
+<text x="671" y="86" text-anchor="middle" font-size="10" fill="#dc2626">Orchestration lifecycle</text>
+<text x="671" y="102" text-anchor="middle" font-size="10" fill="#6b7280">Reason → Act → Verify</text>
+<rect x="590" y="112" width="162" height="28" rx="3" fill="none" stroke="#9ca3af" stroke-dasharray="4,3"/><text x="671" y="130" text-anchor="middle" font-size="9" font-weight="600">Initializer agent (once)</text>
+<rect x="590" y="145" width="162" height="28" rx="3" fill="none" stroke="#9ca3af" stroke-dasharray="4,3"/><text x="671" y="163" text-anchor="middle" font-size="9" font-weight="600">Worker agent (per feature)</text>
+<rect x="590" y="178" width="162" height="28" rx="3" fill="none" stroke="#9ca3af" stroke-dasharray="4,3"/><text x="671" y="196" text-anchor="middle" font-size="9" font-weight="600">Token budget + kill switch</text>
+<rect x="590" y="211" width="162" height="28" rx="3" fill="none" stroke="#9ca3af" stroke-dasharray="4,3"/><text x="671" y="229" text-anchor="middle" font-size="9" font-weight="600">Human check-ins</text>
+<rect x="590" y="244" width="162" height="28" rx="3" fill="none" stroke="#9ca3af" stroke-dasharray="4,3"/><text x="671" y="262" text-anchor="middle" font-size="9" font-weight="600">Git commit as checkpoint</text>
+
+<!-- Graph -->
+<rect x="770" y="45" width="182" height="400" rx="8" fill="#eee" stroke="#9ca3af"/>
+<text x="861" y="70" text-anchor="middle" font-size="13" font-weight="700">Graph Eng.</text>
+<text x="861" y="86" text-anchor="middle" font-size="10" fill="#dc2626">Multi-agent topology</text>
+<text x="861" y="102" text-anchor="middle" font-size="10" fill="#6b7280">Route &amp; delegate</text>
+<rect x="780" y="112" width="162" height="28" rx="3" fill="none" stroke="#9ca3af" stroke-dasharray="4,3"/><text x="861" y="130" text-anchor="middle" font-size="9" font-weight="600">DAG decomposition</text>
+<rect x="780" y="145" width="162" height="28" rx="3" fill="none" stroke="#9ca3af" stroke-dasharray="4,3"/><text x="861" y="163" text-anchor="middle" font-size="9" font-weight="600">HyDRA model routing</text>
+<rect x="780" y="178" width="162" height="28" rx="3" fill="none" stroke="#9ca3af" stroke-dasharray="4,3"/><text x="861" y="196" text-anchor="middle" font-size="9" font-weight="600">Worktree isolation</text>
+<rect x="780" y="211" width="162" height="28" rx="3" fill="none" stroke="#9ca3af" stroke-dasharray="4,3"/><text x="861" y="229" text-anchor="middle" font-size="9" font-weight="600">Pareto cost / quality</text>
+</g>
+
+<rect x="10" y="455" width="942" height="35" rx="6" fill="#dc2626"/>
+<text x="481" y="477" text-anchor="middle" font-size="13" fill="white" font-weight="600" font-family="Inter,sans-serif">Model: Fixed weights, unchanged across all five layers</text>
+</svg>
+</div>
+
+<!-- ═══ S2 ═══ -->
+<h2 id="s2">2. Architecture: dsh Orchestrator + Python Tools</h2>
+<p>dsh (TypeScript/Cordis) is the orchestrator you <strong>configure</strong>, not code. Your Python runs as tools via MCP/subprocess. The harness language is irrelevant to domain logic.</p>
+
+<pre>
+dsh (Cordis kernel, TypeScript)        ← configure via settings.yaml, don't code
+│
+├── settings.yaml                      ← model routing, plugin config, token caps
+├── plugins/                           ← hot-swappable: session log, sandbox, loop
+│   ├── session-log (append-only)      ← trajectory view, OTel export
+│   ├── sandbox (WASM / worktree)      ← read+write+network fencing
+│   ├── compaction                     ← observation masking, deferred tools
+│   └── routing (HyDRA pattern)        ← capability-profile YAML per model
+│
+└── tools/ (MCP servers → YOUR PYTHON)
+    ├── skills/                        ← SKILL.md format, paired-eval gated
+    │   └── (cross-platform: Claude Code, Codex, Copilot, Cursor, OpenCode)
+    ├── verify/                        ← Jev judge + pytest + linters + blindspot checks
+    ├── optimize/                      ← DSPy/GEPA pipelines (metric-backed only)
+    ├── observe/                       ← metrics collection → OTel → dashboard
+    └── domain/                        ← client's non-coding workflows (Python)
+</pre>
+
+<div class="ev">
+<strong>Why this works for a Python DS:</strong> dsh calls Python tools via MCP servers or subprocess. You write Python for everything that matters — domain logic, skills, evaluation, DSPy, verification judges. dsh handles the plumbing (agent loop, plugin lifecycle, session log, routing). You configure it via YAML and markdown manifests, no TypeScript required for 90%+ of use cases.
+</div>
+
+<!-- ═══ S3 ═══ -->
+<h2 id="s3">3. System Flow: Problem → Decision → Execution Loop</h2>
+<p>Every user request flows through this loop. Each node maps to a ranked problem we solve.</p>
+
+<div class="dw">
+<svg viewBox="0 0 960 400" xmlns="http://www.w3.org/2000/svg" width="960" style="max-width:100%;height:auto">
+<defs>
+<marker id="a2" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><polygon points="0 0,8 3,0 6" fill="#374151"/></marker>
+<marker id="a3" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><polygon points="0 0,8 3,0 6" fill="#dc2626"/></marker>
+</defs>
+<g font-family="Inter,sans-serif">
+<!-- Top row -->
+<rect x="20" y="25" width="165" height="65" rx="6" fill="#f3f4f6" stroke="#9ca3af"/>
+<text x="102" y="48" text-anchor="middle" font-size="11" font-weight="700">Identity &amp; Behavior</text>
+<text x="102" y="63" text-anchor="middle" font-size="8" fill="#6b7280">DSPy prompt compilation</text>
+<text x="102" y="78" text-anchor="middle" font-size="8" fill="#dc2626">P6: Prompt fragility</text>
+<line x1="185" y1="58" x2="220" y2="58" stroke="#374151" stroke-width="1.5" marker-end="url(#a2)"/>
+
+<rect x="222" y="25" width="165" height="65" rx="6" fill="#f3f4f6" stroke="#9ca3af"/>
+<text x="304" y="48" text-anchor="middle" font-size="11" font-weight="700">Context &amp; Memory</text>
+<text x="304" y="63" text-anchor="middle" font-size="8" fill="#6b7280">Compaction + deferred tools</text>
+<text x="304" y="78" text-anchor="middle" font-size="8" fill="#dc2626">P2: Token explosion</text>
+<line x1="387" y1="58" x2="422" y2="58" stroke="#374151" stroke-width="1.5" marker-end="url(#a2)"/>
+
+<rect x="424" y="20" width="165" height="75" rx="6" fill="#dc2626"/>
+<text x="506" y="43" text-anchor="middle" font-size="11" font-weight="700" fill="white">Model Decision</text>
+<text x="506" y="58" text-anchor="middle" font-size="8" fill="#fecaca">HyDRA routing + Jev triage</text>
+<text x="506" y="72" text-anchor="middle" font-size="8" fill="#fecaca">$0.0003/call, sub-200ms</text>
+<text x="506" y="86" text-anchor="middle" font-size="8" fill="white">P4: Model dependency</text>
+<line x1="589" y1="58" x2="624" y2="58" stroke="#374151" stroke-width="1.5" marker-end="url(#a2)"/>
+
+<rect x="626" y="25" width="165" height="65" rx="6" fill="#f3f4f6" stroke="#9ca3af"/>
+<text x="708" y="48" text-anchor="middle" font-size="11" font-weight="700">Orchestration</text>
+<text x="708" y="63" text-anchor="middle" font-size="8" fill="#6b7280">Loop eng. + check-ins</text>
+<text x="708" y="78" text-anchor="middle" font-size="8" fill="#dc2626">P5: Human-in-the-loop</text>
+
+<line x1="708" y1="90" x2="708" y2="125" stroke="#374151" stroke-width="1.5" marker-end="url(#a2)"/>
+
+<!-- Bottom row -->
+<rect x="626" y="130" width="165" height="65" rx="6" fill="#f3f4f6" stroke="#9ca3af"/>
+<text x="708" y="153" text-anchor="middle" font-size="11" font-weight="700">Tools &amp; Execution</text>
+<text x="708" y="168" text-anchor="middle" font-size="8" fill="#6b7280">WASM sandbox + worktrees</text>
+<text x="708" y="183" text-anchor="middle" font-size="8" fill="#dc2626">P3: Sandbox isolation</text>
+<line x1="626" y1="163" x2="591" y2="163" stroke="#374151" stroke-width="1.5" marker-end="url(#a2)"/>
+
+<rect x="424" y="130" width="165" height="65" rx="6" fill="#f3f4f6" stroke="#9ca3af"/>
+<text x="506" y="153" text-anchor="middle" font-size="11" font-weight="700">Observability</text>
+<text x="506" y="168" text-anchor="middle" font-size="8" fill="#6b7280">Trajectory view + OTel</text>
+<text x="506" y="183" text-anchor="middle" font-size="8" fill="#dc2626">P1: Opaque execution</text>
+<line x1="424" y1="163" x2="389" y2="163" stroke="#374151" stroke-width="1.5" marker-end="url(#a2)"/>
+
+<rect x="222" y="130" width="165" height="65" rx="6" fill="#f3f4f6" stroke="#9ca3af"/>
+<text x="304" y="153" text-anchor="middle" font-size="11" font-weight="700">Verification</text>
+<text x="304" y="168" text-anchor="middle" font-size="8" fill="#6b7280">Jev + deterministic + blindspots</text>
+<text x="304" y="183" text-anchor="middle" font-size="8" fill="#dc2626">P1: Sub-standard output</text>
+<line x1="222" y1="163" x2="187" y2="163" stroke="#374151" stroke-width="1.5" marker-end="url(#a2)"/>
+
+<rect x="20" y="130" width="165" height="65" rx="6" fill="#f3f4f6" stroke="#9ca3af"/>
+<text x="102" y="153" text-anchor="middle" font-size="11" font-weight="700">Adaptation</text>
+<text x="102" y="168" text-anchor="middle" font-size="8" fill="#6b7280">Skill lift scoring + caching</text>
+<text x="102" y="183" text-anchor="middle" font-size="8" fill="#dc2626">P8: Skill selection</text>
+<line x1="102" y1="130" x2="102" y2="90" stroke="#374151" stroke-width="1.5" marker-end="url(#a2)"/>
+
+<!-- Retry loop -->
+<path d="M506,130 L506,105 Q506,98 513,98 L626,98 Q633,98 633,105 L633,130" fill="none" stroke="#dc2626" stroke-width="1.5" stroke-dasharray="5,3" marker-end="url(#a3)"/>
+<text x="572" y="94" text-anchor="middle" font-size="8" fill="#dc2626" font-weight="600">continue · retry · escalate</text>
+</g>
+
+<!-- Governance -->
+<rect x="20" y="215" width="771" height="40" rx="6" fill="#dc2626" opacity=".12" stroke="#dc2626"/>
+<text x="405" y="232" text-anchor="middle" font-size="12" font-weight="700" fill="#dc2626" font-family="Inter,sans-serif">Governance &amp; Security</text>
+<text x="405" y="247" text-anchor="middle" font-size="9" fill="#dc2626" font-family="Inter,sans-serif">Permission control · Policy enforcement · Audit trail · Guardrails</text>
+
+<!-- 4 Metrics -->
+<g font-family="Inter,sans-serif">
+<rect x="20" y="275" width="188" height="48" rx="6" fill="#eff6ff" stroke="#93c5fd"/>
+<text x="114" y="295" text-anchor="middle" font-size="10" font-weight="600" fill="#2563eb" font-family="JetBrains Mono,monospace">prompt_tokens</text>
+<text x="114" y="311" text-anchor="middle" font-size="8" fill="#6b7280">System + user (target &lt;8K)</text>
+
+<rect x="218" y="275" width="188" height="48" rx="6" fill="#eff6ff" stroke="#93c5fd"/>
+<text x="312" y="295" text-anchor="middle" font-size="10" font-weight="600" fill="#2563eb" font-family="JetBrains Mono,monospace">context_tokens</text>
+<text x="312" y="311" text-anchor="middle" font-size="8" fill="#6b7280">Retrieved + tools (flat trajectory)</text>
+
+<rect x="416" y="275" width="188" height="48" rx="6" fill="#eff6ff" stroke="#93c5fd"/>
+<text x="510" y="295" text-anchor="middle" font-size="10" font-weight="600" fill="#2563eb" font-family="JetBrains Mono,monospace">cache_tokens</text>
+<text x="510" y="311" text-anchor="middle" font-size="8" fill="#6b7280">Prefix-cached (target ≥60%)</text>
+
+<rect x="614" y="275" width="177" height="48" rx="6" fill="#fef2f2" stroke="#fca5a5"/>
+<text x="702" y="295" text-anchor="middle" font-size="10" font-weight="600" fill="#dc2626" font-family="JetBrains Mono,monospace">cost_per_task</text>
+<text x="702" y="311" text-anchor="middle" font-size="8" fill="#6b7280">$ per solved (target ≤50% baseline)</text>
+</g>
+</svg>
+</div>
+
+<!-- ═══ S4 ═══ -->
+<h2 id="s4">4. Anthropic Long-Running Agent Pattern</h2>
+<p>From <a href="https://www.anthropic.com/engineering/effective-harnesses-for-long-running-agents" style="color:var(--accent)">Anthropic Engineering (Nov 2025)</a>. This is our implementation spec for the Loop Engineering layer.</p>
+
+<div class="ev"><strong>Core insight:</strong> Agents fail across context windows because (1) they try to one-shot everything, (2) they leave broken state for the next session, (3) they declare victory early, (4) they mark features done without e2e testing. The fix: structured handoff files + git history as memory between windows.</div>
+
+<h3>Two-part solution we adopt</h3>
+<table>
+<thead><tr><th>Component</th><th>Runs</th><th>What it does</th><th>Artifacts it creates</th></tr></thead>
+<tbody>
+<tr><td><strong>Initializer Agent</strong></td><td>Once per epic</td><td>Sets up environment for all features. Prevents one-shotting.</td><td><code>feature_list.json</code> (all features marked "passes: false"), <code>progress.txt</code>, <code>init.sh</code>, initial git commit</td></tr>
+<tr><td><strong>Worker Agent</strong></td><td>Every session</td><td>Picks ONE feature, implements, tests e2e, commits, updates progress. Leaves clean state.</td><td>Git commit with descriptive message, updated <code>progress.txt</code>, feature status flipped to "passes: true" only after e2e verification</td></tr>
+</tbody>
+</table>
+
+<h3>Worker agent session flow (from Anthropic)</h3>
+<pre>
+1. Run `pwd` — see the working directory
+2. Read git logs + progress.txt — get up to speed
+3. Read feature_list.json — pick highest-priority failing feature
+4. Run init.sh — start dev server
+5. Run basic e2e test — verify app isn't broken from last session
+6. Implement ONE feature
+7. Test e2e (browser automation / domain-specific verification)
+8. If passes → mark "passes: true", git commit, update progress.txt
+9. If fails → fix, retry (max 5 attempts, then escalate)
+</pre>
+
+<div class="warn">
+<strong>Critical rules from Anthropic:</strong> Use JSON for feature list, not Markdown — model is less likely to overwrite JSON. Strongly word: "It is unacceptable to remove or edit tests." Agent may only change the <code>passes</code> field. This prevents the agent from gaming its own success criteria.
+</div>
+
+<!-- ═══ S5 ═══ -->
+<h2 id="s5">5. Ranked Problems × Proven vs Rabbit Hole</h2>
+
+<div class="ev"><strong>Key evidence:</strong> Multi-agent systems use ~15× more tokens than chats (Anthropic). Users rubber-stamp ~93% of permission prompts (Anthropic). METR RCT (246 tasks, 16 devs): AI tools increased completion time by 19%. Self-generated skills score 8–11 pp below no-skills baseline (SkillsBench). Observation masking halves cost while matching solve rate (JetBrains, NeurIPS '25).</div>
+
+<table>
+<thead><tr><th>#</th><th>Problem</th><th>Technique</th><th>Verdict</th><th>Evidence</th></tr></thead>
+<tbody>
+<tr><td>P1</td><td>Opaque observability → sub-standard outputs</td><td>Append-only session log + Trajectory View (dsh pattern)</td><td><span class="tag tag-p">PROVEN</span></td><td>dsh community plugins track steps, LLM failures, tool latency. Copilot SDK uses OTel.</td></tr>
+<tr><td>P2</td><td>Token explosion &amp; context rot</td><td>Observation masking, deferred tools, PTC code-mode, context compaction</td><td><span class="tag tag-p">PROVEN</span></td><td>JetBrains: masking halves cost, matches solve rate. Claude Code overhead: 14–17.6K/turn. Practitioner cut 25K→8K by disabling unused tools.</td></tr>
+<tr><td>P3</td><td>Sandbox &amp; workspace isolation</td><td>WASM/gVisor + managed worktrees (Btrfs/APFS snapshots)</td><td><span class="tag tag-p">PROVEN</span></td><td>dsh "Workspace Write" fences writes only — must add read fencing. Anthropic: 93% rubber-stamp rate means prompt-based security fails.</td></tr>
+<tr><td>P4</td><td>Frontier model dependency → cost</td><td>HyDRA capability-profile routing + cascade with test gate</td><td><span class="tag tag-p">PROVEN</span></td><td>GitHub A/B: ~1M users/arm, 7–20% cost reduction. V4-Pro→V4-Flash = 14× price diff.</td></tr>
+<tr><td>P4b</td><td>Routing latency</td><td>Jev "System One" classifier</td><td><span class="tag tag-p">PROVEN</span></td><td>LangSmith: 500/500 binary decisions, $0.00035/call, 92–913× lower variance than LLM judges.</td></tr>
+<tr><td>P5</td><td>Human-in-the-loop deficits</td><td>Graduated autonomy: report-only → assisted → unattended + kill switch (&gt;5 iterations)</td><td><span class="tag tag-p">PROVEN</span></td><td>METR RCT: +19% time with AI. Google ADK 2.0: strict iteration kill switch.</td></tr>
+<tr><td>P6</td><td>Prompt fragility across personas</td><td>DSPy/GEPA for stable pipelines only</td><td><span class="tag tag-p">PROVEN</span> <span class="tag tag-r">pipelines only</span></td><td>GEPA (ICLR 2026 oral): +14% vs MIPROv2, 9.2× shorter prompts. Converges to deference in multi-agent.</td></tr>
+<tr><td>P7</td><td>Sub-agents &amp; worktrees</td><td>Isolated sub-agents, fresh context per iteration, capped at 3</td><td><span class="tag tag-r">USE WITH CAPS</span></td><td>Anthropic: multi-agent beat single by 90.2% but at 15× tokens. Cold-start delegation.</td></tr>
+<tr><td>P8</td><td>Skill selection without evaluation</td><td>SkillsBench paired eval, ACES CI, cap at 1–3 active skills</td><td><span class="tag tag-p">PROVEN</span></td><td>Curated skills: +18–25 pp. Self-generated: −8 to −11 pp.</td></tr>
+<tr><td colspan="5" style="font-weight:600;color:var(--accent)">⚠ RABBIT HOLES</td></tr>
+<tr><td>⚠</td><td>OpenClaw always-on agents</td><td>Heartbeat replays, 35.6K tokens/message</td><td><span class="tag tag-d">RISKY</span></td><td>180M tokens/month (~$3,600). Take worktree concept only, neutralize defaults.</td></tr>
+<tr><td>⚠</td><td>Ralph loops (verifier-less)</td><td>Recursive restart without independent verifier</td><td><span class="tag tag-d">RISKY</span></td><td>"Expensive way to burn tokens." Cap at 20 iterations + require machine-checkable stop.</td></tr>
+<tr><td>⚠</td><td>Multi-agent swarms</td><td>N agents for breadth-first</td><td><span class="tag tag-d">HIGH COST</span></td><td>15× chat tokens. Tightly coupled tasks do better with single frontier model.</td></tr>
+<tr><td>⚠</td><td>Self-generated skills</td><td>Agent writes its own SKILL.md</td><td><span class="tag tag-d">HYPE</span></td><td>SkillsBench: 8–11 pp below no-skills baseline.</td></tr>
+<tr><td>⚠</td><td>Harness Evolver (autonomous skill evolution)</td><td>Multi-agent proposers evolve behaviors</td><td><span class="tag tag-d">HYPE</span></td><td>Same self-gen problem. Uncontrolled mutation without eval = quality regression.</td></tr>
+</tbody>
+</table>
+
+<!-- ═══ S6 ═══ -->
+<h2 id="s6">6. Vetted Tooling &amp; Skill Ecosystem</h2>
+
+<h3>Core stack (build on these)</h3>
+<table>
+<thead><tr><th>Layer</th><th>Tool</th><th>Why</th></tr></thead>
+<tbody>
+<tr><td>Plugin kernel</td><td>dsh / Cordis (MIT)</td><td>Everything-is-a-plugin. Hot-swap. Reversible registrations.</td></tr>
+<tr><td>Session log</td><td>dsh append-only log</td><td>Trajectory View, OTel export, step/failure/latency tracking.</td></tr>
+<tr><td>Agent config</td><td>OpenCode agent definitions</td><td>Config-driven agents with model/prompt/perms/step-limits. Stable.</td></tr>
+<tr><td>Routing</td><td>HyDRA pattern + Jev classifier</td><td>Capability-profile YAML + cascade + test gate. Production A/B evidence.</td></tr>
+<tr><td>Sandbox</td><td>WASM (gVisor) + git worktrees</td><td>Read+write+network fencing. Btrfs/APFS snapshots for instant spin-up.</td></tr>
+<tr><td>Context compaction</td><td>dsh compaction plugins + observation masking</td><td>Halves cost (JetBrains evidence). Deferred tool loading.</td></tr>
+<tr><td>Prompt optimization</td><td>DSPy / GEPA</td><td>ICLR 2026 oral. For metric-backed pipelines only.</td></tr>
+<tr><td>Verification</td><td>Jev + pytest/linters + blindspot checks</td><td>$0.00035/call judge + deterministic gates + anti-gaming checks.</td></tr>
+<tr><td>Skill evaluation</td><td>SkillsBench paired eval + ACES CI</td><td>Per-skill lift scoring. Cap 1–3 active skills per task.</td></tr>
+<tr><td>Loop engineering</td><td>Anthropic initializer/worker pattern</td><td>Feature list JSON + progress file + git checkpoints.</td></tr>
+<tr><td>Sub-agent backends</td><td>Claude Code, Codex, Copilot (via dsh providers)</td><td>Delegation targets. dsh already supports 6 backends.</td></tr>
+</tbody>
+</table>
+
+<h3>Skill ecosystem (cross-platform SKILL.md standard)</h3>
+<p>Skills are now supported by Claude Code, OpenAI Codex, GitHub Copilot, Cursor, VS Code, OpenCode, Gemini CLI, Manus, and more. Use the SKILL.md format for portability.</p>
+<table>
+<thead><tr><th>Source</th><th>What</th><th>Use</th></tr></thead>
+<tbody>
+<tr><td>anthropics/skills</td><td>Official Anthropic skill catalog</td><td>Baseline reference</td></tr>
+<tr><td>openai/skills</td><td>Official OpenAI skill catalog</td><td>Cross-provider testing</td></tr>
+<tr><td>microsoft/skills</td><td>Azure SDK + AI Foundry skills</td><td>Client's Azure workflows</td></tr>
+<tr><td>addyosmani/agent-skills</td><td>Production-grade modular skills with context-aware activation</td><td>Context compaction patterns</td></tr>
+<tr><td>benchflow-ai/SkillsBench</td><td>86 tasks × 11 domains benchmark</td><td>Paired eval framework</td></tr>
+<tr><td>huggingface/upskill</td><td>Generate and evaluate skills</td><td>Skill creation + eval pipeline</td></tr>
+<tr><td>skillmatic-ai/awesome-agent-skills</td><td>Curated directory of everything above + marketplaces</td><td>Discovery &amp; reference</td></tr>
+</tbody>
+</table>
+
+<h3>Vetted from your notes</h3>
+<table>
+<thead><tr><th>Tool</th><th>Verdict</th><th>Action</th></tr></thead>
+<tbody>
+<tr><td>addyosmani/agent-skills</td><td><span class="tag tag-p">GOOD</span></td><td>Use as skill template reference, context-aware activation patterns</td></tr>
+<tr><td>dsh compaction plugins</td><td><span class="tag tag-p">ADOPT</span></td><td>Core architecture — plugins preserve semantics during summarization</td></tr>
+<tr><td>Citadel/Orca (cross-agent worktrees)</td><td><span class="tag tag-r">VET FIRST</span></td><td>Right concept — check if real production code or markdown-heavy</td></tr>
+<tr><td>Mitos MicroVMs</td><td><span class="tag tag-r">VET FIRST</span></td><td>Snapshot-fork microVMs are ideal sandbox. Check availability/stability</td></tr>
+<tr><td>Harness Evolver</td><td><span class="tag tag-d">AVOID</span></td><td>Autonomous skill evolution = self-gen problem (−8 to −11 pp)</td></tr>
+<tr><td>Harness AI 3.0</td><td><span class="tag tag-b">REFERENCE</span></td><td>Enterprise product, not open source. Good sandbox pattern reference</td></tr>
+<tr><td>walkingslabs/learn-harness-eng (15K★)</td><td><span class="tag tag-b">STUDY</span></td><td>Educational repo, not a framework. Good for loop engineering primitives</td></tr>
+<tr><td>Google ADK 2.0 kill-switch</td><td><span class="tag tag-p">ADOPT</span></td><td>&gt;5 iteration cap pattern. Production-grade.</td></tr>
+<tr><td>MindStudio Loop Platform</td><td><span class="tag tag-b">REFERENCE</span></td><td>Hosted platform. Good abstraction (cadence vs infrastructure) but vendor lock-in</td></tr>
+<tr><td>DenisSergeevitch/agents-best-practices</td><td><span class="tag tag-r">VET FIRST</span></td><td>"Production-ready blueprints" claim needs star count / age verification</td></tr>
+</tbody>
+</table>
+
+<!-- ═══ S7 ═══ -->
+<h2 id="s7">7. Three Personas × Three Test Suites</h2>
+<p>Every test produces 4 metrics. Results must be comparable across personas. Feature list uses JSON (per Anthropic — less likely to be overwritten by the model).</p>
+
+<table>
+<thead><tr><th></th><th>T1: Long-Prompt Minecraft Builder</th><th>T2: Multi-Turn Agentic Workflow</th><th>T3: Long-Running Sub-Agents + Worktrees</th></tr></thead>
+<tbody>
+<tr><td style="font-weight:600">C-Level</td>
+<td>Cost governance. Trajectory View cost breakdown. Token caps prevent runaway spend. <strong>Pass:</strong> task completes within budget.</td>
+<td>Participatory AI. Schema change triggers check-in. Exec approves. <strong>Pass:</strong> zero unverified state changes.</td>
+<td>Pareto telemetry dashboard. Cost vs quality vs latency. <strong>Pass:</strong> routing cuts cost ≥40% vs single-frontier.</td></tr>
+<tr><td style="font-weight:600">TPM</td>
+<td>Skill evaluation. Paired lift in Trajectory View. <strong>Pass:</strong> skill lift &gt;15 pp on spatial tasks.</td>
+<td>DSPy compilation. TPM defines goal → harness compiles prompt. <strong>Pass:</strong> schema-recovery without manual editing.</td>
+<td>Graph orchestration. Decompose epic → assign workers. <strong>Pass:</strong> all worktree merges pass verification.</td></tr>
+<tr><td style="font-weight:600">Dev / DS / AI Eng.</td>
+<td>Context compaction. Maintain constraints over 100K+ tokens. <strong>Pass:</strong> flat context trajectory (no exponential growth).</td>
+<td>Tool failure recovery. Intentional schema break → log → rewrite → retry. <strong>Pass:</strong> auto-recovery in ≤2 retries.</td>
+<td>Sandbox isolation. Sub-agents can't read outside project. HyDRA routes mechanical tasks to Flash. <strong>Pass:</strong> read/write/network fenced.</td></tr>
+</tbody>
+</table>
+
+<h3>4 metrics per run</h3>
+<div class="mr">
+<div class="mb"><div class="l">Prompt Tokens</div><div class="v">&lt;8K/turn</div></div>
+<div class="mb"><div class="l">Context Tokens</div><div class="v">flat growth</div></div>
+<div class="mb"><div class="l">Cache Tokens</div><div class="v">≥60% ratio</div></div>
+<div class="mb"><div class="l">Cost / Task</div><div class="v">≤50% baseline</div></div>
+</div>
+<p style="font-size:.85rem;color:var(--muted)">Additional: wall-clock time, model per step (routing log), verification pass/fail, human escalation count, sub-agent count, worktree merge success, blindspot flags.</p>
+
+<!-- ═══ S8 ═══ -->
+<h2 id="s8">8. Blindspot Detection Checklist</h2>
+<p>The Anthropic article identified agents gaming their own success criteria. These checks catch that and other blindspots.</p>
+
+<div class="warn"><strong>The core problem:</strong> An agent can mark <code>"passes": true</code> without actually verifying, use fallback/default values to pass tests, or silently skip error paths. Without independent verification, you won't know until production.</div>
+
+<table>
+<thead><tr><th>Blindspot</th><th>How it manifests</th><th>Detection</th><th>Automated check</th></tr></thead>
+<tbody>
+<tr><td><strong>Fallback codes used to pass</strong></td><td>Agent returns hardcoded defaults, HTTP 200 with empty body, or catches all exceptions silently</td><td>Grep for bare <code>except: pass</code>, <code>catch {}</code>, hardcoded return values in test paths</td><td>AST analysis: flag functions where every error path returns a default. Jev judge: "does this output look like a real result or a stub?"</td></tr>
+<tr><td><strong>Feature marked done without e2e test</strong></td><td>Agent flips <code>"passes": true</code> based on unit tests or curl, not real user flow</td><td>Require Puppeteer/Playwright screenshot or domain-specific e2e verification before status flip</td><td>Trajectory View: check that a browser automation / e2e tool was called BEFORE the status-flip commit</td></tr>
+<tr><td><strong>Tests that test the mock, not the system</strong></td><td>Agent writes unit tests that mock the exact function being tested</td><td>Static analysis: if a test mocks the function it's testing, flag it</td><td>pytest plugin: detect when mock target == test target. Flag circular mocking.</td></tr>
+<tr><td><strong>Context rot causing hallucinated tool calls</strong></td><td>After 100K+ tokens, agent calls tools with wrong schemas or invents tool names</td><td>Monitor tool call success rate per turn number. Spike in failures = rot signal</td><td>Trajectory View: plot tool_call_success_rate vs turn_number. Alert on &gt;20% failure rate.</td></tr>
+<tr><td><strong>Agent declares victory early</strong></td><td>Agent sees partial progress and says "done"</td><td>Feature list JSON: count remaining <code>"passes": false</code>. If &gt;0 and agent says done = flag</td><td>Post-session check: parse feature_list.json, compare passes count to total. Reject "done" if ratio &lt;100%.</td></tr>
+<tr><td><strong>Silent permission escalation</strong></td><td>Agent reads files outside project, makes network calls to unexpected hosts</td><td>Sandbox audit log: any read/write/network outside fenced scope = hard fail</td><td>WASM/gVisor: log all syscalls. Alert on any access outside declared scope.</td></tr>
+<tr><td><strong>Token-burning idle loops</strong></td><td>Agent stuck in retry loop, heartbeat replays, or "thinking" without producing output</td><td>Monitor tokens_per_useful_output ratio. Spike = loop detected</td><td>Kill switch: &gt;5 consecutive iterations without a git commit or status change = escalate to human.</td></tr>
+<tr><td><strong>Prompt injection via skills</strong></td><td>Malicious SKILL.md overrides system instructions or exfiltrates data</td><td>Skill security audit before registry admission</td><td>SkillCheck scanner (agentigy/skillcheck). Reject skills that contain instructions to override system prompt or make external network calls.</td></tr>
+<tr><td><strong>Sub-agent context leakage</strong></td><td>Sub-agent result dumps raw tool output into parent context, bloating it</td><td>Cap sub-agent response size. Summarize before injecting into parent.</td><td>Post-delegation filter: if sub-agent response &gt;2K tokens, compress to structured summary before parent injection.</td></tr>
+<tr><td><strong>DSPy over-optimization</strong></td><td>GEPA converges to "extreme-deference" prompts that suppress agent deliberation</td><td>Hold out validation set. Compare optimized vs seed prompt on held-out tasks</td><td>MAS-PromptBench pattern: keep optimized prompts only if they beat seed on validation.</td></tr>
+</tbody>
+</table>
+
+<h3>Implementation: 3-layer verification gate</h3>
+<pre>
+Layer 1: DETERMINISTIC (runs every commit)
+  - Linters, type checkers, AST analysis
+  - Fallback-code detector (grep bare except/catch)
+  - Circular mock detector
+  - Feature list JSON integrity check
+  - Sandbox audit log review
+
+Layer 2: JEV JUDGE (runs per feature completion, $0.00035/call)
+  - "Does this output look like a real result or a stub?"
+  - "Does this implementation match the feature description?"
+  - "Are there untested error paths?"
+  - Returns typed probability, not generated text
+
+Layer 3: E2E VERIFICATION (runs before "passes: true")
+  - Browser automation (Puppeteer/Playwright) for web features
+  - Domain-specific verification for non-coding workflows
+  - Screenshot evidence captured in Trajectory View
+  - Human check-in for high-stakes state changes
+</pre>
+
+<!-- ═══ S9 ═══ -->
+<h2 id="s9">9. Research Adoption List</h2>
+
+<div class="ref"><strong>Anthropic: Effective harnesses for long-running agents</strong> — Nov 2025. Initializer/worker pattern, feature list JSON, git-as-memory, e2e testing before status flip. <span class="rt" style="background:var(--proven-bg);color:var(--proven)">ADOPT — our Loop Eng. spec</span></div>
+<div class="ref"><strong>Anthropic: Effective context engineering for AI agents</strong> — Progressive disclosure, compaction, sub-agent isolation. <span class="rt" style="background:var(--proven-bg);color:var(--proven)">ADOPT</span></div>
+<div class="ref"><strong>HyDRA</strong> — arXiv 2605.17106. Capability-profile router, zero retraining on model changes, A/B at ~1M users. <span class="rt" style="background:var(--proven-bg);color:var(--proven)">ADOPT</span></div>
+<div class="ref"><strong>HydraFusion</strong> — GitHub blog, Sep 2026. Cascade workflow only (cheap draft → test gate → escalate). <span class="rt" style="background:var(--risky-bg);color:var(--risky)">ADOPT CASCADE ONLY</span></div>
+<div class="ref"><strong>Jev</strong> — TypeSafe AI. 500/500 decisions, $0.00035/call. arXiv 2609.34862. <span class="rt" style="background:var(--proven-bg);color:var(--proven)">ADOPT</span></div>
+<div class="ref"><strong>GEPA</strong> — ICLR 2026 oral. +14% vs MIPROv2, 9.2× shorter prompts. <span class="rt" style="background:var(--proven-bg);color:var(--proven)">ADOPT for pipelines</span></div>
+<div class="ref"><strong>Observation Masking</strong> — JetBrains, arXiv 2508.21433, NeurIPS '25. Halves cost, matches solve rate. <span class="rt" style="background:var(--proven-bg);color:var(--proven)">ADOPT</span></div>
+<div class="ref"><strong>The Harness Effect</strong> — arXiv 2607.06906. −41% cost/task, −38% tokens from orchestration alone. <span class="rt" style="background:var(--proven-bg);color:var(--proven)">ADOPT</span></div>
+<div class="ref"><strong>The Scaffold Effect</strong> — arXiv 2607.22585. More harness ≠ more quality. <span class="rt" style="background:var(--blue-bg);color:var(--blue)">REFERENCE</span></div>
+<div class="ref"><strong>SkillsBench</strong> — arXiv 2602.12670. Curated +16.6 pp, bundles 1–3 best. Self-gen −8 to −11 pp. <span class="rt" style="background:var(--proven-bg);color:var(--proven)">ADOPT</span></div>
+<div class="ref"><strong>ACES</strong> — arXiv 2608.20614. CI-integrated skill lift + trajectory metrics. <span class="rt" style="background:var(--proven-bg);color:var(--proven)">ADOPT</span></div>
+<div class="ref"><strong>Loop Engineering</strong> — arXiv 2608.21884. Bounded runs, verifiers, budgets, escalation. <span class="rt" style="background:var(--risky-bg);color:var(--risky)">ADOPT WITH VERIFIERS</span></div>
+<div class="ref"><strong>Google ADK 2.0 kill-switch</strong> — &gt;5 iteration cap. <span class="rt" style="background:var(--proven-bg);color:var(--proven)">ADOPT</span></div>
+<div class="ref"><strong>OpenRouter Auto</strong> — Routes by community spend, 7-day window. <span class="rt" style="background:var(--proven-bg);color:var(--proven)">ADOPT</span></div>
+<div class="ref"><strong>LOCA-bench</strong> — arXiv 2602.07962. Benchmark for context growth. <span class="rt" style="background:var(--blue-bg);color:var(--blue)">BENCHMARK</span></div>
+<div class="ref"><strong>O'Reilly Harness Engineering</strong> — Koenigstein. Ch 1–2 available. github.com/Nicolepcx/harness_engineering <span class="rt" style="background:var(--blue-bg);color:var(--blue)">REFERENCE</span></div>
+<div class="ref"><strong>Multi-Agent Teams Hold Experts Back</strong> — arXiv 2602.01011. Single frontier model beats swarms on coupled tasks. <span class="rt" style="background:var(--danger-bg);color:var(--danger)">CAUTION</span></div>
+<div class="ref"><strong>awesome-agent-skills</strong> — github.com/skillmatic-ai/awesome-agent-skills. Curated directory + marketplaces + benchmarks. <span class="rt" style="background:var(--proven-bg);color:var(--proven)">REFERENCE</span></div>
+
+<!-- ═══ S10 ═══ -->
+<h2 id="s10">10. Three-Week Roadmap</h2>
+
+<table>
+<thead><tr><th>Week</th><th>Focus</th><th>Persona</th><th>Delivers</th></tr></thead>
+<tbody>
+<tr><td style="font-weight:600">Week 1</td><td>Core harness + isolation + observability</td><td>Dev / AI Eng.</td><td>
+D1–2: Cordis plugin kernel (model adapter, tool registry, session log, agent loop)<br>
+D3: WASM sandbox + git worktree isolation (Btrfs/APFS)<br>
+D4: Append-only session log + Trajectory View + OTel export<br>
+D5: Python MCP tool servers (verify, observe, domain) connected to dsh<br>
+<span class="tag tag-p">Solves: P1, P2, P3</span></td></tr>
+<tr><td style="font-weight:600">Week 2</td><td>Routing + loop engineering + blindspot detection</td><td>TPM + AI Eng.</td><td>
+D6–7: Jev classifier + HyDRA capability routing (settings.yaml)<br>
+D8: Anthropic initializer/worker pattern (feature_list.json, progress.txt, init.sh)<br>
+D9: Blindspot detection layer (fallback detector, circular mock detector, kill switch)<br>
+D10: DSPy/GEPA pipeline for 2–3 stable modules + graduated autonomy check-ins<br>
+<span class="tag tag-p">Solves: P4, P5, P6 + blindspots</span></td></tr>
+<tr><td style="font-weight:600">Week 3</td><td>Multi-agent + skills + QA + governance</td><td>C-Level + All</td><td>
+D11: DAG orchestration + sub-agent worktrees + token compaction<br>
+D12: Skill eval pipeline (SkillsBench paired eval + ACES CI gate)<br>
+D13–14: Run 3×3 test matrix, capture 4 metrics + blindspot flags per run<br>
+D15: Governance policies + ROI dashboard + client sign-off<br>
+<span class="tag tag-p">Solves: P7, P8 + validation</span></td></tr>
+</tbody>
+</table>
+
+<div class="ev" style="margin-top:1.5rem">
+<strong>Bottom line:</strong> Build on <strong>dsh (Cordis kernel)</strong>, configure in YAML, write domain logic in <strong>Python via MCP tools</strong>. Adopt Anthropic's initializer/worker pattern for loop engineering. Gate every feature completion through the 3-layer verification (deterministic → Jev judge → e2e). Track 4 metrics + blindspot flags per run. Avoid unverified loops, swarms, self-generated skills, and always-on agents.
+</div>
+
+</body>
+</html>

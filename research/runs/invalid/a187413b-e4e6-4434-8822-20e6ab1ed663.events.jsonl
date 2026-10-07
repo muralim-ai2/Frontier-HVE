@@ -1,0 +1,15 @@
+{"event": "PreToolUse", "mode": "single", "ts_ms": 1791268131381.0, "tool_use_id": "call_XzNrttp6evqMKL5YrinAxBdE__vscode-1791268083929", "tool_name": "list_dir"}
+{"event": "PreToolUse", "mode": "single", "ts_ms": 1791268132106.0, "tool_use_id": "call_Tij4p4KepGL1zSsAJyj1ZmAj__vscode-1791268083930", "tool_name": "execution_subagent"}
+{"event": "PostToolUse", "mode": "single", "ts_ms": 1791268132063.0, "tool_use_id": "call_XzNrttp6evqMKL5YrinAxBdE__vscode-1791268083929", "tool_name": "list_dir"}
+{"event": "PreToolUse", "mode": "single", "ts_ms": 1791268137026.0, "tool_use_id": "call_uT52zJ94U3AIulWTAMoEu7fs__vscode-1791268083931", "tool_name": "run_in_terminal"}
+{"event": "PostToolUse", "mode": "single", "ts_ms": 1791268146947.0, "tool_use_id": "call_uT52zJ94U3AIulWTAMoEu7fs__vscode-1791268083931", "tool_name": "run_in_terminal"}
+{"event": "Stop", "mode": "single", "ts_ms": 1791268148508.0, "tool_use_id": null, "tool_name": null}
+{"event": "PostToolUse", "mode": "single", "ts_ms": 1791268149184.0, "tool_use_id": "call_Tij4p4KepGL1zSsAJyj1ZmAj__vscode-1791268083930", "tool_name": "execution_subagent"}
+{"event": "Stop", "mode": "single", "ts_ms": 1791268152746.0, "tool_use_id": null, "tool_name": null}
+{"event": "PreToolUse", "mode": "single", "ts_ms": 1791268249567.0, "tool_use_id": "call_IH0qUJmyAIhXfZ61pLNBGM20__vscode-1791268083932", "tool_name": "execution_subagent"}
+{"event": "PreToolUse", "mode": "single", "ts_ms": 1791268255524.0, "tool_use_id": "call_T66t3pxf3LjS35EmKXXsyqSp__vscode-1791268083933", "tool_name": "run_in_terminal"}
+{"event": "PostToolUse", "mode": "single", "ts_ms": 1791268259314.0, "tool_use_id": "call_T66t3pxf3LjS35EmKXXsyqSp__vscode-1791268083933", "tool_name": "run_in_terminal"}
+{"event": "Stop", "mode": "single", "ts_ms": 1791268261963.0, "tool_use_id": null, "tool_name": null}
+{"event": "PostToolUse", "mode": "single", "ts_ms": 1791268262628.0, "tool_use_id": "call_IH0qUJmyAIhXfZ61pLNBGM20__vscode-1791268083932", "tool_name": "execution_subagent"}
+{"event": "Stop", "mode": "single", "ts_ms": 1791268264070.0, "tool_use_id": null, "tool_name": null}
+{"event": "PreToolUse", "mode": "single", "ts_ms": 1791268980551.0, "tool_use_id": "call_wRwumAZnZMZlN5sGDdPe2G1C__vscode-1791268083934", "tool_name": "read_file"}

@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Enterprise AI Harness Blueprint v3</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#fff;--fg:#1a1a1a;--muted:#6b7280;--accent:#dc2626;--accent-light:#fef2f2;--surface:#f3f4f6;--surface2:#e5e7eb;--border:#d1d5db;--proven:#059669;--proven-bg:#ecfdf5;--risky:#d97706;--risky-bg:#fffbeb;--danger:#dc2626;--danger-bg:#fef2f2;--blue:#2563eb;--blue-bg:#eff6ff;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#111827;--fg:#f9fafb;--muted:#9ca3af;--surface:#1f2937;--surface2:#374151;--border:#4b5563;--accent-light:#1c1012;--proven-bg:#0c1f17;--risky-bg:#1a1508;--danger-bg:#1c1012;--blue-bg:#0f172a}}
+:root[data-theme="dark"]{--bg:#111827;--fg:#f9fafb;--muted:#9ca3af;--surface:#1f2937;--surface2:#374151;--border:#4b5563;--accent-light:#1c1012;--proven-bg:#0c1f17;--risky-bg:#1a1508;--danger-bg:#1c1012;--blue-bg:#0f172a}
+*{margin:0;padding:0;box-sizing:border-box}html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--fg);line-height:1.6;max-width:1200px;margin:0 auto;padding:2rem 1.5rem}
+h1{font-size:1.75rem;font-weight:700;margin-bottom:.25rem}h2{font-size:1.25rem;font-weight:700;margin:2.5rem 0 1rem;border-bottom:2px solid var(--accent);padding-bottom:.5rem}h3{font-size:1rem;font-weight:600;margin:1.5rem 0 .5rem}
+p{margin-bottom:.75rem;max-width:72ch}.sub{color:var(--muted);font-size:.9rem;margin-bottom:2rem}
+code{font-family:'JetBrains Mono',monospace;font-size:.85em;background:var(--surface);padding:.15em .4em;border-radius:3px}
+table{width:100%;border-collapse:collapse;margin:1rem 0;font-size:.875rem}th{background:var(--surface);font-weight:600;text-align:left;padding:.6rem .75rem;border:1px solid var(--border)}td{padding:.6rem .75rem;border:1px solid var(--border);vertical-align:top}tr:nth-child(even){background:var(--surface)}
+.tag{display:inline-block;font-size:.75rem;font-weight:600;padding:.15em .5em;border-radius:3px}.tag-p{background:var(--proven-bg);color:var(--proven)}.tag-r{background:var(--risky-bg);color:var(--risky)}.tag-d{background:var(--danger-bg);color:var(--danger)}.tag-b{background:var(--blue-bg);color:var(--blue)}
+.ev{background:var(--blue-bg);border-left:3px solid var(--blue);padding:.75rem 1rem;margin:.75rem 0;font-size:.85rem;border-radius:0 4px 4px 0}.ev strong{color:var(--blue)}
+.warn{background:var(--danger-bg);border-left:3px solid var(--danger);padding:.75rem 1rem;margin:.75rem 0;font-size:.85rem;border-radius:0 4px 4px 0}.warn strong{color:var(--danger)}
+.mr{display:grid;grid-template-columns:repeat(4,1fr);gap:.75rem;margin:1rem 0}.mb{background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:1rem;text-align:center}.mb .l{font-size:.75rem;color:var(--muted);text-transform:uppercase;letter-spacing:.05em}.mb .v{font-family:'JetBrains Mono',monospace;font-size:1.1rem;font-weight:600;margin-top:.25rem}
+.ref{font-size:.85rem;margin-bottom:.5rem;padding-left:1rem;text-indent:-1rem}.rt{font-size:.7rem;font-weight:600;padding:.1em .35em;border-radius:2px;margin-left:.25rem}
+.toc{background:var(--surface);padding:1rem 1.25rem;border-radius:6px;margin-bottom:2rem}.toc a{color:var(--accent);text-decoration:none;font-size:.85rem}.toc ol{padding-left:1.25rem}.toc li{margin-bottom:.25rem}
+pre{background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:1rem;overflow-x:auto;font-family:'JetBrains Mono',monospace;font-size:.8rem;margin:1rem 0;line-height:1.5}
+.dw{overflow-x:auto;margin:1.5rem 0}.dw svg{display:block;margin:0 auto}
+.cg{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:1rem;margin:1rem 0}.cd{background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:1rem}.cd h4{font-size:.9rem;font-weight:600;margin-bottom:.5rem}.cd p{font-size:.85rem;color:var(--muted);margin-bottom:.25rem}
+@media(max-width:700px){.mr{grid-template-columns:repeat(2,1fr)}body{padding:1rem}h1{font-size:1.4rem}}
+</style>
+</head>
+<body>
+
+<h1>Enterprise AI Harness Blueprint <span style="color:var(--accent)">v3</span></h1>
+<p class="sub">GHCP (Copilot SDK) Base · Minimal & Creator Modes · Anthropic Long-Running Pattern · Blindspot Detection · 3 Weeks</p>
+
+<nav class="toc"><ol>
+<li><a href="#s1">Engineering Progression (5 Layers)</a></li>
+<li><a href="#s2">Architecture: GHCP Copilot SDK + Custom Modes</a></li>
+<li><a href="#s3">System Flow: Problem → Decision → Execution</a></li>
+<li><a href="#s4">Harness Comparison: What We Borrow From Each</a></li>
+<li><a href="#s5">Anthropic Long-Running Agent Pattern</a></li>
+<li><a href="#s6">Ranked Problems × Proven vs Rabbit Hole</a></li>
+<li><a href="#s7">Token Reduction & Code Knowledge Tooling (Vetted)</a></li>
+<li><a href="#s8">Vetted Tooling, Skills & Governance</a></li>
+<li><a href="#s9">3 Personas × 3 Test Suites + 4 Metrics</a></li>
+<li><a href="#s10">Blindspot Detection Checklist</a></li>
+<li><a href="#s11">Research Adoption List</a></li>
+<li><a href="#s12">3-Week Roadmap</a></li>
+</ol></nav>
+
+<!-- ═══ S1 ═══ -->
+<h2 id="s1">1. Engineering Progression: What Each Layer Adds</h2>
+<p>Each layer widens what you control. The model stays fixed — only the harness changes.</p>
+<div class="dw">
+<svg viewBox="0 0 980 500" xmlns="http://www.w3.org/2000/svg" width="980" style="max-width:100%;height:auto">
+<defs><marker id="ah" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><polygon points="0 0,8 3,0 6" fill="#888"/></marker></defs>
+<line x1="30" y1="28" x2="950" y2="28" stroke="#888" stroke-width="2" marker-end="url(#ah)"/>
+<text x="490" y="18" text-anchor="middle" font-size="13" fill="#888" font-family="Inter,sans-serif">Widening scope of what you engineer →</text>
+<g font-family="Inter,sans-serif">
+<rect x="10" y="45" width="182" height="400" rx="8" fill="#f9fafb" stroke="#d1d5db"/><text x="101" y="70" text-anchor="middle" font-size="13" font-weight="700">Prompt Eng.</text><text x="101" y="86" text-anchor="middle" font-size="10" fill="#dc2626">Single call</text><text x="101" y="102" text-anchor="middle" font-size="10" fill="#6b7280">Optimize the input</text>
+<rect x="20" y="112" width="162" height="28" rx="3" fill="none" stroke="#d1d5db" stroke-dasharray="4,3"/><text x="101" y="130" text-anchor="middle" font-size="9" font-weight="600">Instruction &amp; role</text>
+<rect x="20" y="145" width="162" height="28" rx="3" fill="none" stroke="#d1d5db" stroke-dasharray="4,3"/><text x="101" y="163" text-anchor="middle" font-size="9" font-weight="600">Examples &amp; few-shot</text>
+<rect x="20" y="178" width="162" height="28" rx="3" fill="none" stroke="#d1d5db" stroke-dasharray="4,3"/><text x="101" y="196" text-anchor="middle" font-size="9" font-weight="600">Output format</text>
+<rect x="20" y="211" width="162" height="28" rx="3" fill="none" stroke="#d1d5db" stroke-dasharray="4,3"/><text x="101" y="229" text-anchor="middle" font-size="9" font-weight="600">Wording iteration</text>
+<text x="101" y="420" text-anchor="middle" font-size="9" fill="#6b7280" font-style="italic">Ceiling: prompt boundary</text>
+<rect x="200" y="45" width="182" height="400" rx="8" fill="#f9fafb" stroke="#d1d5db"/><text x="291" y="70" text-anchor="middle" font-size="13" font-weight="700">Context Eng.</text><text x="291" y="86" text-anchor="middle" font-size="10" fill="#dc2626">Across steps</text><text x="291" y="102" text-anchor="middle" font-size="10" fill="#6b7280">Optimize what it sees</text>
+<rect x="210" y="112" width="162" height="28" rx="3" fill="none" stroke="#d1d5db" stroke-dasharray="4,3"/><text x="291" y="130" text-anchor="middle" font-size="9" font-weight="600">Retrieval &amp; loading</text>
+<rect x="210" y="145" width="162" height="28" rx="3" fill="none" stroke="#d1d5db" stroke-dasharray="4,3"/><text x="291" y="163" text-anchor="middle" font-size="9" font-weight="600">Memory &amp; state</text>
+<rect x="210" y="178" width="162" height="28" rx="3" fill="none" stroke="#d1d5db" stroke-dasharray="4,3"/><text x="291" y="196" text-anchor="middle" font-size="9" font-weight="600">Compression &amp; filtering</text>
+<rect x="210" y="211" width="162" height="28" rx="3" fill="none" stroke="#d1d5db" stroke-dasharray="4,3"/><text x="291" y="229" text-anchor="middle" font-size="9" font-weight="600">Context budgeting</text>
+<text x="291" y="420" text-anchor="middle" font-size="9" fill="#6b7280" font-style="italic">Ceiling: context window</text>
+<rect x="390" y="45" width="182" height="400" rx="8" fill="#eee" stroke="#9ca3af"/><text x="481" y="70" text-anchor="middle" font-size="13" font-weight="700">Harness Eng.</text><text x="481" y="86" text-anchor="middle" font-size="10" fill="#dc2626">Whole system</text><text x="481" y="102" text-anchor="middle" font-size="10" fill="#6b7280">Optimize how it runs</text>
+<rect x="400" y="112" width="162" height="28" rx="3" fill="none" stroke="#9ca3af" stroke-dasharray="4,3"/><text x="481" y="130" text-anchor="middle" font-size="9" font-weight="600">Tools &amp; sandbox</text>
+<rect x="400" y="145" width="162" height="28" rx="3" fill="none" stroke="#9ca3af" stroke-dasharray="4,3"/><text x="481" y="163" text-anchor="middle" font-size="9" font-weight="600">Orchestration</text>
+<rect x="400" y="178" width="162" height="28" rx="3" fill="none" stroke="#9ca3af" stroke-dasharray="4,3"/><text x="481" y="196" text-anchor="middle" font-size="9" font-weight="600">Verification</text>
+<rect x="400" y="211" width="162" height="28" rx="3" fill="none" stroke="#9ca3af" stroke-dasharray="4,3"/><text x="481" y="229" text-anchor="middle" font-size="9" font-weight="600">Governance &amp; security</text>
+<rect x="400" y="244" width="162" height="28" rx="3" fill="none" stroke="#9ca3af" stroke-dasharray="4,3"/><text x="481" y="262" text-anchor="middle" font-size="9" font-weight="600">Adaptation</text>
+<rect x="580" y="45" width="182" height="400" rx="8" fill="#eee" stroke="#9ca3af"/><text x="671" y="70" text-anchor="middle" font-size="13" font-weight="700">Loop Eng.</text><text x="671" y="86" text-anchor="middle" font-size="10" fill="#dc2626">Orchestration lifecycle</text><text x="671" y="102" text-anchor="middle" font-size="10" fill="#6b7280">Reason → Act → Verify</text>
+<rect x="590" y="112" width="162" height="28" rx="3" fill="none" stroke="#9ca3af" stroke-dasharray="4,3"/><text x="671" y="130" text-anchor="middle" font-size="9" font-weight="600">Initializer agent (once)</text>
+<rect x="590" y="145" width="162" height="28" rx="3" fill="none" stroke="#9ca3af" stroke-dasharray="4,3"/><text x="671" y="163" text-anchor="middle" font-size="9" font-weight="600">Worker agent (per feature)</text>
+<rect x="590" y="178" width="162" height="28" rx="3" fill="none" stroke="#9ca3af" stroke-dasharray="4,3"/><text x="671" y="196" text-anchor="middle" font-size="9" font-weight="600">Token budget + kill switch</text>
+<rect x="590" y="211" width="162" height="28" rx="3" fill="none" stroke="#9ca3af" stroke-dasharray="4,3"/><text x="671" y="229" text-anchor="middle" font-size="9" font-weight="600">Human check-ins</text>
+<rect x="590" y="244" width="162" height="28" rx="3" fill="none" stroke="#9ca3af" stroke-dasharray="4,3"/><text x="671" y="262" text-anchor="middle" font-size="9" font-weight="600">Git commit as checkpoint</text>
+<rect x="770" y="45" width="182" height="400" rx="8" fill="#eee" stroke="#9ca3af"/><text x="861" y="70" text-anchor="middle" font-size="13" font-weight="700">Graph Eng.</text><text x="861" y="86" text-anchor="middle" font-size="10" fill="#dc2626">Multi-agent topology</text><text x="861" y="102" text-anchor="middle" font-size="10" fill="#6b7280">Route &amp; delegate</text>
+<rect x="780" y="112" width="162" height="28" rx="3" fill="none" stroke="#9ca3af" stroke-dasharray="4,3"/><text x="861" y="130" text-anchor="middle" font-size="9" font-weight="600">DAG decomposition</text>
+<rect x="780" y="145" width="162" height="28" rx="3" fill="none" stroke="#9ca3af" stroke-dasharray="4,3"/><text x="861" y="163" text-anchor="middle" font-size="9" font-weight="600">HyDRA model routing</text>
+<rect x="780" y="178" width="162" height="28" rx="3" fill="none" stroke="#9ca3af" stroke-dasharray="4,3"/><text x="861" y="196" text-anchor="middle" font-size="9" font-weight="600">Worktree isolation</text>
+<rect x="780" y="211" width="162" height="28" rx="3" fill="none" stroke="#9ca3af" stroke-dasharray="4,3"/><text x="861" y="229" text-anchor="middle" font-size="9" font-weight="600">Pareto cost / quality</text>
+</g>
+<rect x="10" y="455" width="942" height="35" rx="6" fill="#dc2626"/><text x="481" y="477" text-anchor="middle" font-size="13" fill="white" font-weight="600" font-family="Inter,sans-serif">Model: Fixed weights, unchanged across all five layers</text>
+</svg>
+</div>
+
+<!-- ═══ S2 ═══ -->
+<h2 id="s2">2. Architecture: GHCP Copilot SDK + Custom Modes</h2>
+<p>The Copilot SDK (GA June 2026) is the base. It gives you the same agent runtime as Copilot CLI — planning, tool invocation, file edits, streaming, multi-turn sessions — without building your own orchestration layer. Available in Python, Node.js, Go, .NET, Rust.</p>
+
+<h3>Two modes on one runtime</h3>
+<table>
+<thead><tr><th>Mode</th><th>Purpose</th><th>Config</th></tr></thead>
+<tbody>
+<tr><td><strong>Minimal (single-node)</strong></td><td>Baseline benchmark. One session, pinned model, no sub-agents, no MCP, all skills disabled. Proves what the raw model + harness loop can do alone.</td><td><code>.github/agents/minimal.agent.md</code> — pinned model, <code>tools: [file_write, build_tool]</code> only, no <code>customAgents</code>, no MCP, logging hook only</td></tr>
+<tr><td><strong>Creator (full harness)</strong></td><td>Production mode. Planner/builder/critic agents, curated skills, MCP servers (CodeGraph, Headroom), governance hooks, sub-agent delegation.</td><td><code>.github/agents/creator.agent.md</code> — planner + builder + critic <code>customAgents</code>, curated <code>skillDirectories</code>, MCP servers, AGT policy hooks</td></tr>
+</tbody>
+</table>
+
+<div class="ev"><strong>Benchmarking rule:</strong> Pin one explicit model for both modes. Auto/HyDRA and HydraFusion change models per request — this contaminates the comparison. HydraFusion is a research preview and should not be used in enterprise baselines yet.</div>
+
+<h3>Copilot SDK extensibility points</h3>
+<table>
+<thead><tr><th>Extension</th><th>What it gives you</th></tr></thead>
+<tbody>
+<tr><td>Custom tools</td><td>Register your own functions, override built-in tools like <code>grep</code> and <code>edit_file</code></td></tr>
+<tr><td>MCP servers</td><td>Local (stdio) and remote (HTTP/SSE) per session, with per-tool allowlists</td></tr>
+<tr><td>Hooks</td><td><code>onPreToolUse</code>, <code>onPostToolUse</code>, <code>onSessionStart</code>, <code>onPermissionRequest</code> — insertion points for policy, logging, governance</td></tr>
+<tr><td>Permissions</td><td><code>availableTools</code> and <code>excludedTools</code> restrict tool surface per session</td></tr>
+<tr><td>Custom agents</td><td>Each with own prompt, tool restrictions, MCP servers, preloaded skills. Defined in <code>.agent.md</code> files or SDK code</td></tr>
+<tr><td>Skills</td><td><code>skillDirectories</code> and <code>disabledSkills</code> per session. Cross-platform SKILL.md format</td></tr>
+<tr><td>Session persistence</td><td>On resume: reconfigure model, tools, MCP, agents, skills, <code>infiniteSessions</code></td></tr>
+</tbody>
+</table>
+
+<h3>Architecture diagram</h3>
+<pre>
+GHCP Copilot SDK (Python/Node)       ← your harness runtime
+│
+├── .github/agents/
+│   ├── minimal.agent.md             ← single-node benchmark mode
+│   └── creator.agent.md             ← full harness mode
+├── copilot-config.json              ← model routing, token caps, session config
+│
+├── hooks/                           ← onPreToolUse, onPermissionRequest
+│   ├── governance.py                ← MS Agent Governance Toolkit (AGT) policy
+│   ├── logging.py                   ← append-only session log + OTel export
+│   └── token_budget.py              ← per-session/per-loop/per-dollar caps
+│
+├── mcp-servers/                     ← registered per mode
+│   ├── codegraph/                   ← pre-indexed code knowledge graph
+│   ├── headroom/                    ← context compression (JSON/tool output)
+│   └── graphify/                    ← code + docs + SQL + PDF graph (if needed)
+│
+├── tools/                           ← YOUR PYTHON — custom tool servers
+│   ├── verify/                      ← Jev judge + blindspot detectors + linters
+│   ├── observe/                     ← 4-metric collector + rot/idle detectors
+│   ├── optimize/                    ← DSPy/GEPA pipelines (metric-backed only)
+│   └── domain/                      ← client's non-coding workflows
+│
+├── skills/                          ← SKILL.md files, paired-eval gated
+│   ├── registry.json                ← admitted skills + lift scores
+│   └── admitted/                    ← vetted skills only (mattpocock TDD, diagnose)
+│
+├── feature_list.json                ← Anthropic pattern: all features, passes: false
+├── progress.txt                     ← session-over-session handoff log
+└── init.sh                          ← bootstrap: start servers, run health check
+</pre>
+
+<!-- ═══ S3 ═══ -->
+<h2 id="s3">3. System Flow: Problem → Decision → Execution Loop</h2>
+<p>Every request flows through this loop. Each node maps to a ranked problem. 4 metrics tracked at every step.</p>
+<div class="dw">
+<svg viewBox="0 0 960 340" xmlns="http://www.w3.org/2000/svg" width="960" style="max-width:100%;height:auto">
+<defs><marker id="a2" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><polygon points="0 0,8 3,0 6" fill="#374151"/></marker><marker id="a3" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><polygon points="0 0,8 3,0 6" fill="#dc2626"/></marker></defs>
+<g font-family="Inter,sans-serif">
+<rect x="20" y="25" width="160" height="60" rx="6" fill="#f3f4f6" stroke="#9ca3af"/><text x="100" y="48" text-anchor="middle" font-size="11" font-weight="700">Identity &amp; Behavior</text><text x="100" y="63" text-anchor="middle" font-size="8" fill="#6b7280">DSPy compilation</text><text x="100" y="75" text-anchor="middle" font-size="8" fill="#dc2626">P6: Prompt fragility</text>
+<line x1="180" y1="55" x2="215" y2="55" stroke="#374151" stroke-width="1.5" marker-end="url(#a2)"/>
+<rect x="217" y="25" width="160" height="60" rx="6" fill="#f3f4f6" stroke="#9ca3af"/><text x="297" y="48" text-anchor="middle" font-size="11" font-weight="700">Context &amp; Memory</text><text x="297" y="63" text-anchor="middle" font-size="8" fill="#6b7280">Headroom + CodeGraph + masking</text><text x="297" y="75" text-anchor="middle" font-size="8" fill="#dc2626">P2: Token explosion</text>
+<line x1="377" y1="55" x2="412" y2="55" stroke="#374151" stroke-width="1.5" marker-end="url(#a2)"/>
+<rect x="414" y="20" width="160" height="70" rx="6" fill="#dc2626"/><text x="494" y="42" text-anchor="middle" font-size="11" font-weight="700" fill="white">Model Decision</text><text x="494" y="56" text-anchor="middle" font-size="8" fill="#fecaca">HyDRA + Jev triage</text><text x="494" y="68" text-anchor="middle" font-size="8" fill="#fecaca">$0.0003/call, sub-200ms</text><text x="494" y="82" text-anchor="middle" font-size="8" fill="white">P4: Model dependency</text>
+<line x1="574" y1="55" x2="609" y2="55" stroke="#374151" stroke-width="1.5" marker-end="url(#a2)"/>
+<rect x="611" y="25" width="160" height="60" rx="6" fill="#f3f4f6" stroke="#9ca3af"/><text x="691" y="48" text-anchor="middle" font-size="11" font-weight="700">Orchestration</text><text x="691" y="63" text-anchor="middle" font-size="8" fill="#6b7280">Loop eng. + AGT governance</text><text x="691" y="75" text-anchor="middle" font-size="8" fill="#dc2626">P5: Human-in-the-loop</text>
+<line x1="691" y1="85" x2="691" y2="115" stroke="#374151" stroke-width="1.5" marker-end="url(#a2)"/>
+<rect x="611" y="120" width="160" height="60" rx="6" fill="#f3f4f6" stroke="#9ca3af"/><text x="691" y="143" text-anchor="middle" font-size="11" font-weight="700">Tools &amp; Execution</text><text x="691" y="158" text-anchor="middle" font-size="8" fill="#6b7280">Sandbox + worktrees</text><text x="691" y="170" text-anchor="middle" font-size="8" fill="#dc2626">P3: Sandbox isolation</text>
+<line x1="611" y1="150" x2="579" y2="150" stroke="#374151" stroke-width="1.5" marker-end="url(#a2)"/>
+<rect x="414" y="120" width="160" height="60" rx="6" fill="#f3f4f6" stroke="#9ca3af"/><text x="494" y="143" text-anchor="middle" font-size="11" font-weight="700">Observability</text><text x="494" y="158" text-anchor="middle" font-size="8" fill="#6b7280">Session log + OTel traces</text><text x="494" y="170" text-anchor="middle" font-size="8" fill="#dc2626">P1: Opaque execution</text>
+<line x1="414" y1="150" x2="382" y2="150" stroke="#374151" stroke-width="1.5" marker-end="url(#a2)"/>
+<rect x="217" y="120" width="160" height="60" rx="6" fill="#f3f4f6" stroke="#9ca3af"/><text x="297" y="143" text-anchor="middle" font-size="11" font-weight="700">Verification</text><text x="297" y="158" text-anchor="middle" font-size="8" fill="#6b7280">Jev + deterministic + blindspots</text><text x="297" y="170" text-anchor="middle" font-size="8" fill="#dc2626">P1: Sub-standard output</text>
+<line x1="217" y1="150" x2="185" y2="150" stroke="#374151" stroke-width="1.5" marker-end="url(#a2)"/>
+<rect x="20" y="120" width="160" height="60" rx="6" fill="#f3f4f6" stroke="#9ca3af"/><text x="100" y="143" text-anchor="middle" font-size="11" font-weight="700">Adaptation</text><text x="100" y="158" text-anchor="middle" font-size="8" fill="#6b7280">Skill lift scoring + caching</text><text x="100" y="170" text-anchor="middle" font-size="8" fill="#dc2626">P8: Skill selection</text>
+<line x1="100" y1="120" x2="100" y2="85" stroke="#374151" stroke-width="1.5" marker-end="url(#a2)"/>
+<path d="M494,120 L494,100 Q494,93 501,93 L611,93 Q618,93 618,100 L618,120" fill="none" stroke="#dc2626" stroke-width="1.5" stroke-dasharray="5,3" marker-end="url(#a3)"/>
+<text x="558" y="89" text-anchor="middle" font-size="8" fill="#dc2626" font-weight="600">continue · retry · escalate</text>
+</g>
+<rect x="20" y="200" width="751" height="38" rx="6" fill="#dc2626" opacity=".12" stroke="#dc2626"/>
+<text x="395" y="216" text-anchor="middle" font-size="12" font-weight="700" fill="#dc2626" font-family="Inter,sans-serif">Governance &amp; Security (MS Agent Governance Toolkit)</text>
+<text x="395" y="231" text-anchor="middle" font-size="9" fill="#dc2626" font-family="Inter,sans-serif">Permission control · Policy enforcement · Zero-trust identity · Audit trail</text>
+<g font-family="Inter,sans-serif">
+<rect x="20" y="258" width="183" height="44" rx="6" fill="#eff6ff" stroke="#93c5fd"/><text x="111" y="276" text-anchor="middle" font-size="10" font-weight="600" fill="#2563eb" font-family="JetBrains Mono,monospace">prompt_tokens</text><text x="111" y="292" text-anchor="middle" font-size="8" fill="#6b7280">target &lt;8K</text>
+<rect x="213" y="258" width="183" height="44" rx="6" fill="#eff6ff" stroke="#93c5fd"/><text x="304" y="276" text-anchor="middle" font-size="10" font-weight="600" fill="#2563eb" font-family="JetBrains Mono,monospace">context_tokens</text><text x="304" y="292" text-anchor="middle" font-size="8" fill="#6b7280">flat trajectory</text>
+<rect x="406" y="258" width="183" height="44" rx="6" fill="#eff6ff" stroke="#93c5fd"/><text x="497" y="276" text-anchor="middle" font-size="10" font-weight="600" fill="#2563eb" font-family="JetBrains Mono,monospace">cache_tokens</text><text x="497" y="292" text-anchor="middle" font-size="8" fill="#6b7280">≥60% ratio</text>
+<rect x="599" y="258" width="172" height="44" rx="6" fill="#fef2f2" stroke="#fca5a5"/><text x="685" y="276" text-anchor="middle" font-size="10" font-weight="600" fill="#dc2626" font-family="JetBrains Mono,monospace">cost_per_task</text><text x="685" y="292" text-anchor="middle" font-size="8" fill="#6b7280">≤50% baseline</text>
+</g>
+</svg>
+</div>
+
+<!-- ═══ S4 ═══ -->
+<h2 id="s4">4. Harness Comparison: What We Borrow From Each</h2>
+<p>We build on GHCP but borrow proven patterns from other harnesses. The model stays the same — only the orchestration changes.</p>
+
+<table>
+<thead><tr><th>Harness</th><th>License</th><th>What we borrow</th><th>What we skip</th></tr></thead>
+<tbody>
+<tr><td><strong>GitHub Copilot SDK</strong></td><td>Proprietary (GA)</td><td>Base runtime. Agent loop, hooks, MCP, custom agents, skills, OTel tracing, HyDRA routing. Our foundation.</td><td>HydraFusion (research preview, no model allowlists, unclear enterprise policy)</td></tr>
+<tr><td><strong>OpenCode</strong></td><td>MIT (stable)</td><td>Config-driven agent definitions pattern: model/prompt/perms/step-limits per agent. 75+ providers.</td><td>Core not replaceable — GHCP's hook system is more extensible</td></tr>
+<tr><td><strong>Hermes Agent</strong></td><td>MIT</td><td>Compression: summarizes old turns at ~20% budget (2K floor, 12K ceiling). Session lineage rotation.</td><td>Messaging gateways (Telegram/Slack/etc.) — not needed for enterprise coding</td></tr>
+<tr><td><strong>Claude Code</strong></td><td>Proprietary</td><td>Sub-agent delegation pattern. Forked sub-agents reuse parent prompt cache. Hooks + permissions model.</td><td>Closed source — call as sub-agent backend, don't build on it</td></tr>
+<tr><td><strong>OpenHands</strong></td><td>MIT</td><td>Managed worktrees + sub-agent delegation loops. Docker sandbox isolation. The open-source reference for Anthropic-style isolation.</td><td>Full framework — take isolation patterns only</td></tr>
+</tbody>
+</table>
+
+<div class="ev"><strong>Key research finding:</strong> A "Scaffold Effect" study (arXiv 2607.22585) treats harness choice as a hidden evaluation variable. More harness features ≠ more quality. Mini-SWE-Agent with Opus outscored Hermes with the same model. The "Harness Effect" study (arXiv 2607.06906) found orchestration design alone delivers −41% cost/task, −38% tokens across 6 models. A 2026 study (arXiv 2606.00189) found hand-engineered static workflows "usually perform best" vs ReAct-style dynamic agents.</div>
+
+<!-- ═══ S5 ═══ -->
+<h2 id="s5">5. Anthropic Long-Running Agent Pattern</h2>
+<p>From <a href="https://www.anthropic.com/engineering/effective-harnesses-for-long-running-agents" style="color:var(--accent)">Anthropic Engineering</a>. Our Loop Engineering implementation spec. Anthropic's follow-up harness study (March 2026): with Opus 4.5, solo agent = 20 min / $9 / broken output. Full harness = 6 hrs / $200 / working app. 20× costlier, visibly better.</p>
+
+<table>
+<thead><tr><th>Component</th><th>Runs</th><th>What it does</th><th>Artifacts</th></tr></thead>
+<tbody>
+<tr><td><strong>Initializer Agent</strong></td><td>Once per epic</td><td>Sets up environment. Prevents one-shotting.</td><td><code>feature_list.json</code> (all <code>"passes": false</code>), <code>progress.txt</code>, <code>init.sh</code>, git commit</td></tr>
+<tr><td><strong>Worker Agent</strong></td><td>Every session</td><td>Picks ONE feature, implements, tests e2e, commits, updates progress.</td><td>Git commit, updated <code>progress.txt</code>, status flip only after e2e verification</td></tr>
+</tbody>
+</table>
+
+<div class="warn"><strong>Anti-gaming rules (Anthropic):</strong> Use JSON for feature list (model less likely to overwrite). Strongly word: "It is unacceptable to remove or edit tests." Agent may only change the <code>passes</code> field. Use a fresh container per trial — Anthropic found Claude gained unfair advantage by examining git history from previous trials.</div>
+
+<!-- ═══ S6 ═══ -->
+<h2 id="s6">6. Ranked Problems × Proven vs Rabbit Hole</h2>
+
+<div class="ev"><strong>Key evidence:</strong> Multi-agent = ~15× more tokens than chats (Anthropic). Users rubber-stamp ~93% of permission prompts (Anthropic). METR RCT (246 tasks, 16 devs): AI +19% completion time. Self-generated skills −8 to −11 pp (SkillsBench). Observation masking halves cost (JetBrains, NeurIPS '25). Harness design alone −41% cost/task (arXiv 2607.06906).</div>
+
+<table>
+<thead><tr><th>#</th><th>Problem</th><th>Technique</th><th>Verdict</th><th>Evidence</th></tr></thead>
+<tbody>
+<tr><td>P1</td><td>Opaque observability → sub-standard outputs</td><td>Append-only session log + OTel traces via GHCP hooks</td><td><span class="tag tag-p">PROVEN</span></td><td>Copilot SDK has native OTel. Community plugins track steps, failures, latency.</td></tr>
+<tr><td>P2</td><td>Token explosion &amp; context rot</td><td>Headroom compression (~20% real), CodeGraph (−55% tool calls), observation masking, deferred tools</td><td><span class="tag tag-p">PROVEN</span></td><td>JetBrains: masking halves cost. Headroom: 20.7% in independent test. CodeGraph: 55% fewer tool calls (independent). Claude Code overhead: 14–17.6K/turn.</td></tr>
+<tr><td>P3</td><td>Sandbox &amp; workspace isolation</td><td>GHCP permissions + AGT policy engine + Docker/gVisor sandbox + managed worktrees (OpenHands pattern)</td><td><span class="tag tag-p">PROVEN</span></td><td>AGT covers 7/10 OWASP Agentic Top 10 fully. Anthropic: 93% rubber-stamp rate = prompt-based security fails.</td></tr>
+<tr><td>P4</td><td>Frontier model dependency → cost</td><td>HyDRA capability-profile routing + cascade with test gate</td><td><span class="tag tag-p">PROVEN</span></td><td>GitHub A/B: ~1M users/arm, 7–20% cost reduction. Quality within fractions of a point.</td></tr>
+<tr><td>P4b</td><td>Routing latency</td><td>Jev "System One" classifier: typed probabilities, sub-200ms, $0.00035/call</td><td><span class="tag tag-p">PROVEN</span></td><td>LangSmith: 500/500 binary decisions. 92–913× lower variance than LLM judges.</td></tr>
+<tr><td>P5</td><td>Human-in-the-loop deficits</td><td>Graduated autonomy + kill switch (&gt;5 iterations) + <code>onPermissionRequest</code> hooks</td><td><span class="tag tag-p">PROVEN</span></td><td>METR RCT: +19% time with AI. Google ADK 2.0: strict kill switch. Anthropic: check-ins at plan approval + pre-merge.</td></tr>
+<tr><td>P6</td><td>Prompt fragility across personas</td><td>DSPy/GEPA for stable pipelines. OpenAI Astra guidance: lean skills as routers, define "done" upfront</td><td><span class="tag tag-p">PROVEN</span> <span class="tag tag-r">pipelines only</span></td><td>GEPA (ICLR 2026 oral): +14% vs MIPROv2. OpenAI: "make sure to run tests" instructions now cause unnecessary testing on strong models.</td></tr>
+<tr><td>P7</td><td>Sub-agents &amp; worktrees</td><td>Isolated sub-agents (OpenHands pattern), fresh context, capped at 3</td><td><span class="tag tag-r">USE WITH CAPS</span></td><td>Anthropic: multi-agent beat single by 90.2% but at 15× tokens. Single frontier model better for tightly-coupled tasks.</td></tr>
+<tr><td>P8</td><td>Skill selection without evaluation</td><td>SkillsBench paired eval, ACES CI, cap 1–3 active skills</td><td><span class="tag tag-p">PROVEN</span></td><td>Curated: +18–25 pp. Self-generated: −8 to −11 pp. Bundles >3 degrade from +19 to +10 pp.</td></tr>
+<tr><td colspan="5" style="font-weight:600;color:var(--accent)">⚠ RABBIT HOLES</td></tr>
+<tr><td>⚠</td><td>OpenClaw always-on agents</td><td>Heartbeat replays, 35.6K tokens/message</td><td><span class="tag tag-d">RISKY</span></td><td>180M tokens/month (~$3,600). Take worktree concept only.</td></tr>
+<tr><td>⚠</td><td>Ralph loops (verifier-less)</td><td>Recursive restart without verifier</td><td><span class="tag tag-d">RISKY</span></td><td>"Expensive way to burn tokens." Cap 20 iterations + require machine-checkable stop.</td></tr>
+<tr><td>⚠</td><td>Multi-agent swarms</td><td>N agents for breadth-first</td><td><span class="tag tag-d">HIGH COST</span></td><td>15× chat tokens. arXiv 2602.01011: "Multi-Agent Teams Hold Experts Back."</td></tr>
+<tr><td>⚠</td><td>Self-generated skills / Harness Evolver</td><td>Agent writes its own SKILL.md</td><td><span class="tag tag-d">HYPE</span></td><td>SkillsBench: 8–11 pp below no-skills baseline.</td></tr>
+<tr><td>⚠</td><td>Caveman (terse output skill)</td><td>Claims 65% token cut by "talking like a caveman"</td><td><span class="tag tag-d">GIMMICK</span></td><td>Maintainer's own rerun: 3% median savings vs a plain "be concise" instruction. No effect on Copilot (issue #506).</td></tr>
+<tr><td>⚠</td><td>HydraFusion</td><td>Multi-model panel per request</td><td><span class="tag tag-r">RESEARCH ONLY</span></td><td>No model allowlists, no plan mode, hidden drafts, billing = sum of all models. Enterprise policy unclear.</td></tr>
+</tbody>
+</table>
+
+<!-- ═══ S7 ═══ -->
+<h2 id="s7">7. Token Reduction &amp; Code Knowledge Tooling (Vetted)</h2>
+
+<table>
+<thead><tr><th>Tool</th><th>What</th><th>Evidence</th><th>Verdict</th></tr></thead>
+<tbody>
+<tr><td><strong>Headroom</strong><br><code>headroomlabs-ai/headroom</code></td><td>Context compression: library + proxy + MCP server. Content router sends JSON to SmartCrusher, code to tree-sitter compressor. Originals kept locally, model calls <code>headroom_retrieve</code> to recover full content.</td><td>Independent test (Russ McKendrick): 8.9M → 7.1M tokens (20.7%) over 152 requests. Dashboard credited $9.23 to compression vs $47.36 to prefix-cache discount. 0.21ms p50 compression latency.</td><td><span class="tag tag-p">PILOT</span> — real but modest. Telemetry on by default (<code>HEADROOM_TELEMETRY=off</code>). Best for JSON-heavy tool outputs.</td></tr>
+<tr><td><strong>CodeGraph</strong><br><code>colbymchenry/codegraph</code></td><td>Pre-indexed code graph (tree-sitter → SQLite). Auto-syncs via file watchers. One <code>codegraph_explore</code> call returns relevant source, call paths, blast radius. Works with Copilot.</td><td>Independent test (HarrisonSec, 40 runs on Hono): tool calls −55% (14.0→6.3), latency −20%, tokens −23%. But cost rose 6.8% on small repo. Gains scale with repo size.</td><td><span class="tag tag-p">ADOPT</span> — most dependable benefit is fewer, more predictable steps. Add to Creator mode.</td></tr>
+<tr><td><strong>Graphify</strong><br><code>Graphify-Labs/graphify</code></td><td>Code + docs + SQL + PDFs → knowledge graph. Local AST parsing (no embeddings). Leiden community detection. <code>graphify query/path/explain</code>.</td><td>Academic usage in arXiv papers. Token claims ("71.5×") from promotional coverage only, no independent benchmark.</td><td><span class="tag tag-r">PILOT</span> — use when context spans specs, schemas and PDFs. CodeGraph is better for pure code.</td></tr>
+<tr><td><strong>ripgrep</strong><br><code>BurntSushi/ripgrep</code></td><td>Fast recursive search respecting .gitignore. Orders of magnitude faster than grep/find.</td><td>Industry standard, 50K+ stars, battle-tested.</td><td><span class="tag tag-p">ADOPT</span> — use as custom tool override for GHCP's built-in grep.</td></tr>
+<tr><td><strong>Caveman</strong><br><code>JuliusBrussee/caveman</code></td><td>Skill that tells model to respond terse. Claims 65% token cut.</td><td>Maintainer's own rerun: 3% median output reduction vs "be concise" control. No effect on Copilot (issue #506). Retired stats: earlier versions "applied a fixed ratio without a committed reviewed benchmark."</td><td><span class="tag tag-d">SKIP</span> — one-line "be concise; define done" captures most benefit without readability cost.</td></tr>
+<tr><td><strong>Tritlo/lsp-mcp</strong></td><td>MCP bridge to any LSP server.</td><td>~113 stars, v0.2.0, marked "Unvalidated" on LobeHub.</td><td><span class="tag tag-d">SKIP</span> — Copilot CLI natively supports LSP servers via <code>lsp-config.json</code>. Use native LSP.</td></tr>
+</tbody>
+</table>
+
+<!-- ═══ S8 ═══ -->
+<h2 id="s8">8. Vetted Tooling, Skills &amp; Governance</h2>
+
+<h3>Core stack</h3>
+<table>
+<thead><tr><th>Layer</th><th>Tool</th><th>Why</th></tr></thead>
+<tbody>
+<tr><td>Runtime</td><td>GHCP Copilot SDK (GA)</td><td>Same agent loop as Copilot CLI. Hooks, MCP, custom agents, OTel, multi-client sessions.</td></tr>
+<tr><td>Routing</td><td>HyDRA (via Copilot Auto) + Jev classifier</td><td>Capability-profile routing, zero retraining on model changes. Jev for sub-200ms triage.</td></tr>
+<tr><td>Token reduction</td><td>Headroom MCP + CodeGraph MCP</td><td>Headroom compresses tool output (~20%). CodeGraph pre-indexes code (−55% tool calls).</td></tr>
+<tr><td>Sandbox</td><td>GHCP permissions + Docker/gVisor + git worktrees</td><td>OpenHands-style isolation. Read+write+network fencing.</td></tr>
+<tr><td>Governance</td><td>MS Agent Governance Toolkit (AGT)</td><td>Policy enforcement, zero-trust identity, OWASP Agentic Top 10 (7/10 full). Via <code>onPreToolUse</code> hooks.</td></tr>
+<tr><td>Context compaction</td><td>Observation masking + Hermes-style summarization</td><td>JetBrains: masking halves cost, matches solve rate. Hermes: 20% budget, 2K floor.</td></tr>
+<tr><td>Prompt optimization</td><td>DSPy / GEPA</td><td>ICLR 2026 oral. For metric-backed pipelines only.</td></tr>
+<tr><td>Verification</td><td>Jev + pytest/linters + blindspot checks</td><td>$0.00035/call judge + deterministic gates + anti-gaming checks.</td></tr>
+<tr><td>Skill evaluation</td><td>SkillsBench paired eval + ACES CI</td><td>Per-skill lift scoring. Cap 1–3 active skills per task.</td></tr>
+<tr><td>Loop engineering</td><td>Anthropic initializer/worker pattern</td><td>Feature list JSON + progress file + git checkpoints.</td></tr>
+</tbody>
+</table>
+
+<h3>Skill ecosystem</h3>
+<table>
+<thead><tr><th>Source</th><th>What</th><th>Verdict</th></tr></thead>
+<tbody>
+<tr><td>mattpocock/skills</td><td>~38 composable engineering skills. MIT. Cherry-pick: <code>tdd</code>, <code>diagnose</code>, <code>write-a-skill</code>. Small, composable, nothing injects into every session.</td><td><span class="tag tag-p">ADOPT selectively</span></td></tr>
+<tr><td>OpenAI Astra guidance</td><td>"Revisit skill descriptions to avoid bloated context." Make root doc a minimal router. Drop scaffolding written for older models. Define "done" upfront.</td><td><span class="tag tag-p">APPLY to all skills</span></td></tr>
+<tr><td>addyosmani/agent-skills</td><td>Production-grade modular skills with context-aware activation</td><td><span class="tag tag-p">REFERENCE</span></td></tr>
+<tr><td>anthropics/skills, openai/skills, microsoft/skills</td><td>Official vendor skill catalogs</td><td><span class="tag tag-p">BASELINE</span></td></tr>
+<tr><td>skillmatic-ai/awesome-agent-skills</td><td>Curated directory of all skill sources + marketplaces + benchmarks</td><td><span class="tag tag-b">DISCOVERY</span></td></tr>
+</tbody>
+</table>
+
+<h3>MS Agent Governance Toolkit — caveats</h3>
+<p>Public Preview (Beta classifier on PyPI). Marketing says "10/10 OWASP Agentic Top 10" but own docs say 7/10 full, 3/10 partial. v4→v5 had breaking migration. Pin exact versions. Use for policy enforcement via <code>onPreToolUse</code> hooks, but keep your own policy layer thin so you can swap it.</p>
+
+<h3>Dynamic workflows (arXiv 2608.25512)</h3>
+<p>The Cordis paper formalizes "spatiotemporal composability" for plugin systems: every plugin registers an undo (revertible effects), dependencies are declared reactively (reactive coeffects). Practical takeaway: every hot-loaded skill, MCP server, or sub-agent should register an undo for everything it changes. Use this as a <strong>design pattern</strong>, not a dependency.</p>
+
+<!-- ═══ S9 ═══ -->
+<h2 id="s9">9. Three Personas × Three Test Suites</h2>
+<p>Every test produces 4 metrics. Both minimal and creator modes run the same tasks. Delta = what the harness adds.</p>
+
+<table>
+<thead><tr><th></th><th>T1: Long-Prompt Minecraft Builder<br><a href="https://docs.google.com/document/d/1gLob3fq25TWFdevQIWwsNCilOp7q4rlIqNiRvew4Sx4/edit?tab=t.0" style="color:var(--accent);font-size:.8rem">[prompt doc]</a></th><th>T2: Multi-Turn Financial Agent<br><a href="https://github.com/The-FinAI/FinCon" style="color:var(--accent);font-size:.8rem">[FinCon/InvestorBench]</a></th><th>T3: Long-Running Sub-Agents + Worktrees<br><a href="https://github.com/All-Hands-AI/OpenHands" style="color:var(--accent);font-size:.8rem">[OpenHands]</a></th></tr></thead>
+<tbody>
+<tr><td style="font-weight:600">C-Level</td><td>Cost governance. Token caps prevent runaway. <strong>Pass:</strong> task completes within budget. Minimal vs creator cost delta visible.</td><td>ROI on financial decision quality. <strong>Pass:</strong> harness-routed agent achieves ≥comparable Sharpe ratio at ≤50% cost of single-frontier.</td><td>Pareto telemetry. Cost vs quality vs latency. <strong>Pass:</strong> routing cuts cost ≥40% vs baseline.</td></tr>
+<tr><td style="font-weight:600">TPM</td><td>Skill evaluation. Paired lift via trajectory view. <strong>Pass:</strong> skill lift >15 pp on spatial tasks.</td><td>Loop engineering. FinCon schema change triggers check-in. <strong>Pass:</strong> recovery without manual prompt editing.</td><td>Graph orchestration. Decompose epic → workers. <strong>Pass:</strong> all worktree merges pass verification.</td></tr>
+<tr><td style="font-weight:600">Dev / DS / AI Eng.</td><td>Context compaction. Maintain constraints over 100K+ tokens. <strong>Pass:</strong> flat context trajectory (CodeGraph + Headroom keep growth sub-linear).</td><td>Tool failure recovery. Intentional API break → log → rewrite → retry. <strong>Pass:</strong> ≤2 retries.</td><td>Sandbox isolation. Sub-agents can't read outside project. <strong>Pass:</strong> read/write/network fenced. AGT audit log clean.</td></tr>
+</tbody>
+</table>
+
+<h3>Benchmark protocol (from Anthropic + arXiv 2609.11987)</h3>
+<p>Pin one model (not Auto/HydraFusion). Fresh container per trial. 5–10 runs per mode. Score: deterministic block-checks + blind pairwise human judging. Measure cache-inclusive tokens correctly (arXiv 2609.11987 found double-counting invalidated cost conclusions). Ablate one component at a time.</p>
+
+<div class="mr">
+<div class="mb"><div class="l">Prompt Tokens</div><div class="v">&lt;8K/turn</div></div>
+<div class="mb"><div class="l">Context Tokens</div><div class="v">flat growth</div></div>
+<div class="mb"><div class="l">Cache Tokens</div><div class="v">≥60% ratio</div></div>
+<div class="mb"><div class="l">Cost / Task</div><div class="v">≤50% baseline</div></div>
+</div>
+
+<!-- ═══ S10 ═══ -->
+<h2 id="s10">10. Blindspot Detection Checklist</h2>
+<div class="warn"><strong>Core problem:</strong> Agent can mark <code>"passes": true</code> without verifying, use fallback defaults to pass tests, or silently skip error paths.</div>
+
+<table>
+<thead><tr><th>Blindspot</th><th>Detection</th><th>Automated check</th></tr></thead>
+<tbody>
+<tr><td><strong>B1: Fallback codes</strong></td><td>AST analysis for bare <code>except: pass</code>, <code>catch {}</code>, hardcoded returns</td><td>AST walker + Jev: "real result or stub?"</td></tr>
+<tr><td><strong>B2: Done without e2e</strong></td><td>Check trajectory for e2e tool call BEFORE status flip</td><td>Flip blocked if no Puppeteer/Playwright call after last code change</td></tr>
+<tr><td><strong>B3: Tests test the mock</strong></td><td>If <code>mock.patch('module.func')</code> in test of <code>module.func</code>, flag</td><td>pytest plugin: mock target == test target → reject</td></tr>
+<tr><td><strong>B4: Context rot</strong></td><td>tool_call_success_rate per 10-turn window</td><td>Alert on &gt;20% failure rate → trigger compaction</td></tr>
+<tr><td><strong>B5: Victory declared early</strong></td><td>Parse <code>feature_list.json</code>, count <code>"passes": false</code></td><td>If &gt;0 remaining + agent says "done" → session paused</td></tr>
+<tr><td><strong>B6: Permission escalation</strong></td><td>Sandbox audit log: access outside project scope</td><td>AGT policy engine blocks + logs via <code>onPreToolUse</code></td></tr>
+<tr><td><strong>B7: Idle loop burn</strong></td><td>&gt;5 iterations without commit or status change</td><td>Kill switch → escalate to human</td></tr>
+<tr><td><strong>B8: Skill injection</strong></td><td>SkillCheck scanner pre-admission</td><td>Reject skills with override instructions or external fetches</td></tr>
+<tr><td><strong>B9: Sub-agent leakage</strong></td><td>Response &gt;2K tokens</td><td>Compress to structured summary before parent injection</td></tr>
+<tr><td><strong>B10: DSPy over-optimization</strong></td><td>Held-out validation set</td><td>MAS-PromptBench: keep only if beats seed on validation</td></tr>
+</tbody>
+</table>
+
+<h3>3-layer verification gate</h3>
+<pre>
+Layer 1: DETERMINISTIC (every commit)
+  Linters, AST analysis, B1-B3-B5 detectors, feature_list.json integrity, sandbox audit
+
+Layer 2: JEV JUDGE (per feature, $0.00035/call)
+  "Real result or stub?" · "Matches feature description?" · "Untested error paths?"
+
+Layer 3: E2E VERIFICATION (before "passes: true")
+  Browser automation (Puppeteer/Playwright) or domain-specific verification
+  FinCon: market simulation verification · Minecraft: block-diff against spec
+  Human check-in for high-stakes state changes
+</pre>
+
+<!-- ═══ S11 ═══ -->
+<h2 id="s11">11. Research Adoption List</h2>
+
+<div class="ref"><strong>Anthropic: Effective harnesses for long-running agents</strong> — Nov 2025. Initializer/worker, JSON feature list, git-as-memory. <span class="rt" style="background:var(--proven-bg);color:var(--proven)">ADOPT — Loop Eng. spec</span></div>
+<div class="ref"><strong>Anthropic: Harness design for long-running app dev</strong> — Mar 2026. Solo=$9, harness=$200, visibly better. Fresh container per trial. <span class="rt" style="background:var(--proven-bg);color:var(--proven)">ADOPT — benchmark protocol</span></div>
+<div class="ref"><strong>Anthropic: Effective context engineering</strong> — Progressive disclosure, compaction, sub-agent isolation. <span class="rt" style="background:var(--proven-bg);color:var(--proven)">ADOPT</span></div>
+<div class="ref"><strong>HyDRA</strong> — arXiv 2605.17106. Capability-profile router, A/B at ~1M users, 7–20% cost reduction. <span class="rt" style="background:var(--proven-bg);color:var(--proven)">ADOPT (via Copilot Auto)</span></div>
+<div class="ref"><strong>HydraFusion</strong> — GitHub blog, Sep 2026. Cascade workflow. <span class="rt" style="background:var(--risky-bg);color:var(--risky)">RESEARCH ONLY — no model allowlists</span></div>
+<div class="ref"><strong>Jev</strong> — TypeSafe AI. 500/500 decisions, $0.00035/call. arXiv 2609.34862. <span class="rt" style="background:var(--proven-bg);color:var(--proven)">ADOPT</span></div>
+<div class="ref"><strong>GEPA</strong> — ICLR 2026 oral. +14% vs MIPROv2, 9.2× shorter prompts. <span class="rt" style="background:var(--proven-bg);color:var(--proven)">ADOPT for pipelines</span></div>
+<div class="ref"><strong>Observation Masking</strong> — JetBrains, arXiv 2508.21433, NeurIPS '25. Halves cost, matches solve rate. <span class="rt" style="background:var(--proven-bg);color:var(--proven)">ADOPT</span></div>
+<div class="ref"><strong>The Harness Effect</strong> — arXiv 2607.06906. −41% cost/task from orchestration alone. <span class="rt" style="background:var(--proven-bg);color:var(--proven)">ADOPT — validates harness investment</span></div>
+<div class="ref"><strong>The Scaffold Effect</strong> — arXiv 2607.22585. Harness = hidden eval variable. More ≠ better. <span class="rt" style="background:var(--blue-bg);color:var(--blue)">REFERENCE</span></div>
+<div class="ref"><strong>Harness or Model?</strong> — arXiv 2609.11987. Cache token double-counting invalidated cost conclusions. Careful metric accounting. <span class="rt" style="background:var(--proven-bg);color:var(--proven)">ADOPT — metric methodology</span></div>
+<div class="ref"><strong>SkillsBench</strong> — arXiv 2602.12670. Curated +16.6 pp, bundles 1–3 best. Self-gen −8 to −11 pp. <span class="rt" style="background:var(--proven-bg);color:var(--proven)">ADOPT</span></div>
+<div class="ref"><strong>ACES</strong> — arXiv 2608.20614. CI-integrated skill lift + trajectory metrics. <span class="rt" style="background:var(--proven-bg);color:var(--proven)">ADOPT</span></div>
+<div class="ref"><strong>Loop Engineering</strong> — arXiv 2608.21884. Bounded runs, verifiers, budgets, escalation. <span class="rt" style="background:var(--risky-bg);color:var(--risky)">ADOPT WITH VERIFIERS</span></div>
+<div class="ref"><strong>OpenAI: Rethinking skills for GPT-6 Astra</strong> — Sep 2026. Lean skills, routers, drop old scaffolding, define "done." <span class="rt" style="background:var(--proven-bg);color:var(--proven)">APPLY to all skills</span></div>
+<div class="ref"><strong>MS Agent Governance Toolkit</strong> — MIT, Public Preview. Policy, zero-trust identity, sandbox, SRE. 7/10 OWASP full. <span class="rt" style="background:var(--risky-bg);color:var(--risky)">PILOT — pin versions, plan for breaks</span></div>
+<div class="ref"><strong>Spatiotemporal Composability (Cordis)</strong> — arXiv 2608.25512. Revertible effects + reactive coeffects for plugin hot-swap. <span class="rt" style="background:var(--blue-bg);color:var(--blue)">DESIGN PATTERN</span></div>
+<div class="ref"><strong>Dynamic Workflows</strong> — arXiv 2606.00189: hand-engineered static workflows "usually perform best." Use static scaffolding + dynamic choices in bounded slots. <span class="rt" style="background:var(--proven-bg);color:var(--proven)">ADOPT — static + bounded dynamic</span></div>
+<div class="ref"><strong>Google ADK 2.0 kill-switch</strong> — &gt;5 iteration cap. <span class="rt" style="background:var(--proven-bg);color:var(--proven)">ADOPT</span></div>
+<div class="ref"><strong>OpenRouter Auto</strong> — Routes by community spend, 7-day window. <span class="rt" style="background:var(--proven-bg);color:var(--proven)">ADOPT</span></div>
+<div class="ref"><strong>FinCon / InvestorBench</strong> — github.com/The-FinAI/FinCon. Open-source testbed for LLM trading agents. <span class="rt" style="background:var(--blue-bg);color:var(--blue)">TEST SUITE T2</span></div>
+<div class="ref"><strong>OpenHands</strong> — github.com/All-Hands-AI/OpenHands. Managed worktrees + sub-agent delegation. Docker sandbox. <span class="rt" style="background:var(--proven-bg);color:var(--proven)">ADOPT isolation patterns</span></div>
+<div class="ref"><strong>Multi-Agent Teams Hold Experts Back</strong> — arXiv 2602.01011. <span class="rt" style="background:var(--danger-bg);color:var(--danger)">CAUTION</span></div>
+<div class="ref"><strong>O'Reilly Harness Engineering</strong> — Koenigstein. github.com/Nicolepcx/harness_engineering <span class="rt" style="background:var(--blue-bg);color:var(--blue)">REFERENCE</span></div>
+<div class="ref"><strong>awesome-agent-skills</strong> — github.com/skillmatic-ai/awesome-agent-skills <span class="rt" style="background:var(--blue-bg);color:var(--blue)">DISCOVERY</span></div>
+
+<!-- ═══ S12 ═══ -->
+<h2 id="s12">12. Three-Week Roadmap</h2>
+
+<table>
+<thead><tr><th>Week</th><th>Focus</th><th>Persona</th><th>Delivers</th></tr></thead>
+<tbody>
+<tr><td style="font-weight:600">Week 1</td><td>Core harness + isolation + observability</td><td>Dev / AI Eng.</td><td>
+D1–2: GHCP SDK setup. Define minimal.agent.md + creator.agent.md. Wire Python tool servers via MCP.<br>
+D3: Sandbox isolation (Docker/gVisor + git worktrees + AGT policy hooks). OpenHands-style worktree pattern.<br>
+D4: Session log + OTel tracing via GHCP hooks. 4-metric dashboard. CodeGraph MCP + Headroom MCP.<br>
+D5: Python verification tools (Jev judge, AST fallback detector, circular mock detector). End-to-end smoke test.<br>
+<span class="tag tag-p">Solves: P1, P2, P3</span></td></tr>
+<tr><td style="font-weight:600">Week 2</td><td>Routing + loop engineering + blindspot detection</td><td>TPM + AI Eng.</td><td>
+D6–7: HyDRA routing via Copilot Auto config. Jev classifier as pre-router. Cascade with test gate.<br>
+D8: Anthropic initializer/worker pattern (feature_list.json, progress.txt, init.sh, git checkpoints).<br>
+D9: Full blindspot detection layer (B1–B10). 3-layer verification gate wired to GHCP hooks.<br>
+D10: DSPy/GEPA for 2–3 stable modules. Graduated autonomy + kill switch. MAS-PromptBench guard.<br>
+<span class="tag tag-p">Solves: P4, P5, P6 + blindspots</span></td></tr>
+<tr><td style="font-weight:600">Week 3</td><td>Multi-agent + skills + QA + governance</td><td>C-Level + All</td><td>
+D11: Sub-agent orchestration via GHCP customAgents. OpenHands-style worktree isolation. Token compaction.<br>
+D12: Skill eval (SkillsBench + ACES CI gate). Admit mattpocock/tdd + diagnose. Run SkillCheck security scanner.<br>
+D13–14: Run 3×3 test matrix (Minecraft + FinCon + OpenHands patterns). Both modes. 4 metrics + blindspot flags per run. Ablate one component at a time.<br>
+D15: Governance policies (AGT). ROI dashboard. Client demo + sign-off.<br>
+<span class="tag tag-p">Solves: P7, P8 + validation</span></td></tr>
+</tbody>
+</table>
+
+<div class="ev" style="margin-top:1.5rem">
+<strong>Bottom line:</strong> Build on <strong>GHCP Copilot SDK</strong>. Define minimal + creator modes as <code>.agent.md</code> profiles on the same runtime. Compress context with <strong>Headroom + CodeGraph</strong>. Route with <strong>HyDRA + Jev</strong>. Govern with <strong>MS AGT via hooks</strong>. Loop with <strong>Anthropic initializer/worker</strong>. Verify with <strong>3-layer gate (deterministic → Jev → e2e)</strong>. Benchmark with pinned models, fresh containers, blind judging. Track 4 metrics + 10 blindspot flags per run. Borrow isolation from OpenHands, compression from Hermes, skill discipline from OpenAI Astra guidance. Avoid unverified loops, swarms, self-generated skills, Caveman, and HydraFusion until GA.
+</div>
+
+</body>
+</html>

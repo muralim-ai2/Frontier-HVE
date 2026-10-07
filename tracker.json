@@ -1,0 +1,747 @@
+{
+  "statuses": {
+    "not_started": "Nothing built yet.",
+    "built": "Implemented by the agent; not yet confirmed by you.",
+    "validated": "You ran the check and confirmed it. Set validated_by and evidence.",
+    "deferred": "Postponed by user decision; resume later."
+  },
+  "gate_rule": "Do not start the next phase until every item in the current phase is validated, unless the user defers the phase (D-012).",
+  "next_actions": [
+    {
+      "id": "N16",
+      "issue": "VS Code ignores `reasoning-effort` in agent files (D-020); bench now fails a run whose effort differs from the pin.",
+      "action": "User: before each bench run, set the model picker's effort to the agent's pin (minimal high, single high, creator medium)."
+    },
+    {
+      "id": "N17",
+      "issue": "Resolved 2026-10-06: the user shared the graph workflow (Designer, Prototyper, Builder, Architect, Sweeper, Grower, Maintainer); built as creator-flow (D-028). The graph-workflow-agents skill patterns may still need revision once the candidate skills are read.",
+      "action": "User: confirm the stage edges in tools/loop/flow.py match the picture."
+    },
+    {
+      "id": "N18",
+      "issue": "Phase 9 tooling is built but no skills are imported (D-022).",
+      "action": "In the separate repo: run `python tools/skills/triage.py <skills source>` on the candidate skills, review skills/triage.json shortlists."
+    },
+    {
+      "id": "N19",
+      "issue": "Phases 5-8 are built and unit-tested; one live creator run validates 5.4, 6.6, 8.3 and the guards together. Agent design choices made while the user was unavailable: D-023 to D-025.",
+      "action": "User: review D-023 to D-029; set the picker effort to medium; run `python tools/observe/bench.py creator`, then `python tools/observe/bench.py creator-flow`; then `python tools/observe/trajectory.py <sid>` and `python tools/git/branch_workflow.py list tests/outputs/<mode>/<sid>`."
+    },
+    {
+      "id": "N20",
+      "issue": "The harness-assist plugin (plugins/harness-assist) is not enabled. creator-github needs it: without its choice recorder, every push stays blocked. Its hooks are plugin-wide, so keep it disabled during benchmark runs (the guardrail could add context to creator runs).",
+      "action": "User: for creator-github sessions, add `\"C:\\\\PwC_HarnessEngineering2\\\\enterprise-harness\\\\plugins\\\\harness-assist\": true` to the `chat.pluginLocations` setting; check that `vscode/askQuestions` and the `github.vscode-pull-request-github/*` tool ids resolve in creator-github's tool list."
+    }
+  ],
+  "phases": [
+    {
+      "phase": 1,
+      "name": "Scaffold",
+      "items": [
+        {
+          "id": "1.1",
+          "item": "Model access in VS Code",
+          "files": [],
+          "status": "validated",
+          "validate": "Open the chat model picker and confirm GPT-6 Astra, Claude Opus 5.5, and GPT-5.6 Sol are listed.",
+          "done_when": "All 3 models selectable.",
+          "validated_by": "user 2026-10-06",
+          "evidence": "User confirmed 2026-10-06. Served ids seen in OTel: gpt-5.6-sol (a187413b), claude-opus-5.5 (5f9d682c)."
+        },
+        {
+          "id": "1.2",
+          "item": "Folder structure + state files",
+          "files": [
+            "feature_list.json",
+            "progress.txt",
+            "user_profile.json",
+            "skills/registry.json",
+            "init.sh"
+          ],
+          "status": "validated",
+          "validate": "Run `bash init.sh` from enterprise-harness/.",
+          "done_when": "init.sh prints 'init: OK'.",
+          "validated_by": "user 2026-10-05",
+          "evidence": "Agent ran init.sh on 2026-10-05: OK."
+        },
+        {
+          "id": "1.3",
+          "item": "Test prompt copied verbatim",
+          "files": [
+            "tests/prompts/color-palette.md"
+          ],
+          "status": "validated",
+          "validate": "Compare with reference/colorpalette_prompt.txt (Get-FileHash both).",
+          "done_when": "Hashes match.",
+          "validated_by": "user 2026-10-05",
+          "evidence": "Agent hash check on 2026-10-05: match."
+        },
+        {
+          "id": "1.4",
+          "item": "minimal agent",
+          "files": [
+            ".github/agents/minimal.agent.md"
+          ],
+          "status": "validated",
+          "validate": "Open enterprise-harness/ as the workspace folder. Select 'minimal' in the agent picker; ask it to read a file.",
+          "done_when": "Agent shows GPT-6 Astra and cannot call any tool.",
+          "validated_by": "user 2026-10-06",
+          "evidence": "User confirmed 2026-10-06."
+        },
+        {
+          "id": "1.5",
+          "item": "single agent",
+          "files": [
+            ".github/agents/single.agent.md"
+          ],
+          "status": "validated",
+          "validate": "Open single.agent.md and confirm no tool name is flagged unknown. New chat, Session Target = Local, select 'single', confirm the model picker shows Claude Opus 5.5. Ask it to list files and run `python --version`. Check Output > 'GitHub Copilot Chat Hooks'.",
+          "done_when": "Claude Opus 5.5 served (flush passes the pin check), read/search/edit/execute tools work, no sub-agent tools are offered or used, metrics.py hooks fire without errors.",
+          "validated_by": "user 2026-10-06",
+          "evidence": "2026-10-05: hooks fired (pre-otel/4d2e4792). Session a187413b invalid (served gpt-5.6-sol, used execution_subagent), moved to research/runs/invalid/. 2026-10-05: tool sets replaced by 9 explicit tools to exclude sub-agent tools (D-006); editor diagnostics did not flag a deliberately bogus tool name either, so the unknown-tool check needs your visual confirmation. 2026-10-06: session 5f9d682c (single, Local) served claude-opus-5.5 on all 3 turns, tools file_search and run_in_terminal ran, no sub-agent rows; user reported 'it worked'. 2026-10-06: user declared the plugin hook error (`bash ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/track-telemetry.sh`, 'bash is not recognized') external to this repo; it does not count against 'hooks fire without errors'."
+        },
+        {
+          "id": "1.6",
+          "item": "creator agent (Phase 1 subset: sub-agents + metrics hook; no skills or MCP yet)",
+          "files": [
+            ".github/agents/creator.agent.md"
+          ],
+          "status": "validated",
+          "validate": "Select 'creator'; ask it to delegate a file listing to a sub-agent.",
+          "done_when": "GPT-5.6 Sol used, sub-agent runs, hooks fire without errors.",
+          "validated_by": "user 2026-10-06",
+          "evidence": "User confirmed 2026-10-06."
+        },
+        {
+          "id": "1.7",
+          "item": "Metrics hook (7 fields to research/runs/<session_id>.jsonl)",
+          "files": [
+            "hooks/metrics.py",
+            "tests/test_metrics.py",
+            ".vscode/settings.json"
+          ],
+          "status": "validated",
+          "validate": "Run `python tests/test_metrics.py`. Reload window. Run the 1.5 prompt in 'single', wait 10 s, run `python hooks/metrics.py flush`.",
+          "done_when": "test prints 'test_metrics: OK'; flush exits 0 (pin check passes); <session_id>.jsonl rows have the 7 fields plus subagent_session (null for all rows in single), model = claude-opus-5.5, ts with millisecond precision in ascending order.",
+          "validated_by": "user 2026-10-06",
+          "evidence": "2026-10-05: N1/N2 fixed (D-006); metrics.py 238 lines. `python tests/test_metrics.py` exit 0: sub-agent rows with per-conversation context_tokens, utility spans excluded, ms ISO ts ascending, flush exit 1 on pin mismatch. Real data: flush on a187413b exited 1 ('served [gpt-5.6-sol], but single.agent.md pins claude-opus-5.5') and rebuilt 9 rows incl. 4 gpt-5.6-luna sub-agent rows; then moved to research/runs/invalid/. 2026-10-06: real session 5f9d682c: flush exit 0 (pin check passed), 3 rows with all 7 fields, model claude-opus-5.5, subagent_session null, ms ts ascending. 2026-10-06: Stop hook crashed on a canceled chat span (session 91dd46e1); fixed per D-007, metrics.py 246 lines, test now also covers canceled calls (exit 0)."
+        },
+        {
+          "id": "1.8",
+          "item": "Baseline smoke test: color palette through minimal",
+          "files": [
+            "research/runs/"
+          ],
+          "status": "built",
+          "validate": "New chat, Session Target = Local, select 'minimal', confirm the picker shows GPT-6 Astra, paste tests/prompts/color-palette.md, wait for completion, wait 10 s, run `python hooks/metrics.py flush`.",
+          "done_when": "Chat response exists; flush exits 0 (pin check: gpt-6-astra); the session JSONL has at least one row with all 7 fields and mode = minimal.",
+          "validated_by": null,
+          "evidence": "2026-10-06 run 91dd46e1: model gpt-6-astra confirmed, 8 rows with all 7 fields, but flush exits 1 (first request canceled, D-007) and the reply was a refusal ('blocked by tool access'), see N8. Moved to research/runs/invalid/. Needs a re-run in a new chat without canceling, after the N8 decision. 2026-10-06: N8 resolved (D-009); re-run = first run of 2.1."
+        }
+      ]
+    },
+    {
+      "phase": 2,
+      "name": "Three modes + metrics (3 runs per mode, compare.py, blind scoring)",
+      "status": "deferred",
+      "run_protocol": "Baseline (D-011): each mode once via `python tools/observe/bench.py 1 minimal single creator`, run while no agent turn is active in the window (N11). It sends the prompt to a new chat via `code chat -m <agent> -r -`, waits for the session's top-level invoke_agent span in OTel, then runs flush and collect; it stops on the first failure. A failed run: move its research/runs files to research/runs/invalid/ and re-run.",
+      "items": [
+        {
+          "id": "2.0",
+          "item": "Run output capture (D-008, D-009, D-010)",
+          "files": [
+            "tools/observe/collect.py",
+            "tools/observe/bench.py",
+            "tests/test_collect.py",
+            "hooks/metrics.py",
+            ".github/agents/*.agent.md",
+            ".vscode/settings.json",
+            ".gitignore"
+          ],
+          "status": "built",
+          "validate": "Run `python tests/test_collect.py` and `python tests/test_metrics.py`. Then validated in practice by the first run of 2.1.",
+          "done_when": "Both print OK; after the first real run, tests/outputs/<mode>/<session_id>/ and research/runs/<session_id>.run.json exist.",
+          "validated_by": null,
+          "evidence": "2026-10-06: test_collect OK (minimal code-block extraction, path-traversal rejection, single current/ move, node_modules excluded, non-benchmark and ambiguous sessions rejected); test_metrics OK. Stop events now store transcript_path. Smoke session 5f9d682c moved to research/runs/smoke/. 2026-10-06: first real minimal run was sent into the old chat 91dd46e1 (3rd user message, after the canceled and refused ones); collect correctly rejected it (3 user messages) and it was merged into research/runs/invalid/. Its reply was inline code (28,043 prompt / 10,504 completion tokens, 121 s). Added bench.py (untested against a live chat; request_finished verified on real OTel). 2026-10-06: N6 built (tool calls joined to conversations via execute_tool spans, D-011; test_metrics covers a parent tool call during a sub-agent run; metrics.py 269 lines); minimal reasoning-effort pinned to high. Agent-started bench run did not create a chat session (N11)."
+        },
+        {
+          "id": "2.1",
+          "item": "minimal x3 (GPT-6 Astra, <=200 lines inline)",
+          "files": [
+            "tests/outputs/minimal/",
+            "research/runs/"
+          ],
+          "status": "not_started",
+          "validate": "run_protocol with 'minimal', 3 times. The first run also re-validates 1.8.",
+          "done_when": "3 sessions with flush + collect exit 0, each with a .jsonl, .run.json, and tests/outputs/minimal/<session_id>/.",
+          "validated_by": null,
+          "evidence": "2026-10-06 baseline run 1 (D-011, 1 run per mode): session 392cc6ec, gpt-6-astra, 1 call, 13,718 prompt / 11,843 completion tokens, 76.4 AI units, 222 s, 18 files / 204 code lines in tests/outputs/minimal/392cc6ec-9878-45d6-a5dc-658912ccb36d. Collected after D-019."
+        },
+        {
+          "id": "2.2",
+          "item": "single x3 (Claude Opus 5.5)",
+          "files": [
+            "tests/outputs/single/",
+            "research/runs/"
+          ],
+          "status": "not_started",
+          "validate": "run_protocol with 'single', 3 times.",
+          "done_when": "3 sessions with flush + collect exit 0, each with a .jsonl, .run.json, and tests/outputs/single/<session_id>/.",
+          "validated_by": null,
+          "evidence": "2026-10-06 baseline run 1: session 6a754bb3, claude-opus-5.5, 13 calls, 645,314 prompt / 32,454 completion tokens, 110.8 AI units, 8.0 min (within the 10-min budget), 36 tool calls (30 create_file, 4 run_in_terminal, 2 replace_string_in_file), 34 files in tests/outputs/single/6a754bb3-0cca-4452-942e-651580bdeff4. Collected after the injected-terminal-message fix (D-019)."
+        },
+        {
+          "id": "2.3",
+          "item": "harness x3 (creator, GPT-5.6 Sol, sub-agents)",
+          "files": [
+            "tests/outputs/harness/",
+            "research/runs/"
+          ],
+          "status": "not_started",
+          "validate": "After N6 is built: run_protocol with 'creator', 3 times.",
+          "done_when": "3 sessions with flush + collect exit 0, each with a .jsonl, .run.json, and tests/outputs/harness/<session_id>/.",
+          "validated_by": null,
+          "evidence": null
+        },
+        {
+          "id": "2.4",
+          "item": "compare.py: mode x metric table (mean, std dev)",
+          "files": [
+            "tools/observe/compare.py",
+            "research/comparisons/comparison.json"
+          ],
+          "status": "built",
+          "validate": "Run `python tools/observe/compare.py` after 2.1-2.3.",
+          "done_when": "Table ranked Quality > Tokens > Latency > Cache, grouped by mode and model.",
+          "validated_by": null,
+          "evidence": "2026-10-06: ranked table over the 3 baseline runs (human score, then AI score, then prompt tokens, wall clock, cache ratio); also written to research/comparisons/comparison.json. Caveat: cache_ratio uses cache_read + cache_creation tokens, so it overstates hit rate for Claude (1.0)."
+        },
+        {
+          "id": "2.5",
+          "item": "Blind scoring: human and AI judge from screenshots",
+          "files": [
+            "tools/observe/blind.py",
+            "tests/prompts/color-palette.rubric.json",
+            "research/blind/round-20261006T193232Z/"
+          ],
+          "status": "built",
+          "validate": "Open research/blind/round-20261006T193232Z/A, B, C screenshots (not key.json), set human_score 1-5 per label in scores.json before reading the ai_* fields, then run compare.py.",
+          "done_when": "Human and AI scores recorded per run and joined into the 2.4 table.",
+          "validated_by": null,
+          "evidence": "2026-10-06: blind.py prepare shuffled the 3 runs behind labels A-C; each app was served with next dev and captured full page (desktop 1440 px, mobile 390 px). AI judge Claude Sonnet 5.5 (different family from all 3 runs), screenshots only: A=1 (build error from the model's own unclosed CSS block), B=4, C=4. Limits: static screenshots cannot test copy/lock/save behavior; the judge reported FAQ/footer not visible in captures. Human scores (user, blind): A=0, B=3.8, C=2.9; AI judge did not separate B from C (4 vs 4)."
+        },
+        {
+          "id": "2.6",
+          "item": "Findings write-up",
+          "files": [
+            "research/findings/phase-2-baseline-blind-eval.md",
+            "research/hypothesis.md"
+          ],
+          "status": "built",
+          "validate": "Read it; every claim cites a session_id or table row.",
+          "done_when": "One paragraph per metric plus H1/H2 status.",
+          "validated_by": null,
+          "evidence": "2026-10-06: baseline findings written (n=1 per mode): creator 3.8 > single 2.9 > minimal 0 (human, blind) at 73.1 / 110.8 / 76.4 AI units; caveats (n=1, model confound, no sub-agent use, creator over budget via injected terminal turn), TaoLive arXiv 2608.15763 blind-test protocol, and open research on blind testing interactive apps."
+        }
+      ]
+    },
+    {
+      "phase": 3,
+      "name": "Tokenomics (Graphify/Headroom MCP, compaction, deferred tools)",
+      "items": [
+        {
+          "id": "3.1",
+          "item": "Graphify code graph MCP (D-016)",
+          "files": [
+            "hooks/graph_refresh.py",
+            ".vscode/mcp.json",
+            ".github/agents/creator.agent.md",
+            "tests/test_hooks.py"
+          ],
+          "status": "built",
+          "validate": "Run `python tests/test_hooks.py`. After N13, start a Local creator session and check that the four graphify tools are in its tool list and the graph updates after it writes code.",
+          "done_when": "A graph query returns relevant results and the MCP tools appear in creator's tool list.",
+          "validated_by": null,
+          "evidence": "2026-10-06: graphifyy 0.9.71 installed via uv from the Microsoft PyPI proxy. test_hooks OK (empty graph without code; 3 nodes after lib.ts; no rebuild when unchanged; node_modules skipped; nothing written into the project). MCP handshake on the served graph OK: tools query_graph, get_node, get_neighbors, shortest_path (+6 unused). Not yet seen in a live session."
+        },
+        {
+          "id": "3.2",
+          "item": "Headroom compression (proxy or MCP)",
+          "files": [
+            "research/findings/phase-3-tokenomics.md"
+          ],
+          "status": "deferred",
+          "validate": "Not implemented (D-015): the VS Code integration reroutes all Copilot chat traffic.",
+          "done_when": "Revisit if Headroom can be scoped to one agent, or to test MCP-only mode in creator.",
+          "validated_by": null,
+          "evidence": "2026-10-06: evaluation recorded in research/findings/phase-3-tokenomics.md section 2."
+        },
+        {
+          "id": "3.3",
+          "item": "Observation masking via sub-agent return cap (D-013)",
+          "files": [
+            "hooks/compaction.py",
+            ".github/agents/creator.agent.md",
+            "tests/test_hooks.py"
+          ],
+          "status": "built",
+          "validate": "Run `python tests/test_hooks.py`. In a Local creator session that delegates to a sub-agent, check the debug log for the SubagentStart additional context.",
+          "done_when": "Sub-agents start with the under-2,000-token return instruction; sub-agent final turns show small completion_tokens.",
+          "validated_by": null,
+          "evidence": "2026-10-06: test_hooks OK (SubagentStart returns the instruction). Not yet seen in a live session."
+        },
+        {
+          "id": "3.4",
+          "item": "Deferred tool loading via native tool_search + explicit tool lists (D-013)",
+          "files": [
+            ".github/agents/creator.agent.md"
+          ],
+          "status": "built",
+          "validate": "Compare creator first-turn prompt_tokens with the Phase 2 baseline once both exist.",
+          "done_when": "creator's first-turn prompt_tokens is lower than with tool sets.",
+          "validated_by": null,
+          "evidence": "2026-10-06: creator tool sets replaced by 9 explicit tools + agent + todo (drops executionSubagent and unused tools). Copilot already defers schemas behind tool_search (seen in run 91dd46e1). No hooks/deferred_tools.py: hooks cannot edit the system message."
+        },
+        {
+          "id": "3.5",
+          "item": "Re-run harness with tokenomics active",
+          "files": [
+            "research/runs/"
+          ],
+          "status": "not_started",
+          "validate": "After the Phase 2 baseline: `python tools/observe/bench.py 1 creator`.",
+          "done_when": "Lower prompt_tokens and context_tokens than the Phase 2 harness baseline.",
+          "validated_by": null,
+          "evidence": null
+        },
+        {
+          "id": "3.6",
+          "item": "Quantify the delta with compare.py",
+          "files": [
+            "tools/observe/compare.py"
+          ],
+          "status": "not_started",
+          "validate": "Needs 2.4 and 3.5.",
+          "done_when": "Table shows token and cost reduction with quality maintained.",
+          "validated_by": null,
+          "evidence": null
+        },
+        {
+          "id": "3.7",
+          "item": "Cost per call: cost_nano_aiu in metrics rows (D-017)",
+          "files": [
+            "hooks/metrics.py",
+            "tests/test_metrics.py"
+          ],
+          "status": "built",
+          "validate": "Run `python tests/test_metrics.py`; after any real run, check cost_nano_aiu is present on every row.",
+          "done_when": "Every row has cost_nano_aiu; cost per task = sum over unique turn_id.",
+          "validated_by": null,
+          "evidence": "2026-10-06: attribute present on 140/140 completed chat spans in the OTel export; test_metrics OK; metrics.py 273 lines. Token-explosion status recorded in research/findings/phase-3-tokenomics.md section 1."
+        }
+      ]
+    },
+    {
+      "phase": 4,
+      "name": "Memory (user_profile.json, profile_detector, challenge logic)",
+      "items": [
+        {
+          "id": "4.1",
+          "item": "user_profile.json typed schema",
+          "files": [
+            "user_profile.json",
+            "hooks/profile_detector.py"
+          ],
+          "status": "built",
+          "validate": "Run `python tests/test_hooks.py`.",
+          "done_when": "Every field has an allowed-value set; an out-of-schema value fails the hook.",
+          "validated_by": null,
+          "evidence": "2026-10-06: test_hooks OK (verbosity='chatty' rejected)."
+        },
+        {
+          "id": "4.2",
+          "item": "profile_detector: learn preferences from prompts (UserPromptSubmit)",
+          "files": [
+            "hooks/profile_detector.py",
+            ".github/agents/creator.agent.md"
+          ],
+          "status": "built",
+          "validate": "Run `python tests/test_hooks.py`; in a Local creator session, send 'keep it short' and check user_profile.json.",
+          "done_when": "Profile updates after a matching prompt.",
+          "validated_by": null,
+          "evidence": "2026-10-06: test_hooks OK (over-specifier above 500 tokens, concise, tables, bloat triggers)."
+        },
+        {
+          "id": "4.3",
+          "item": "Challenge bloat requests",
+          "files": [
+            "hooks/profile_detector.py",
+            ".github/agents/creator.agent.md"
+          ],
+          "status": "built",
+          "validate": "In a Local creator session, send 'create markdown files to track progress'.",
+          "done_when": "A 'Harness challenge' warning with the token-cost reason appears and creator proposes the JSON alternative.",
+          "validated_by": null,
+          "evidence": "2026-10-06: test_hooks OK. UserPromptSubmit can only show a warning to the user, so the model side relies on creator's 'Challenge bloat' instructions plus SessionStart context naming past triggers (D-014)."
+        },
+        {
+          "id": "4.4",
+          "item": "Apply preferences at session start (SessionStart)",
+          "files": [
+            "hooks/profile_detector.py"
+          ],
+          "status": "built",
+          "validate": "Set verbosity to 'concise' in user_profile.json, start a Local creator session, compare reply length.",
+          "done_when": "Reply is measurably shorter (completion_tokens).",
+          "validated_by": null,
+          "evidence": "2026-10-06: test_hooks OK (SessionStart context contains the learned preferences)."
+        },
+        {
+          "id": "4.5",
+          "item": "Episodic/persistent boundary",
+          "files": [
+            "tests/test_hooks.py"
+          ],
+          "status": "built",
+          "validate": "Run `python tests/test_hooks.py`; live: two creator sessions back to back.",
+          "done_when": "Preference from session 1 is applied in session 2; session 1's conversation is not.",
+          "validated_by": null,
+          "evidence": "2026-10-06: test_hooks OK on synthetic sessions. Not yet seen live."
+        }
+      ]
+    },
+    {
+      "phase": 5,
+      "name": "Anthropic loop (initializer, worker, guards, kill switch)",
+      "items": [
+        {
+          "id": "5.1",
+          "item": "Initializer: validate + lock feature_list.json, progress.txt, git init with pre-commit hook (`loop.py init`)",
+          "files": ["tools/loop/loop.py"],
+          "status": "built",
+          "validate": "Run `python tests/test_loop.py`.",
+          "done_when": "A valid list of >= 3 features is locked and committed; short lists and trivial verify commands are rejected.",
+          "validated_by": null,
+          "evidence": "2026-10-06: test_loop OK. Merged with the worker into one module (D-023)."
+        },
+        {
+          "id": "5.2",
+          "item": "Worker: `loop.py next` / `verify` (one feature per fresh sub-agent; flip only after verify + commit)",
+          "files": ["tools/loop/loop.py", ".github/agents/creator.agent.md"],
+          "status": "built",
+          "validate": "Run `python tests/test_loop.py`.",
+          "done_when": "Each verify that passes commits, flips exactly that feature, and logs progress.",
+          "validated_by": null,
+          "evidence": "2026-10-06: test_loop OK on a synthetic 3-feature project."
+        },
+        {
+          "id": "5.3",
+          "item": "Guards: retry cap, anti-gaming, no-commit-no-flip, victory check",
+          "files": ["hooks/loop_guard.py", "tools/loop/loop.py"],
+          "status": "built",
+          "validate": "Run `python tests/test_loop.py`.",
+          "done_when": "Editing a feature description is denied (B5); flip without commit fails; 5 failures escalate and stop; Stop is blocked with features left.",
+          "validated_by": null,
+          "evidence": "2026-10-06: test_loop OK (hook payloads synthetic; not yet seen live)."
+        },
+        {
+          "id": "5.4",
+          "item": "End-to-end loop run on the color palette (bench creator)",
+          "files": [],
+          "status": "not_started",
+          "validate": "Set picker effort to medium, run `python tools/observe/bench.py creator`, then `python tools/observe/trajectory.py <sid>`.",
+          "done_when": "All features pass; metrics cover the whole run.",
+          "validated_by": null,
+          "evidence": null
+        },
+        {
+          "id": "5.5",
+          "item": "Loop vs one-shot comparison (quality, cost, correctness)",
+          "files": [],
+          "status": "not_started",
+          "validate": "Blind-score the 5.4 run against the single baseline; finding in research/findings/.",
+          "done_when": "Written comparison exists.",
+          "validated_by": null,
+          "evidence": null
+        },
+        {
+          "id": "5.6",
+          "item": "Attempt ledger + deterministic rules R0-R7, baseline attempt 0, human-only resume",
+          "files": ["tools/loop/diagnose.py", "tools/loop/loop.py", "hooks/loop_guard.py"],
+          "status": "built",
+          "validate": "Run `python tests/test_loop.py`.",
+          "done_when": "Each failure fires one rule-chosen action; repeats and human rules escalate with a question instead of looping.",
+          "validated_by": null,
+          "evidence": "2026-10-06: test_loop OK (R0, R1, R2, R3, R4, R5, R6, R7, cap, resume) (D-027)."
+        },
+        {
+          "id": "5.7",
+          "item": "creator-flow graph workflow (flow.py state machine, 6 stage agents, flow_guard)",
+          "files": ["tools/loop/flow.py", "hooks/flow_guard.py", ".github/agents/creator-flow.agent.md", ".github/agents/flow-designer.agent.md",
+                    ".github/agents/flow-prototyper.agent.md", ".github/agents/flow-architect.agent.md", ".github/agents/flow-sweeper.agent.md",
+                    ".github/agents/flow-grower.agent.md", ".github/agents/flow-maintainer.agent.md"],
+          "status": "built",
+          "validate": "Run `python tests/test_flow_plugin.py`; live: set picker effort to medium, `python tools/observe/bench.py creator-flow`.",
+          "done_when": "The run reaches `done` (or escalates with a question) through evidence-gated edges only.",
+          "validated_by": null,
+          "evidence": "2026-10-06: test_flow_plugin OK (edges, evidence, caps, resume, stage guard) (D-028)."
+        }
+      ]
+    },
+    {
+      "phase": 6,
+      "name": "Observability (trajectory view, context-rot detector)",
+      "items": [
+        {
+          "id": "6.1",
+          "item": "Jaeger via Docker",
+          "files": [],
+          "status": "not_started",
+          "validate": "User decision: keep skipped (D-024) or install Docker.",
+          "done_when": "User decides.",
+          "validated_by": null,
+          "evidence": "Not built: needs Docker on a managed device; Copilot OTel file export already holds the spans (D-024)."
+        },
+        {
+          "id": "6.2",
+          "item": "hooks/tracing.py (custom spans) -> replaced by Copilot OTel + interventions log",
+          "files": ["hooks/interventions.py"],
+          "status": "built",
+          "validate": "Run `python tests/test_loop.py`; after a live run, check research/runs/<sid>.interventions.jsonl.",
+          "done_when": "Every hook deny/block/stop is logged per session; B1/B5 also in research/blindspots/.",
+          "validated_by": null,
+          "evidence": "2026-10-06: test_loop OK (anti_gaming, hook_bypass, victory_check, retry_cap logged)."
+        },
+        {
+          "id": "6.3",
+          "item": "Trajectory CLI timeline",
+          "files": ["tools/observe/trajectory.py"],
+          "status": "built",
+          "validate": "Run `python tools/observe/trajectory.py fcd288c9-d579-440b-ab0c-cfccee188c2e`.",
+          "done_when": "Readable per-call timeline with tokens, tools, interventions, features.",
+          "validated_by": null,
+          "evidence": "2026-10-06: printed 18 calls for the creator baseline."
+        },
+        {
+          "id": "6.4",
+          "item": "Context-rot detector (tool success rate drop > 20 points)",
+          "files": ["tools/observe/trajectory.py", "tests/test_trajectory.py"],
+          "status": "built",
+          "validate": "Run `python tests/test_trajectory.py`.",
+          "done_when": "Fires on a synthetically degraded session, not on a steady one.",
+          "validated_by": null,
+          "evidence": "2026-10-06: test_trajectory OK. Baseline runs have < 20 tool calls, so not checked live."
+        },
+        {
+          "id": "6.5",
+          "item": "Context growth per run",
+          "files": ["tools/observe/trajectory.py"],
+          "status": "built",
+          "validate": "Run `python tools/observe/trajectory.py --growth`.",
+          "done_when": "One growth line per run for mode comparison.",
+          "validated_by": null,
+          "evidence": "2026-10-06: minimal x1.0 (1 call), single x2.04, harness x1.66."
+        },
+        {
+          "id": "6.6",
+          "item": "Integration: full loop run with Phases 3-4 active, walk the trajectory end to end",
+          "files": [],
+          "status": "not_started",
+          "validate": "Same run as 5.4; `trajectory.py <sid>`.",
+          "done_when": "Every call, tool, intervention and feature transition is visible; tokens match the JSONL.",
+          "validated_by": null,
+          "evidence": null
+        }
+      ]
+    },
+    {
+      "phase": 7,
+      "name": "Metrics priority + research notes",
+      "items": [
+        {
+          "id": "7.1",
+          "item": "research/ folders (runs, comparisons, findings, blindspots, decisions)",
+          "files": ["research/blindspots/.gitkeep"],
+          "status": "built",
+          "validate": "List research/.",
+          "done_when": "All folders exist.",
+          "validated_by": null,
+          "evidence": "2026-10-06: blindspots/ added."
+        },
+        {
+          "id": "7.2",
+          "item": "compare.py ranks Quality > Tokens > Latency > Cache into research/comparisons/",
+          "files": ["tools/observe/compare.py"],
+          "status": "built",
+          "validate": "Run `python tools/observe/compare.py`.",
+          "done_when": "Ranking follows the priority stack.",
+          "validated_by": null,
+          "evidence": "Built in 2.4; cache ratio from cache reads only since D-020."
+        },
+        {
+          "id": "7.3",
+          "item": "A finding per completed phase",
+          "files": [],
+          "status": "not_started",
+          "validate": "research/findings/ has a finding for each validated phase.",
+          "done_when": "Written after the validation runs.",
+          "validated_by": null,
+          "evidence": null
+        }
+      ]
+    },
+    {
+      "phase": 8,
+      "name": "Guardrails + git workflow (module_guard, no_fallback, branches, PRs)",
+      "items": [
+        {
+          "id": "8.1",
+          "item": "Module guard (> 500 lines blocked, split required)",
+          "files": ["hooks/module_guard.py"],
+          "status": "built",
+          "validate": "Run `python tests/test_loop.py`.",
+          "done_when": "A 600-line file is blocked with a split instruction.",
+          "validated_by": null,
+          "evidence": "2026-10-06: test_loop OK."
+        },
+        {
+          "id": "8.2",
+          "item": "No-fallback scan as git pre-commit hook (B1)",
+          "files": ["hooks/no_fallback.py"],
+          "status": "built",
+          "validate": "Run `python tests/test_loop.py`.",
+          "done_when": "A commit with `except: pass` is rejected.",
+          "validated_by": null,
+          "evidence": "2026-10-06: test_loop OK (real git commit rejected through the hook)."
+        },
+        {
+          "id": "8.3",
+          "item": "Branch workflow: stacked feature branches, PR records (recorded for benchmark, queued for GitHub), push queue",
+          "files": ["tools/git/branch_workflow.py"],
+          "status": "built",
+          "validate": "Run `python tests/test_loop.py`; after 5.4: `python tools/git/branch_workflow.py list <project>`.",
+          "done_when": "Each passing feature has a PR record with its stacked base branch.",
+          "validated_by": null,
+          "evidence": "2026-10-06: test_loop OK. Local approve/tag removed (D-026)."
+        },
+        {
+          "id": "8.4",
+          "item": "Parallel options in worktrees, winner fast-forwarded",
+          "files": ["tools/git/parallel_options.py"],
+          "status": "built",
+          "validate": "Run `python tests/test_loop.py`.",
+          "done_when": "Two+ approaches compared; passing smallest diff wins; worktrees removed, branches kept.",
+          "validated_by": null,
+          "evidence": "2026-10-06: test_loop OK on synthetic branches."
+        },
+        {
+          "id": "8.5",
+          "item": "Role isolation for sub-agents",
+          "files": ["hooks/compaction.py", ".github/agents/creator.agent.md"],
+          "status": "built",
+          "validate": "Run `python tests/test_hooks.py`; live: ask creator to build an API and a frontend.",
+          "done_when": "Work is split into one-role sub-agents.",
+          "validated_by": null,
+          "evidence": "2026-10-06: test_hooks OK. Instruction-level only (D-025)."
+        },
+        {
+          "id": "8.6",
+          "item": "creator-github: GitHub review loop, human-ticked option choice and push queue, push gate",
+          "files": [".github/agents/creator-github.agent.md", "hooks/loop_guard.py", "tools/git/parallel_options.py"],
+          "status": "built",
+          "validate": "Enable the plugin (N20); in a repo with a GitHub remote, run a creator-github session and tick one of two queued PRs.",
+          "done_when": "Only the ticked branch is pushed and opened as a PR; the unticked one stays queued.",
+          "validated_by": null,
+          "evidence": "2026-10-06: test_loop OK (push gate, choose refuses unticked options) (D-026)."
+        },
+        {
+          "id": "8.7",
+          "item": "harness-assist plugin: 7 skills, choice recorder, prototype guardrail; technical level in the profile",
+          "files": ["plugins/harness-assist/plugin.json", "plugins/harness-assist/com.github.copilot/hooks/hooks.json",
+                    "plugins/harness-assist/scripts/choice_recorder.py", "plugins/harness-assist/scripts/guardrail.py",
+                    "plugins/harness-assist/scripts/enterprise_catalog.json", "plugins/harness-assist/skills", "hooks/profile_detector.py"],
+          "status": "built",
+          "validate": "Run `python tests/test_flow_plugin.py` and `python tests/test_hooks.py`; enable the plugin (N20) and check its 7 skills appear.",
+          "done_when": "Ticks are recorded from answers; a FalkorDB/Tesseract/SQLite prototype over 5,000 lines gets a review verdict naming a solution architect; 'I'm the CTO' sets executive.",
+          "validated_by": null,
+          "evidence": "2026-10-06: test_flow_plugin and test_hooks OK; all 7 skills pass the Phase 9 scan (D-029)."
+        }
+      ]
+    },
+    {
+      "phase": 9,
+      "name": "SkillOpt gate (eval_skill, onboard, skill_loader)",
+      "items": [
+        {
+          "id": "9.0",
+          "item": "Skill scan (structure + security, optional SkillEvaluator quality-check) and triage into the 7 user categories",
+          "files": [
+            "skills/categories.json",
+            "tools/skills/scan.py",
+            "tools/skills/triage.py"
+          ],
+          "status": "built",
+          "validate": "Run `python tests/test_skills.py`; then `python tools/skills/triage.py <skills source>` and review skills/triage.json.",
+          "done_when": "Unsafe or malformed skills are blocked; each category has a shortlist of at most 3 passing skills.",
+          "validated_by": null,
+          "evidence": "2026-10-07: test_skills OK on synthetic skills. Not run on external skills yet (D-022)."
+        },
+        {
+          "id": "9.1",
+          "item": "Paired with/without eval and lift report",
+          "files": [
+            "tools/skills/eval_skill.py",
+            "tools/observe/bench.py",
+            "tools/observe/compare.py"
+          ],
+          "status": "built",
+          "validate": "`python tools/skills/eval_skill.py run <skill_dir> --runs 1`, blind-score the runs, then `eval_skill.py report <name> --score human`.",
+          "done_when": "skills/evals/<name>.json has lift, token overhead, latency and cost deltas.",
+          "validated_by": null,
+          "evidence": "2026-10-07: report math checked by test_skills on synthetic runs. No live paired run yet."
+        },
+        {
+          "id": "9.2",
+          "item": "Onboarding gate (scan + eval thresholds -> admit/reject in registry.json)",
+          "files": [
+            "tools/skills/onboard.py",
+            "skills/registry.json"
+          ],
+          "status": "built",
+          "validate": "Run `python tests/test_skills.py`; live: onboard one evaluated skill.",
+          "done_when": "Lift >= 10 pp and overhead < 20% admits; anything else is rejected with reasons.",
+          "validated_by": null,
+          "evidence": "2026-10-07: test_skills OK (threshold and scan-block cases)."
+        },
+        {
+          "id": "9.3",
+          "item": "Task-use gate hook (top 3 by lift per prompt category, other SKILL.md reads denied)",
+          "files": [
+            "hooks/skill_loader.py",
+            ".github/agents/creator.agent.md"
+          ],
+          "status": "built",
+          "validate": "Run `python tests/test_skills.py`; live: creator session with one admitted skill.",
+          "done_when": "Only the chosen skills are announced and readable.",
+          "validated_by": null,
+          "evidence": "2026-10-07: test_skills OK on synthetic hook payloads."
+        },
+        {
+          "id": "9.4",
+          "item": "Run the gate on candidate skills from the 7 categories",
+          "files": [],
+          "status": "not_started",
+          "validate": "Findings in research/findings/.",
+          "done_when": "Candidates evaluated, registry populated.",
+          "validated_by": null,
+          "evidence": "User: skills are brought over in a separate repo (D-022)."
+        }
+      ]
+    },
+    {
+      "phase": 10,
+      "name": "Selective adoption + adapters",
+      "status": "not_started"
+    }
+  ]
+}

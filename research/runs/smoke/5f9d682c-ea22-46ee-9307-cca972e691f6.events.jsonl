@@ -1,0 +1,5 @@
+{"event": "PreToolUse", "mode": "single", "ts_ms": 1791269943129.0, "tool_use_id": "toolu_01JHzijaHWvzLgX2ozhG5X71__vscode-1791269710830", "tool_name": "file_search"}
+{"event": "PostToolUse", "mode": "single", "ts_ms": 1791269944626.0, "tool_use_id": "toolu_01JHzijaHWvzLgX2ozhG5X71__vscode-1791269710830", "tool_name": "file_search"}
+{"event": "PreToolUse", "mode": "single", "ts_ms": 1791269946816.0, "tool_use_id": "toolu_01CBfCpaCq2gn4F6tc9hT1Vr__vscode-1791269710831", "tool_name": "run_in_terminal"}
+{"event": "PostToolUse", "mode": "single", "ts_ms": 1791269953453.0, "tool_use_id": "toolu_01CBfCpaCq2gn4F6tc9hT1Vr__vscode-1791269710831", "tool_name": "run_in_terminal"}
+{"event": "Stop", "mode": "single", "ts_ms": 1791269965663.0, "tool_use_id": null, "tool_name": null}

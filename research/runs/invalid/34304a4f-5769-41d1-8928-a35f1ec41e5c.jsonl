@@ -1,0 +1,1 @@
+{"session_id": "34304a4f-5769-41d1-8928-a35f1ec41e5c", "mode": "minimal", "subagent_session": null, "turn_id": "6cf37bc96919d10b", "model": "gpt-6-astra", "prompt_tokens": 9152, "context_tokens": 9152, "cache_tokens": 0, "completion_tokens": 83, "cost_nano_aiu": 11854250000, "ts": "2026-10-06T17:25:24.061+00:00", "tool_name": null, "tool_ok": null, "latency_ms": 3681}

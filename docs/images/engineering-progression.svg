@@ -1,0 +1,38 @@
+<svg viewBox="0 0 980 500" xmlns="http://www.w3.org/2000/svg" width="980">
+<rect width="980" height="500" fill="#ffffff"/>
+<defs><marker id="ah" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><polygon points="0 0,8 3,0 6" fill="#888"/></marker></defs>
+<line x1="30" y1="28" x2="950" y2="28" stroke="#888" stroke-width="2" marker-end="url(#ah)"/>
+<text x="490" y="18" text-anchor="middle" font-size="13" fill="#888" font-family="Inter,sans-serif">Widening scope of what you engineer →</text>
+<g font-family="Inter,sans-serif">
+<rect x="10" y="45" width="182" height="400" rx="8" fill="#f9fafb" stroke="#d1d5db"/><text x="101" y="70" text-anchor="middle" font-size="13" font-weight="700">Prompt Eng.</text><text x="101" y="86" text-anchor="middle" font-size="10" fill="#dc2626">Single call</text><text x="101" y="102" text-anchor="middle" font-size="10" fill="#6b7280">Optimize the input</text>
+<rect x="20" y="112" width="162" height="28" rx="3" fill="none" stroke="#d1d5db" stroke-dasharray="4,3"/><text x="101" y="130" text-anchor="middle" font-size="9" font-weight="600">Instruction &amp; role</text>
+<rect x="20" y="145" width="162" height="28" rx="3" fill="none" stroke="#d1d5db" stroke-dasharray="4,3"/><text x="101" y="163" text-anchor="middle" font-size="9" font-weight="600">Examples &amp; few-shot</text>
+<rect x="20" y="178" width="162" height="28" rx="3" fill="none" stroke="#d1d5db" stroke-dasharray="4,3"/><text x="101" y="196" text-anchor="middle" font-size="9" font-weight="600">Output format</text>
+<rect x="20" y="211" width="162" height="28" rx="3" fill="none" stroke="#d1d5db" stroke-dasharray="4,3"/><text x="101" y="229" text-anchor="middle" font-size="9" font-weight="600">Wording iteration</text>
+<text x="101" y="420" text-anchor="middle" font-size="9" fill="#6b7280" font-style="italic">Ceiling: prompt boundary</text>
+<rect x="200" y="45" width="182" height="400" rx="8" fill="#f9fafb" stroke="#d1d5db"/><text x="291" y="70" text-anchor="middle" font-size="13" font-weight="700">Context Eng.</text><text x="291" y="86" text-anchor="middle" font-size="10" fill="#dc2626">Across steps</text><text x="291" y="102" text-anchor="middle" font-size="10" fill="#6b7280">Optimize what it sees</text>
+<rect x="210" y="112" width="162" height="28" rx="3" fill="none" stroke="#d1d5db" stroke-dasharray="4,3"/><text x="291" y="130" text-anchor="middle" font-size="9" font-weight="600">Retrieval &amp; loading</text>
+<rect x="210" y="145" width="162" height="28" rx="3" fill="none" stroke="#d1d5db" stroke-dasharray="4,3"/><text x="291" y="163" text-anchor="middle" font-size="9" font-weight="600">Memory &amp; state</text>
+<rect x="210" y="178" width="162" height="28" rx="3" fill="none" stroke="#d1d5db" stroke-dasharray="4,3"/><text x="291" y="196" text-anchor="middle" font-size="9" font-weight="600">Compression &amp; filtering</text>
+<rect x="210" y="211" width="162" height="28" rx="3" fill="none" stroke="#d1d5db" stroke-dasharray="4,3"/><text x="291" y="229" text-anchor="middle" font-size="9" font-weight="600">Context budgeting</text>
+<text x="291" y="420" text-anchor="middle" font-size="9" fill="#6b7280" font-style="italic">Ceiling: context window</text>
+<rect x="390" y="45" width="182" height="400" rx="8" fill="#eee" stroke="#9ca3af"/><text x="481" y="70" text-anchor="middle" font-size="13" font-weight="700">Harness Eng.</text><text x="481" y="86" text-anchor="middle" font-size="10" fill="#dc2626">Whole system</text><text x="481" y="102" text-anchor="middle" font-size="10" fill="#6b7280">Optimize how it runs</text>
+<rect x="400" y="112" width="162" height="28" rx="3" fill="none" stroke="#9ca3af" stroke-dasharray="4,3"/><text x="481" y="130" text-anchor="middle" font-size="9" font-weight="600">Tools &amp; sandbox</text>
+<rect x="400" y="145" width="162" height="28" rx="3" fill="none" stroke="#9ca3af" stroke-dasharray="4,3"/><text x="481" y="163" text-anchor="middle" font-size="9" font-weight="600">Orchestration</text>
+<rect x="400" y="178" width="162" height="28" rx="3" fill="none" stroke="#9ca3af" stroke-dasharray="4,3"/><text x="481" y="196" text-anchor="middle" font-size="9" font-weight="600">Verification</text>
+<rect x="400" y="211" width="162" height="28" rx="3" fill="none" stroke="#9ca3af" stroke-dasharray="4,3"/><text x="481" y="229" text-anchor="middle" font-size="9" font-weight="600">Governance &amp; security</text>
+<rect x="400" y="244" width="162" height="28" rx="3" fill="none" stroke="#9ca3af" stroke-dasharray="4,3"/><text x="481" y="262" text-anchor="middle" font-size="9" font-weight="600">Adaptation</text>
+<rect x="580" y="45" width="182" height="400" rx="8" fill="#eee" stroke="#9ca3af"/><text x="671" y="70" text-anchor="middle" font-size="13" font-weight="700">Loop Eng.</text><text x="671" y="86" text-anchor="middle" font-size="10" fill="#dc2626">Orchestration lifecycle</text><text x="671" y="102" text-anchor="middle" font-size="10" fill="#6b7280">Reason → Act → Verify</text>
+<rect x="590" y="112" width="162" height="28" rx="3" fill="none" stroke="#9ca3af" stroke-dasharray="4,3"/><text x="671" y="130" text-anchor="middle" font-size="9" font-weight="600">Initializer agent (once)</text>
+<rect x="590" y="145" width="162" height="28" rx="3" fill="none" stroke="#9ca3af" stroke-dasharray="4,3"/><text x="671" y="163" text-anchor="middle" font-size="9" font-weight="600">Worker agent (per feature)</text>
+<rect x="590" y="178" width="162" height="28" rx="3" fill="none" stroke="#9ca3af" stroke-dasharray="4,3"/><text x="671" y="196" text-anchor="middle" font-size="9" font-weight="600">Token budget + kill switch</text>
+<rect x="590" y="211" width="162" height="28" rx="3" fill="none" stroke="#9ca3af" stroke-dasharray="4,3"/><text x="671" y="229" text-anchor="middle" font-size="9" font-weight="600">Human check-ins</text>
+<rect x="590" y="244" width="162" height="28" rx="3" fill="none" stroke="#9ca3af" stroke-dasharray="4,3"/><text x="671" y="262" text-anchor="middle" font-size="9" font-weight="600">Git commit as checkpoint</text>
+<rect x="770" y="45" width="182" height="400" rx="8" fill="#eee" stroke="#9ca3af"/><text x="861" y="70" text-anchor="middle" font-size="13" font-weight="700">Graph Eng.</text><text x="861" y="86" text-anchor="middle" font-size="10" fill="#dc2626">Multi-agent topology</text><text x="861" y="102" text-anchor="middle" font-size="10" fill="#6b7280">Route &amp; delegate</text>
+<rect x="780" y="112" width="162" height="28" rx="3" fill="none" stroke="#9ca3af" stroke-dasharray="4,3"/><text x="861" y="130" text-anchor="middle" font-size="9" font-weight="600">DAG decomposition</text>
+<rect x="780" y="145" width="162" height="28" rx="3" fill="none" stroke="#9ca3af" stroke-dasharray="4,3"/><text x="861" y="163" text-anchor="middle" font-size="9" font-weight="600">HyDRA model routing</text>
+<rect x="780" y="178" width="162" height="28" rx="3" fill="none" stroke="#9ca3af" stroke-dasharray="4,3"/><text x="861" y="196" text-anchor="middle" font-size="9" font-weight="600">Worktree isolation</text>
+<rect x="780" y="211" width="162" height="28" rx="3" fill="none" stroke="#9ca3af" stroke-dasharray="4,3"/><text x="861" y="229" text-anchor="middle" font-size="9" font-weight="600">Pareto cost / quality</text>
+</g>
+<rect x="10" y="455" width="942" height="35" rx="6" fill="#dc2626"/><text x="481" y="477" text-anchor="middle" font-size="13" fill="white" font-weight="600" font-family="Inter,sans-serif">Model: Fixed weights, unchanged across all five layers</text>
+</svg>

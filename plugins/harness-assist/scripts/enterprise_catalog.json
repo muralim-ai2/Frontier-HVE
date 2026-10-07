@@ -1,0 +1,33 @@
+{
+  "code_lines_limit": 5000,
+  "components": [
+    {"pattern": "^(falkordb|redisgraph|neo4j|neo4j-driver|memgraph|arangojs|python-arango)$", "category": "graph database",
+     "enterprise": "Azure Cosmos DB (Gremlin API) or Azure Database for PostgreSQL with Apache AGE, chosen by a solution architect"},
+    {"pattern": "^(tesseract|tesseract\\.js|pytesseract|easyocr|paddleocr|ocrmypdf|node-tesseract-ocr)$", "category": "OCR / document extraction",
+     "enterprise": "Azure AI Document Intelligence"},
+    {"pattern": "^(sqlite3|better-sqlite3|sql\\.js|lowdb|nedb|@seald-io/nedb|tinydb|pickledb|sqlite)$", "category": "embedded database",
+     "enterprise": "Azure SQL Database, Azure Cosmos DB or Azure Database for PostgreSQL"},
+    {"pattern": "^(chromadb|faiss-cpu|faiss-gpu|faiss-node|qdrant-client|@qdrant/js-client-rest|weaviate-client|pymilvus|lancedb|@lancedb/lancedb|hnswlib-node|vectordb)$",
+     "category": "vector database", "enterprise": "Azure AI Search (vector and hybrid search)"},
+    {"pattern": "^(meilisearch|typesense|elasticsearch|@elastic/elasticsearch|opensearch-py|whoosh|lunr|flexsearch|minisearch)$",
+     "category": "search engine", "enterprise": "Azure AI Search"},
+    {"pattern": "^(ollama|llama-cpp-python|node-llama-cpp|gpt4all|vllm|ctransformers)$", "category": "self-hosted LLM",
+     "enterprise": "Azure OpenAI in Microsoft Foundry (approved models, content safety, enterprise data terms)"},
+    {"pattern": "^(redis|ioredis|bull|bullmq|celery|kombu|amqplib|pika|kafkajs|kafka-python)$", "category": "self-managed cache or queue",
+     "enterprise": "Azure Cache for Redis, Azure Service Bus or Azure Event Hubs"},
+    {"pattern": "^(passport|passport-local|next-auth|flask-login|python-jose)$", "category": "self-built authentication",
+     "enterprise": "Microsoft Entra ID with MSAL"}
+  ],
+  "experts": {
+    "graph database": "solution architect, data engineer",
+    "OCR / document extraction": "AI engineer",
+    "embedded database": "backend developer, solution architect",
+    "vector database": "AI engineer, solution architect",
+    "search engine": "AI engineer, solution architect",
+    "self-hosted LLM": "AI engineer, security",
+    "self-managed cache or queue": "backend developer, DevOps",
+    "self-built authentication": "security, backend developer",
+    "size": "solution architect, full-stack developer",
+    "infrastructure": "DevOps / platform engineer, solution architect"
+  }
+}

@@ -1,0 +1,21 @@
+{
+  "prompt_file": "tests/prompts/color-palette.md",
+  "scale": "1 = unusable or does not run, 2 = runs but most features missing, 3 = core generator works but several spec items missing, 4 = nearly all spec items present with minor gaps, 5 = every spec item present and polished",
+  "checks": [
+    {"id": "runs", "text": "The app installs, builds, and renders its home page without errors."},
+    {"id": "hero", "text": "H1 'Color Palette Generator' and the specified subheading are visible above the fold."},
+    {"id": "five_cards", "text": "Five large color cards are shown."},
+    {"id": "generate", "text": "'Generate palette' and 'Randomize' buttons are present."},
+    {"id": "seed", "text": "Seed color input with a native color picker and a HEX text input."},
+    {"id": "harmony", "text": "Harmony mode control offering Random, Monochromatic, Analogous, Complementary, Triadic, Tetradic, Pastel, Vibrant, Dark."},
+    {"id": "lock", "text": "Each card has a lock/unlock control; 'Clear locks' exists."},
+    {"id": "formats", "text": "Each card shows HEX, RGB, and HSL values with copy controls."},
+    {"id": "contrast", "text": "Each card shows best text color, contrast ratios against black and white, and a label (Good for text / Use carefully / Decorative only)."},
+    {"id": "export", "text": "Export panel with CSS variables, Tailwind config, JSON, and SVG swatch strip."},
+    {"id": "saved", "text": "'Save palette' plus a saved-palettes section to reopen and delete palettes."},
+    {"id": "share", "text": "'Share palette' control (URL with ?palette=...)."},
+    {"id": "seo_faq", "text": "Educational SEO content and an FAQ section below the tool."},
+    {"id": "footer", "text": "Footer with Privacy and Terms links."},
+    {"id": "design", "text": "Clean, modern, polished visual design with palettes as the visual hero; responsive layout."}
+  ]
+}

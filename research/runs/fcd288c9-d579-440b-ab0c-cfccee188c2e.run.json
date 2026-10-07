@@ -1,0 +1,31 @@
+{
+  "session_id": "fcd288c9-d579-440b-ab0c-cfccee188c2e",
+  "mode": "harness",
+  "prompt_file": "tests/prompts/color-palette.md",
+  "prompt_sha256": "7ae624620ac0e4691334e917ed086716b058af0035bf2ba9ce4e94e095fafcd8",
+  "started": "2026-10-06T19:11:17.718Z",
+  "ended": "2026-10-06T19:28:11.676Z",
+  "output_dir": "tests/outputs/harness/fcd288c9-d579-440b-ab0c-cfccee188c2e",
+  "files": [
+    "app/globals.css",
+    "app/layout.tsx",
+    "app/page.tsx",
+    "app/privacy/page.tsx",
+    "app/robots.ts",
+    "app/sitemap.ts",
+    "app/terms/page.tsx",
+    "eslint.config.mjs",
+    "lib/color.ts",
+    "lib/export.ts",
+    "lib/palette.test.ts",
+    "lib/palette.ts",
+    "lib/storage.ts",
+    "next-env.d.ts",
+    "next.config.ts",
+    "package-lock.json",
+    "package.json",
+    "public/icon.svg",
+    "public/og-image.svg",
+    "tsconfig.json"
+  ]
+}

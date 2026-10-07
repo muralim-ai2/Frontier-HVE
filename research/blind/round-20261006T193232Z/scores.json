@@ -1,0 +1,74 @@
+{
+  "A": {
+    "human_score": 0,
+    "human_notes": "seems to be all borken only errors are displayed. not able to judge anything",
+    "ai_score": 1,
+    "ai_checks": {
+      "runs": false,
+      "hero": false,
+      "five_cards": false,
+      "generate": false,
+      "seed": false,
+      "harmony": false,
+      "lock": false,
+      "formats": false,
+      "contrast": false,
+      "export": false,
+      "saved": false,
+      "share": false,
+      "seo_faq": false,
+      "footer": false,
+      "design": false
+    },
+    "ai_notes": "Page shows a Next.js Build Error (CssSyntaxError in ./app/globals.css via PostCSS). The app does not render, so nothing in the spec is visible.",
+    "ai_judge": "Claude Sonnet 5.5 (copilot), screenshots only, blind to mode"
+  },
+  "B": {
+    "human_score": 3.8,
+    "human_notes": "clean use of white space pleasant layout. looks like a real website. pleasant font spacing and levels and colors used. simple and elegant. Mobile is not well done only reason to reduce score",
+    "ai_score": 4,
+    "ai_checks": {
+      "runs": true,
+      "hero": true,
+      "five_cards": true,
+      "generate": true,
+      "seed": true,
+      "harmony": null,
+      "lock": true,
+      "formats": true,
+      "contrast": true,
+      "export": true,
+      "saved": true,
+      "share": true,
+      "seo_faq": null,
+      "footer": null,
+      "design": true
+    },
+    "ai_notes": "Five cards with HEX/RGB/HSL, copy icons, and contrast (best text, ratios, labels). Lock, Clear locks, Save/Share, export tabs, saved section and a how-to heading are present. Gaps: capture ends before FAQ and footer; harmony options not visible; small text; hex wraps on mobile.",
+    "ai_judge": "Claude Sonnet 5.5 (copilot), screenshots only, blind to mode"
+  },
+  "C": {
+    "human_score": 2.9,
+    "human_notes": "similar design but doesnt polished and looks more engineer work with more features but design could be better plus doesnt have a write up on how to use. Mobile layout is pretty bad it is crunched view of desktop view.",
+    "ai_score": 4,
+    "ai_checks": {
+      "runs": true,
+      "hero": true,
+      "five_cards": true,
+      "generate": true,
+      "seed": true,
+      "harmony": null,
+      "lock": true,
+      "formats": null,
+      "contrast": true,
+      "export": true,
+      "saved": true,
+      "share": true,
+      "seo_faq": null,
+      "footer": null,
+      "design": true
+    },
+    "ai_notes": "Large swatches with RGB/HSL tables, best text, ratios, labels. Lock and Clear locks, Save/Share, export tabs, saved section and a numbered how-to are present. Gaps: no visible copy controls on card values; harmony options, FAQ and footer not visible in the capture; narrow column; Clear locks looks disabled.",
+    "ai_judge": "Claude Sonnet 5.5 (copilot), screenshots only, blind to mode"
+  }
+}

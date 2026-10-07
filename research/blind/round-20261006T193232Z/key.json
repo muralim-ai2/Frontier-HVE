@@ -1,0 +1,17 @@
+{
+  "A": {
+    "session_id": "392cc6ec-9878-45d6-a5dc-658912ccb36d",
+    "mode": "minimal",
+    "app_dir": "tests/outputs/minimal/392cc6ec-9878-45d6-a5dc-658912ccb36d/color-palette-generator"
+  },
+  "B": {
+    "session_id": "fcd288c9-d579-440b-ab0c-cfccee188c2e",
+    "mode": "harness",
+    "app_dir": "tests/outputs/harness/fcd288c9-d579-440b-ab0c-cfccee188c2e"
+  },
+  "C": {
+    "session_id": "6a754bb3-0cca-4452-942e-651580bdeff4",
+    "mode": "single",
+    "app_dir": "tests/outputs/single/6a754bb3-0cca-4452-942e-651580bdeff4"
+  }
+}
