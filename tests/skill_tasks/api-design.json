@@ -1,0 +1,7 @@
+[
+  {"id": "api-design-1", "prompt": "Design the REST endpoints for managing orders (create, list, get, cancel) in an e-commerce API.", "checks": ["resource-oriented plural paths", "correct methods and status codes (201, 404, 409...)", "cursor pagination for list", "versioning"]},
+  {"id": "api-design-2", "prompt": "Define one consistent error response format for our API and show an example for a validation error on two fields.", "checks": ["single shape (problem details or similar)", "field-level errors", "no stack traces or internal ids", "status code appropriate (400/422)"]},
+  {"id": "api-design-3", "prompt": "Our POST /payments endpoint sometimes charges twice when clients retry. How should the API prevent this?", "checks": ["idempotency key header", "server stores key and result", "same response on retry", "clear scope/expiry of keys"]},
+  {"id": "api-design-4", "prompt": "We must remove the 'fax' field from /v1/customers responses. How do we do it without breaking clients?", "checks": ["new major version or deprecation window", "additive changes only within version", "communicate deprecation", "contract/OpenAPI update"]},
+  {"id": "api-design-5", "prompt": "List the security requirements for a public REST API that exposes customer invoices.", "checks": ["authentication on every endpoint", "per-resource authorization", "input validation and rate limiting", "HTTPS only, no secrets in URLs"]}
+]

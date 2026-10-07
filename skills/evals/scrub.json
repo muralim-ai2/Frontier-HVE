@@ -1,0 +1,73 @@
+{
+  "skill": "scrub",
+  "eval_method": "micro",
+  "generator": "gpt-5.4-mini",
+  "judge": "gpt-5.2-chat",
+  "quality_lift_pp": 40.0,
+  "token_overhead_pct": 0.77,
+  "lift_per_aiu": null,
+  "wins": 4,
+  "losses": 0,
+  "worst_delta": 0.0,
+  "runs_with": [
+    "scrub-1",
+    "scrub-2",
+    "scrub-3",
+    "scrub-4",
+    "scrub-5"
+  ],
+  "runs_without": [
+    "scrub-1",
+    "scrub-2",
+    "scrub-3",
+    "scrub-4",
+    "scrub-5"
+  ],
+  "per_task": [
+    {
+      "task": "scrub-1",
+      "with": 5.0,
+      "without": 5.0,
+      "delta": 0.0,
+      "reason": "Both answers correctly flag the hardcoded secret, debug print, TODO, and redundant comment, and both provide an appropriate cleaned version.",
+      "prompt_delta": 365,
+      "completion_delta": -43
+    },
+    {
+      "task": "scrub-2",
+      "with": 5.0,
+      "without": 2.0,
+      "delta": 3.0,
+      "reason": "Answer A identifies the PII, replaces it with synthetic data, explains the rationale, and keeps the recommendation scoped to the changed file, while Answer B only provides a scrubbed fixture without explanation or explicit PII flagging.",
+      "prompt_delta": 365,
+      "completion_delta": 105
+    },
+    {
+      "task": "scrub-3",
+      "with": 4.0,
+      "without": 2.0,
+      "delta": 2.0,
+      "reason": "Answer A directly scopes the scrub to changed and untracked files using both git diff --name-only and git status while avoiding a full repo scan, whereas Answer B omits git status, downplays untracked files, and does not address rerunning checks after fixes.",
+      "prompt_delta": 365,
+      "completion_delta": -105
+    },
+    {
+      "task": "scrub-4",
+      "with": 4.0,
+      "without": 1.0,
+      "delta": 3.0,
+      "reason": "Answer A only removes the debugger and leaves the empty catch and commented-out code issue unaddressed, while Answer B removes the filler comment, debugger, and commented-out code but changes behavior instead of explicitly reporting the empty catch as needing a decision.",
+      "prompt_delta": 365,
+      "completion_delta": 116
+    },
+    {
+      "task": "scrub-5",
+      "with": 5.0,
+      "without": 3.0,
+      "delta": 2.0,
+      "reason": "Answer B satisfies the operational requirements including fixing safe items and reporting per-file details with line numbers, while Answer A correctly refuses bypassing but omits the required reporting and remediation behavior.",
+      "prompt_delta": 365,
+      "completion_delta": 17
+    }
+  ]
+}

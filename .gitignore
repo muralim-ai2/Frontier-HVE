@@ -6,6 +6,7 @@ skills/candidates/
 skills/eval_override.json
 .hve/skills/
 .hve/discovery/
+.hve/evals/
 
 # Copilot OTel export: hundreds of MB and contains full chat content
 .hve/runs/copilot-otel.jsonl

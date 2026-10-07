@@ -48,6 +48,11 @@ def decide(report: Json, evaluation: Json | None, categories: list[str], thresho
         reasons.append(f"quality lift {evaluation['quality_lift_pp']} pp below {thresholds['min_quality_lift_pp']} pp")
     if evaluation["token_overhead_pct"] >= thresholds["max_token_overhead_pct"]:
         reasons.append(f"token overhead {evaluation['token_overhead_pct']}% not under {thresholds['max_token_overhead_pct']}%")
+    if evaluation["eval_method"] == "micro":
+        if evaluation["wins"] < thresholds["micro_min_wins"]:
+            reasons.append(f"won {evaluation['wins']} of {len(evaluation['per_task'])} tasks, needs {thresholds['micro_min_wins']}")
+        if evaluation["worst_delta"] < -thresholds["micro_max_task_loss"]:
+            reasons.append(f"lost a task by {-evaluation['worst_delta']} points, more than {thresholds['micro_max_task_loss']}")
     return reasons
 
 
@@ -68,7 +73,7 @@ def onboard(skill_dir: Path, source: str, provisional: bool) -> Json:
                    "status": "provisional" if provisional else "admitted", "task_categories": categories,
                    "skill_tokens": report["skill_tokens"], "quality_lift_pp": None}
     if evaluation:
-        entry |= {k: evaluation[k] for k in ("quality_lift_pp", "token_overhead_pct", "lift_per_aiu")}
+        entry |= {k: evaluation[k] for k in ("quality_lift_pp", "token_overhead_pct", "lift_per_aiu", "eval_method")}
         entry["eval_run_ids"] = evaluation["runs_with"] + evaluation["runs_without"]
     registry = json.loads(REGISTRY_FILE.read_text(encoding="utf-8"))
     for status in ("admitted", "rejected"):

@@ -9,7 +9,19 @@
   },
   "thresholds": {
     "min_quality_lift_pp": 10,
-    "max_token_overhead_pct": 20
+    "max_token_overhead_pct": 20,
+    "micro_min_wins": 3,
+    "micro_max_task_loss": 1
+  },
+  "micro_eval": {
+    "generator": "gpt-5.4-mini",
+    "judge": "gpt-5.2-chat",
+    "concurrency": 6,
+    "baseline_tokens_per_call": 50000,
+    "models": {
+      "gpt-5.4-mini": {"max_completion_tokens": 1200, "reasoning_effort": "low"},
+      "gpt-5.2-chat": {"max_completion_tokens": 600}
+    }
   },
   "categories": {
     "ux": {

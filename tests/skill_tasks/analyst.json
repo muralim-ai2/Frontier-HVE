@@ -1,0 +1,7 @@
+[
+  {"id": "analyst-1", "prompt": "Choose between three CRM vendors (A: $40/user, strong API; B: $25/user, weak API; C: $55/user, best support) for a 50-person sales team. Show your analysis.", "checks": ["weighted criteria summing to 100", "options x criteria matrix with reasons", "weighted totals shown with arithmetic", "recommendation with top risks"]},
+  {"id": "analyst-2", "prompt": "Our recommendation flips if 'cost' weight goes from 30 to 20. How do you present that?", "checks": ["names it a sensitivity result", "states recommendation is conditional", "says on what it depends", "suggests what to validate"]},
+  {"id": "analyst-3", "prompt": "Evaluate whether to migrate our on-prem file server to SharePoint. Include 'do nothing'.", "checks": ["includes status quo option", "criteria with weights", "separates facts, assumptions, judgement", "recommendation and what to validate first"]},
+  {"id": "analyst-4", "prompt": "A stakeholder says 'Option X is 40% cheaper' with no source. How does the analysis treat it?", "checks": ["marks as assumption or judgement", "asks for or cites a source", "does not present as fact", "shows impact if wrong"]},
+  {"id": "analyst-5", "prompt": "Summarize a build-vs-buy analysis for a CFO in a short format.", "checks": ["short table", "5-8 bullets", "numbers in currency/units", "risks with mitigations"]}
+]

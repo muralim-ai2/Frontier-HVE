@@ -12,11 +12,12 @@ from typing import Any
 REPO = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO / "tools" / "skills"))
 import eval_skill  # noqa: E402
+import micro_eval  # noqa: E402
 from onboard import decide, decide_provisional  # noqa: E402
 from scan import scan  # noqa: E402
 from triage import load_categories, skill_categories  # noqa: E402
 
-THRESHOLDS = {"min_quality_lift_pp": 10, "max_token_overhead_pct": 20}
+THRESHOLDS = {"min_quality_lift_pp": 10, "max_token_overhead_pct": 20, "micro_min_wins": 3, "micro_max_task_loss": 1}
 
 
 def write_skill(root: Path, name: str, description: str, body: str = "Follow these steps.\n", dirname: str | None = None) -> Path:
@@ -54,9 +55,13 @@ def test_triage_maps_skills_to_user_categories() -> None:
 def test_onboarding_thresholds() -> None:
     """Admit at lift >= 10 pp and overhead < 20%; reject below either threshold or on scan findings; require an eval."""
     report: dict[str, Any] = {"name": "x", "ok": True, "findings": []}
-    assert decide(report, {"quality_lift_pp": 12.0, "token_overhead_pct": 5.0}, ["ux"], THRESHOLDS) == []
-    reasons = decide(report, {"quality_lift_pp": 4.0, "token_overhead_pct": 25.0}, ["ux"], THRESHOLDS)
+    assert decide(report, {"quality_lift_pp": 12.0, "token_overhead_pct": 5.0, "eval_method": "session"}, ["ux"], THRESHOLDS) == []
+    reasons = decide(report, {"quality_lift_pp": 4.0, "token_overhead_pct": 25.0, "eval_method": "session"}, ["ux"], THRESHOLDS)
     assert len(reasons) == 2 and "below 10 pp" in reasons[0] and "not under 20%" in reasons[1], reasons
+    micro = {"quality_lift_pp": 16.0, "token_overhead_pct": 0.9, "eval_method": "micro", "wins": 2, "worst_delta": -2.0,
+             "per_task": [{}] * 5}
+    micro_reasons = decide(report, micro, ["ux"], THRESHOLDS)
+    assert len(micro_reasons) == 2 and "won 2 of 5" in micro_reasons[0] and "by 2.0 points" in micro_reasons[1], micro_reasons
     blocked = decide({"name": "x", "ok": False, "findings": [{"rule": "secret", "file": "a.py", "line": 3}]}, None, ["ux"], THRESHOLDS)
     assert blocked == ["scan: secret in a.py:3"], blocked
     try:
@@ -94,6 +99,30 @@ def test_eval_report_computes_lift() -> None:
         assert (result["quality_lift_pp"], result["token_overhead_pct"], result["latency_delta_pct"], result["cost_delta_aiu"]) == \
             (20.0, 10.0, 20.0, 1.0), result
         assert json.loads((evals / "x.json").read_text(encoding="utf-8")) == result
+
+
+def test_micro_eval_unblinds_and_reports() -> None:
+    """The judge's A/B scores map back to with/without whatever the shown order; lift, wins, worst task and overhead follow."""
+
+    class FakeJudge:
+        """Scores answer A 4 and answer B 2."""
+
+        def chat(self, model: str, messages: list[dict[str, Any]]) -> dict[str, Any]:
+            """Return a fixed verdict."""
+            return {"content": 'Verdict: {"a": {"checks_met": [1], "score": 4}, "b": {"checks_met": [], "score": 2}, "reason": "r"}'}
+
+    tasks = [{"id": f"t{i}", "prompt": "p", "checks": ["c"]} for i in range(5)]
+    verdicts = {t["id"]: micro_eval.judge(FakeJudge(), "j", t, "WITH", "WITHOUT") for t in tasks}  # type: ignore[arg-type]
+    for v in verdicts.values():
+        assert (v["with"], v["without"]) == ((4.0, 2.0) if v["with_shown_as"] == "A" else (2.0, 4.0)), v
+    usage = {True: {"prompt_tokens": 520, "completion_tokens": 210}, False: {"prompt_tokens": 20, "completion_tokens": 200}}
+    answers = {(t["id"], w): {"usage": usage[w]} for t in tasks for w in (True, False)}
+    with tempfile.TemporaryDirectory() as tmp:
+        micro_eval.EVALS_DIR = Path(tmp)
+        result = micro_eval.report("x", tasks, answers, verdicts, {"generator": "g", "judge": "j", "baseline_tokens_per_call": 51000})
+    wins = sum(v["with"] > v["without"] for v in verdicts.values())
+    assert result["wins"] == wins and result["quality_lift_pp"] == round((wins * 2 - (5 - wins) * 2) / 5 / 5 * 100, 1), result
+    assert result["token_overhead_pct"] == 1.0 and result["eval_method"] == "micro", result
 
 
 def fire(root: Path, payload: dict[str, Any], **env: str) -> str:
@@ -167,5 +196,6 @@ if __name__ == "__main__":
     test_onboarding_thresholds()
     test_provisional_gate()
     test_eval_report_computes_lift()
+    test_micro_eval_unblinds_and_reports()
     test_skill_loader_budget_offer_and_scoped_deny()
     print("test_skills: OK")

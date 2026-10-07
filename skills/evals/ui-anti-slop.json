@@ -1,0 +1,73 @@
+{
+  "skill": "ui-anti-slop",
+  "eval_method": "micro",
+  "generator": "gpt-5.4-mini",
+  "judge": "gpt-5.2-chat",
+  "quality_lift_pp": 12.0,
+  "token_overhead_pct": 0.74,
+  "lift_per_aiu": null,
+  "wins": 2,
+  "losses": 0,
+  "worst_delta": 0.0,
+  "runs_with": [
+    "ui-anti-slop-1",
+    "ui-anti-slop-2",
+    "ui-anti-slop-3",
+    "ui-anti-slop-4",
+    "ui-anti-slop-5"
+  ],
+  "runs_without": [
+    "ui-anti-slop-1",
+    "ui-anti-slop-2",
+    "ui-anti-slop-3",
+    "ui-anti-slop-4",
+    "ui-anti-slop-5"
+  ],
+  "per_task": [
+    {
+      "task": "ui-anti-slop-1",
+      "with": 5.0,
+      "without": 4.0,
+      "delta": 1.0,
+      "reason": "Answer A satisfies all checks with concrete replacements including a specific icon set, while Answer B is strong overall but does not propose a specific icon set.",
+      "prompt_delta": 375,
+      "completion_delta": -6
+    },
+    {
+      "task": "ui-anti-slop-2",
+      "with": 5.0,
+      "without": 5.0,
+      "delta": 0.0,
+      "reason": "Both answers define a minimal token system with spacing and type scales, constrained color palettes, limited radii, and guidance that components/screens should consistently use the tokens.",
+      "prompt_delta": 375,
+      "completion_delta": -76
+    },
+    {
+      "task": "ui-anti-slop-3",
+      "with": 5.0,
+      "without": 5.0,
+      "delta": 0.0,
+      "reason": "Both answers fully address removing fake testimonials and implied endorsements, correcting the unverified uptime claim, and using clearly marked placeholders, with A being slightly more detailed but both equally compliant with the checks.",
+      "prompt_delta": 375,
+      "completion_delta": 17
+    },
+    {
+      "task": "ui-anti-slop-4",
+      "with": 5.0,
+      "without": 5.0,
+      "delta": 0.0,
+      "reason": "Both answers fully satisfy all checks by replacing the centered card layout with a content-first dashboard grid, using a full-width table for orders, removing glow effects, and presenting KPIs compactly.",
+      "prompt_delta": 375,
+      "completion_delta": 5
+    },
+    {
+      "task": "ui-anti-slop-5",
+      "with": 4.0,
+      "without": 2.0,
+      "delta": 2.0,
+      "reason": "Answer B directly covers generic gradients/effects, invented testimonials/logos/numbers, and lorem/generic copy, while neither answer includes the required screenshot evidence for inconsistent spacing/type.",
+      "prompt_delta": 375,
+      "completion_delta": 45
+    }
+  ]
+}

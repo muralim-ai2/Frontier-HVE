@@ -44,8 +44,8 @@
     },
     {
       "id": "N23",
-      "issue": "All 13 library skills are provisional: quality lift is unmeasured (D-037). Live paired runs cost about 4 creator runs of ~15 min per skill.",
-      "action": "User: pick one prompt per category (UX, architecture, de-slop, scrub, research, dreams); run `python tools/skills/eval_skill.py run skills/authored/<name> --runs 2`, blind-score, `eval_skill.py report <name> --score human`, then `python tools/skills/onboard.py skills/authored/<name> authored` to promote or reject."
+      "issue": "Done 2026-10-07 (D-038): micro paired eval of all 13 skills in 144 s (~140K tokens): 8 admitted, 5 rejected.",
+      "action": "User: review skills/evals/*.json per-task reasons; decide whether to revise and re-evaluate the rejected de-slop and UI-copy skills (python tools/skills/micro_eval.py <skill>; cached calls are free), and whether to add a second judge pass with swapped order."
     },
     {
       "id": "N24",
@@ -760,7 +760,7 @@
           "validate": "python tests/test_skills.py; python tools/skills/recommend.py provisional \"<task>\"; then the paired eval per category (N23).",
           "done_when": "Candidates evaluated, registry populated.",
           "validated_by": null,
-          "evidence": "2026-10-07 (D-037): 13 authored skills passed the provisional gate (360-440 tokens each) and are in the registry as provisional; graph-workflow-agents has none. No paired eval yet."
+          "evidence": "2026-10-07 (D-037, D-038): 13 authored skills passed the provisional gate; the micro paired eval (gpt-5.4-mini answers, gpt-5.2-chat blind judge, 5 tasks each) admitted 8 and rejected 5; graph-workflow-agents has none."
         }
       ]
     },

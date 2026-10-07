@@ -1,0 +1,73 @@
+{
+  "skill": "architecture-options",
+  "eval_method": "micro",
+  "generator": "gpt-5.4-mini",
+  "judge": "gpt-5.2-chat",
+  "quality_lift_pp": 12.0,
+  "token_overhead_pct": 0.97,
+  "lift_per_aiu": null,
+  "wins": 3,
+  "losses": 0,
+  "worst_delta": 0.0,
+  "runs_with": [
+    "architecture-options-1",
+    "architecture-options-2",
+    "architecture-options-3",
+    "architecture-options-4",
+    "architecture-options-5"
+  ],
+  "runs_without": [
+    "architecture-options-1",
+    "architecture-options-2",
+    "architecture-options-3",
+    "architecture-options-4",
+    "architecture-options-5"
+  ],
+  "per_task": [
+    {
+      "task": "architecture-options-1",
+      "with": 5.0,
+      "without": 4.0,
+      "delta": 1.0,
+      "reason": "Answer B fully covers multiple architecture options, explicit trade-offs including licensing and ops burden, gives a justified decision, and defines a revisit trigger, while Answer A is solid but does not explicitly address licensing trade-offs.",
+      "prompt_delta": 365,
+      "completion_delta": 100
+    },
+    {
+      "task": "architecture-options-2",
+      "with": 5.0,
+      "without": 5.0,
+      "delta": 0.0,
+      "reason": "Both answers identify the key drivers, favor the simpler architecture for the stated scale, give a clear recommendation with justification, and document consequences and future reconsideration criteria in an ADR-like way.",
+      "prompt_delta": 365,
+      "completion_delta": 185
+    },
+    {
+      "task": "architecture-options-3",
+      "with": 4.0,
+      "without": 3.0,
+      "delta": 1.0,
+      "reason": "Answer A covers the required comparison, operational burden, and includes a clear decision with revisit conditions, while Answer B gives useful hosting recommendations but lacks load-based cost analysis and a revisit trigger.",
+      "prompt_delta": 365,
+      "completion_delta": 174
+    },
+    {
+      "task": "architecture-options-4",
+      "with": 5.0,
+      "without": 4.0,
+      "delta": 1.0,
+      "reason": "Answer A fully matches the ADR structure including explicit options considered and downsides, while Answer B is solid but lacks a clear options section.",
+      "prompt_delta": 365,
+      "completion_delta": 104
+    },
+    {
+      "task": "architecture-options-5",
+      "with": 4.0,
+      "without": 4.0,
+      "delta": 0.0,
+      "reason": "Both answers thoroughly cover production architecture concerns including enterprise alternatives for prototype components, compliance/data residency, and scale/cost considerations, but neither explicitly recommends an architect review.",
+      "prompt_delta": 365,
+      "completion_delta": 42
+    }
+  ]
+}

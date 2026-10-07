@@ -1,0 +1,73 @@
+{
+  "skill": "ux-flows",
+  "eval_method": "micro",
+  "generator": "gpt-5.4-mini",
+  "judge": "gpt-5.2-chat",
+  "quality_lift_pp": 28.0,
+  "token_overhead_pct": 0.73,
+  "lift_per_aiu": null,
+  "wins": 5,
+  "losses": 0,
+  "worst_delta": 1.0,
+  "runs_with": [
+    "ux-flows-1",
+    "ux-flows-2",
+    "ux-flows-3",
+    "ux-flows-4",
+    "ux-flows-5"
+  ],
+  "runs_without": [
+    "ux-flows-1",
+    "ux-flows-2",
+    "ux-flows-3",
+    "ux-flows-4",
+    "ux-flows-5"
+  ],
+  "per_task": [
+    {
+      "task": "ux-flows-1",
+      "with": 4.0,
+      "without": 3.0,
+      "delta": 1.0,
+      "reason": "Answer B more completely satisfies the requirements by including accessibility defaults and keeping the flow concise, while Answer A lacks accessibility guidance and introduces multiple competing actions on several screens.",
+      "prompt_delta": 345,
+      "completion_delta": 50
+    },
+    {
+      "task": "ux-flows-2",
+      "with": 5.0,
+      "without": 4.0,
+      "delta": 1.0,
+      "reason": "Answer A covers the primary task, upload/error/progress states, and explicitly converts states into testable checks including partial import-related validation, while Answer B is strong on layout and states but lacks explicit testable checks and only partially addresses partial import errors.",
+      "prompt_delta": 345,
+      "completion_delta": -68
+    },
+    {
+      "task": "ux-flows-3",
+      "with": 4.0,
+      "without": 2.0,
+      "delta": 2.0,
+      "reason": "Answer B better matches the requested flow format and includes empty cart, payment failure, and mobile-first considerations, while Answer A omits several required edge cases and usability safeguards.",
+      "prompt_delta": 345,
+      "completion_delta": 31
+    },
+    {
+      "task": "ux-flows-4",
+      "with": 5.0,
+      "without": 3.0,
+      "delta": 2.0,
+      "reason": "Answer B explicitly defines empty, loading, error, and complete states while clearly establishing one dominant primary action and quieter secondary actions, whereas Answer A omits loading/error behavior and does not clearly address visual hierarchy for secondary actions.",
+      "prompt_delta": 345,
+      "completion_delta": 38
+    },
+    {
+      "task": "ux-flows-5",
+      "with": 5.0,
+      "without": 4.0,
+      "delta": 1.0,
+      "reason": "Answer A covers all required checks including explicit failure handling and conditional undo guidance, while Answer B omits a clear error state for failed deletion.",
+      "prompt_delta": 345,
+      "completion_delta": 57
+    }
+  ]
+}

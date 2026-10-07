@@ -92,9 +92,9 @@ def test_rendered_hooks_run_in_a_workspace() -> None:
         start = {"hook_event_name": "SessionStart", "timestamp": "2026-10-06T08:00:00+00:00", "source": "new"}
         context = run(hook(creator, "profile_detector.py"), ws, start)
         assert context and "Explanation depth: balanced" in json.dumps(context), context
-        prompt = start | {"hook_event_name": "UserPromptSubmit", "prompt": "Design an accessible signup page."}
+        prompt = start | {"hook_event_name": "UserPromptSubmit", "prompt": "Design the screens and states of a signup page."}
         assert run(hook(creator, "skill_loader.py"), ws, prompt, HARNESS_SKILLS_MIN_STATUS="provisional") is None
-        assert (ws / ".hve" / "skills" / "accessibility" / "SKILL.md").is_file(), list((ws / ".hve").rglob("SKILL.md"))
+        assert (ws / ".hve" / "skills" / "ux-flows" / "SKILL.md").is_file(), list((ws / ".hve").rglob("SKILL.md"))
         pre = {"hook_event_name": "PreToolUse", "timestamp": "2026-10-06T08:01:00+00:00", "tool_name": "read_file",
                "tool_input": {"filePath": "x"}, "tool_use_id": "t1"}
         assert run(hook(creator, "loop_guard.py"), ws, pre, HARNESS_PROJECT=".", HARNESS_STOP_POLICY="once") is None

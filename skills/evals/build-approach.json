@@ -1,0 +1,73 @@
+{
+  "skill": "build-approach",
+  "eval_method": "micro",
+  "generator": "gpt-5.4-mini",
+  "judge": "gpt-5.2-chat",
+  "quality_lift_pp": 28.0,
+  "token_overhead_pct": 0.81,
+  "lift_per_aiu": null,
+  "wins": 4,
+  "losses": 0,
+  "worst_delta": 0.0,
+  "runs_with": [
+    "build-approach-1",
+    "build-approach-2",
+    "build-approach-3",
+    "build-approach-4",
+    "build-approach-5"
+  ],
+  "runs_without": [
+    "build-approach-1",
+    "build-approach-2",
+    "build-approach-3",
+    "build-approach-4",
+    "build-approach-5"
+  ],
+  "per_task": [
+    {
+      "task": "build-approach-1",
+      "with": 5.0,
+      "without": 2.0,
+      "delta": 3.0,
+      "reason": "Answer B explicitly evaluates each component, addresses governance/licensing concerns, gives a clear recommendation with deciding factors, and identifies hidden costs, while Answer A is broadly useful but misses governance/licensing detail and hidden costs.",
+      "prompt_delta": 373,
+      "completion_delta": -19
+    },
+    {
+      "task": "build-approach-2",
+      "with": 5.0,
+      "without": 4.0,
+      "delta": 1.0,
+      "reason": "Both answers correctly steer toward pro-code for a large-scale customer-facing real-time app and explain the scaling and chat limitations, but Answer A is more complete because it clearly outlines hybrid usage and explicitly recommends the types of experts to involve.",
+      "prompt_delta": 373,
+      "completion_delta": 103
+    },
+    {
+      "task": "build-approach-3",
+      "with": 5.0,
+      "without": 5.0,
+      "delta": 0.0,
+      "reason": "Both answers clearly break down UI/logic/data concerns, address maintainability and ownership, recommend hybrid approaches where appropriate, and identify production-readiness gaps such as governance, testing, controls, and architecture changes.",
+      "prompt_delta": 373,
+      "completion_delta": 41
+    },
+    {
+      "task": "build-approach-4",
+      "with": 5.0,
+      "without": 4.0,
+      "delta": 1.0,
+      "reason": "Answer B fully covers all required hidden-cost categories including per-user licensing, connector/API limits, source control/testing, and lock-in, while Answer A misses explicit licensing costs.",
+      "prompt_delta": 373,
+      "completion_delta": -14
+    },
+    {
+      "task": "build-approach-5",
+      "with": 5.0,
+      "without": 3.0,
+      "delta": 2.0,
+      "reason": "Answer A covers triggers, provides a clear component-by-component split, addresses governance/DLP concerns, and names the relevant experts, while Answer B omits the expert roles and lacks a concrete per-component architecture view.",
+      "prompt_delta": 373,
+      "completion_delta": 57
+    }
+  ]
+}

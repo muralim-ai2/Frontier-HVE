@@ -1,0 +1,73 @@
+{
+  "skill": "accessibility",
+  "eval_method": "micro",
+  "generator": "gpt-5.4-mini",
+  "judge": "gpt-5.2-chat",
+  "quality_lift_pp": 0.0,
+  "token_overhead_pct": 0.78,
+  "lift_per_aiu": null,
+  "wins": 1,
+  "losses": 1,
+  "worst_delta": -1.0,
+  "runs_with": [
+    "accessibility-1",
+    "accessibility-2",
+    "accessibility-3",
+    "accessibility-4",
+    "accessibility-5"
+  ],
+  "runs_without": [
+    "accessibility-1",
+    "accessibility-2",
+    "accessibility-3",
+    "accessibility-4",
+    "accessibility-5"
+  ],
+  "per_task": [
+    {
+      "task": "accessibility-1",
+      "with": 5.0,
+      "without": 5.0,
+      "delta": 0.0,
+      "reason": "Both answers correctly identify all four accessibility issues and provide appropriate fixes with accurate examples.",
+      "prompt_delta": 395,
+      "completion_delta": -21
+    },
+    {
+      "task": "accessibility-2",
+      "with": 5.0,
+      "without": 5.0,
+      "delta": 0.0,
+      "reason": "Both answers fully cover all required accessibility behaviors for a modal dialog, with A adding extra best-practice details and B staying more focused on the requested requirements.",
+      "prompt_delta": 395,
+      "completion_delta": 1
+    },
+    {
+      "task": "accessibility-3",
+      "with": 4.0,
+      "without": 5.0,
+      "delta": -1.0,
+      "reason": "Answer A fully implements all accessibility requirements including explicit screen reader announcement via role=\"alert\", while Answer B describes screen reader support but does not concretely implement it in the example.",
+      "prompt_delta": 395,
+      "completion_delta": 10
+    },
+    {
+      "task": "accessibility-4",
+      "with": 5.0,
+      "without": 4.0,
+      "delta": 1.0,
+      "reason": "Answer A satisfies all required checks explicitly, while Answer B does not specify failing CI on serious/critical violations.",
+      "prompt_delta": 395,
+      "completion_delta": -12
+    },
+    {
+      "task": "accessibility-5",
+      "with": 5.0,
+      "without": 5.0,
+      "delta": 0.0,
+      "reason": "Both answers fully satisfy all checks with clear accessibility concerns, mentions of prefers-reduced-motion, pause/stop controls, text contrast guidance, and concrete implementation recommendations.",
+      "prompt_delta": 395,
+      "completion_delta": -9
+    }
+  ]
+}

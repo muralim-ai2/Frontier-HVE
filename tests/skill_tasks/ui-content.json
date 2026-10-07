@@ -1,0 +1,7 @@
+[
+  {"id": "ui-content-1", "prompt": "Write the empty-state text for a 'Saved palettes' page where the user has none yet.", "checks": ["says what the area is for", "says why it is empty", "one clear action", "at most 2 short sentences plus button"]},
+  {"id": "ui-content-2", "prompt": "Rewrite these error messages: 'Error 422', 'Invalid input', 'Something went wrong'. Context: signup form, email already registered, password too short, server timeout.", "checks": ["each says what happened in user terms", "each says how to fix", "no raw codes", "no blame, calm tone"]},
+  {"id": "ui-content-3", "prompt": "Write the button labels and confirmation dialog for permanently deleting a customer record.", "checks": ["button names action and object", "dialog names the record and consequence", "cancel option clear", "sentence case, no exclamation"]},
+  {"id": "ui-content-4", "prompt": "Write onboarding tooltip copy (3 steps) for a budgeting app's first launch.", "checks": ["each step short and front-loaded", "plain words, no jargon", "tells user what to do next", "consistent verbs and tone"]},
+  {"id": "ui-content-5", "prompt": "Write form labels and hints for: full name, work email, phone (optional), company size.", "checks": ["labels are short nouns", "hints are examples", "placeholder not the only label", "optional field marked clearly"]}
+]

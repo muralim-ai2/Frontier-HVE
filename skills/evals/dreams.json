@@ -1,0 +1,73 @@
+{
+  "skill": "dreams",
+  "eval_method": "micro",
+  "generator": "gpt-5.4-mini",
+  "judge": "gpt-5.2-chat",
+  "quality_lift_pp": 56.0,
+  "token_overhead_pct": 0.7,
+  "lift_per_aiu": null,
+  "wins": 5,
+  "losses": 0,
+  "worst_delta": 1.0,
+  "runs_with": [
+    "dreams-1",
+    "dreams-2",
+    "dreams-3",
+    "dreams-4",
+    "dreams-5"
+  ],
+  "runs_without": [
+    "dreams-1",
+    "dreams-2",
+    "dreams-3",
+    "dreams-4",
+    "dreams-5"
+  ],
+  "per_task": [
+    {
+      "task": "dreams-1",
+      "with": 5.0,
+      "without": 1.0,
+      "delta": 4.0,
+      "reason": "Answer B satisfies all required checks with the correct JSON structure, evidence arrays, counts, and a consolidated recurring port-in-use lesson, while Answer A lacks the required schema and count/evidence fields.",
+      "prompt_delta": 419,
+      "completion_delta": -31
+    },
+    {
+      "task": "dreams-2",
+      "with": 5.0,
+      "without": 1.0,
+      "delta": 4.0,
+      "reason": "Answer B directly covers all required sources and prohibitions, while Answer A stays generic and omits the required intervention, failure/escalation, and manual-check details.",
+      "prompt_delta": 419,
+      "completion_delta": -135
+    },
+    {
+      "task": "dreams-3",
+      "with": 5.0,
+      "without": 3.0,
+      "delta": 2.0,
+      "reason": "Answer A directly specifies updating seen/last_seen, pruning stale lessons, enforcing a capped set ranked by frequency, while Answer B is broader and misses explicit update and frequency-ordering behavior.",
+      "prompt_delta": 419,
+      "completion_delta": -35
+    },
+    {
+      "task": "dreams-4",
+      "with": 3.0,
+      "without": 0.0,
+      "delta": 3.0,
+      "reason": "Answer B correctly applies the threshold rule that a single non-escalated event should not yet become a lesson, while Answer A contradicts that rule by allowing a single occurrence to qualify.",
+      "prompt_delta": 419,
+      "completion_delta": -138
+    },
+    {
+      "task": "dreams-5",
+      "with": 5.0,
+      "without": 4.0,
+      "delta": 1.0,
+      "reason": "Answer B explicitly covers reading the lessons file, selecting only relevant lessons, keeping the memory compact, and avoiding pasting all lessons into prompts, while Answer A misses the explicit instruction to read the lessons file.",
+      "prompt_delta": 419,
+      "completion_delta": 6
+    }
+  ]
+}

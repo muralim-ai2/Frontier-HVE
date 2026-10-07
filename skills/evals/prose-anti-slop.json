@@ -1,0 +1,73 @@
+{
+  "skill": "prose-anti-slop",
+  "eval_method": "micro",
+  "generator": "gpt-5.4-mini",
+  "judge": "gpt-5.2-chat",
+  "quality_lift_pp": 28.0,
+  "token_overhead_pct": 0.74,
+  "lift_per_aiu": null,
+  "wins": 2,
+  "losses": 1,
+  "worst_delta": -1.0,
+  "runs_with": [
+    "prose-anti-slop-1",
+    "prose-anti-slop-2",
+    "prose-anti-slop-3",
+    "prose-anti-slop-4",
+    "prose-anti-slop-5"
+  ],
+  "runs_without": [
+    "prose-anti-slop-1",
+    "prose-anti-slop-2",
+    "prose-anti-slop-3",
+    "prose-anti-slop-4",
+    "prose-anti-slop-5"
+  ],
+  "per_task": [
+    {
+      "task": "prose-anti-slop-1",
+      "with": 5.0,
+      "without": 1.0,
+      "delta": 4.0,
+      "reason": "Answer A removes the filler and buzzwords while preserving the AI-for-teams claim in a shorter plain sentence, whereas Answer B largely keeps the original marketing language and opener.",
+      "prompt_delta": 359,
+      "completion_delta": -16
+    },
+    {
+      "task": "prose-anti-slop-2",
+      "with": 5.0,
+      "without": 5.0,
+      "delta": 0.0,
+      "reason": "Both answers correctly detect the hedging stack, filler opener/closers, and rule-of-three slogan without rewriting the original text.",
+      "prompt_delta": 359,
+      "completion_delta": 15
+    },
+    {
+      "task": "prose-anti-slop-3",
+      "with": 5.0,
+      "without": 1.0,
+      "delta": 4.0,
+      "reason": "Answer A removes hype and vague claims while staying concise and release-note appropriate; Answer B retains the original hype and vague wording.",
+      "prompt_delta": 359,
+      "completion_delta": 20
+    },
+    {
+      "task": "prose-anti-slop-4",
+      "with": 5.0,
+      "without": 5.0,
+      "delta": 0.0,
+      "reason": "Both answers remove the false balance, clearly recommend B, explain that it is cheaper and meets requirements, and preserve the original intent while making the recommendation decisive.",
+      "prompt_delta": 359,
+      "completion_delta": -3
+    },
+    {
+      "task": "prose-anti-slop-5",
+      "with": 4.0,
+      "without": 5.0,
+      "delta": -1.0,
+      "reason": "Both preserve all facts and tighten the wording, but A is more concise and stays within the requested one-sentence format while B adds unnecessary explanatory bullets.",
+      "prompt_delta": 359,
+      "completion_delta": 37
+    }
+  ]
+}
