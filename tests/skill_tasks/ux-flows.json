@@ -1,0 +1,7 @@
+[
+  {"id": "ux-flows-1", "prompt": "Specify the screens and states for a 'reset password' flow in a web app.", "checks": ["covers empty, loading, error and success states", "one primary action per screen", "at most 7 steps from start to finish", "names accessible defaults (labels, focus, contrast)"]},
+  {"id": "ux-flows-2", "prompt": "Design the screen where a user uploads a CSV of contacts to a CRM. Describe layout and states.", "checks": ["defines the primary task", "handles invalid file and partial import errors", "gives feedback during upload", "turns states into testable checks"]},
+  {"id": "ux-flows-3", "prompt": "Outline the checkout flow for a small online bakery (cart to confirmation).", "checks": ["flow is a short ordered list of screen -> action -> result", "covers empty cart and payment failure", "destructive actions confirmed or undoable", "mobile-first layout considered"]},
+  {"id": "ux-flows-4", "prompt": "Describe the dashboard home screen for a team task tracker on first use and with data.", "checks": ["first-use empty state tells what to do", "one dominant primary action", "loading and error states defined", "secondary actions visually quieter"]},
+  {"id": "ux-flows-5", "prompt": "Plan the UI for deleting a project that has 40 tasks and 3 collaborators.", "checks": ["confirmation names the object and consequence", "offers undo or soft delete", "visible feedback after action", "error state if deletion fails"]}
+]

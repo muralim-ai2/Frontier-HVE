@@ -84,6 +84,27 @@ def test_init_in_existing_repo() -> None:
         assert loop.verify(project)["passes"] is True
         assert read_json(project / ".harness" / "prs" / "a.json")["base_branch"] == "trunk"
 
+
+def test_tracker_reports_status_evidence_and_manual_check() -> None:
+    """tracker.json is written at init and shows status, evidence files and the user's recorded manual check per feature."""
+    with tempfile.TemporaryDirectory() as tmp:
+        project = three(tmp)
+        assert [r["status"] for r in read_json(project / "tracker.json")["features"]] == ["pending"] * 3
+        assert ".hve/" in (project / ".gitignore").read_text(encoding="utf-8").splitlines()
+        loop.next_feature(project)
+        (project / "a.txt").write_text("a\n", encoding="utf-8")
+        assert loop.verify(project)["passes"] is True
+        (project / ".harness" / "evidence" / "a").mkdir(parents=True)
+        (project / ".harness" / "evidence" / "a" / "page.png").write_bytes(b"png")
+        (project / ".harness" / "checks").mkdir()
+        (project / ".harness" / "checks" / "a.json").write_text(json.dumps({"result": "looks right"}), encoding="utf-8")
+        loop.next_feature(project)
+        data = loop.tracker(project)
+        a, b = data["features"][0], data["features"][1]
+        assert data["passed"] == 1 and a["status"] == "passed" and b["status"] == "in_progress", data
+        assert a["evidence"] == [".harness/evidence/a/page.png"] and a["manual_check"] == "looks right", a
+
+
 def test_loop_commits_flips_and_queues() -> None:
     """Verify fails until the work exists, B1 code is rejected at commit, PR records stack, and a passing baseline escalates."""
     with tempfile.TemporaryDirectory() as tmp:
@@ -298,6 +319,7 @@ def test_module_guard() -> None:
 if __name__ == "__main__":
     test_init_rejects_bad_feature_lists()
     test_init_in_existing_repo()
+    test_tracker_reports_status_evidence_and_manual_check()
     test_loop_commits_flips_and_queues()
     test_rules_stuck_then_spec()
     test_rules_circular_and_cap()

@@ -1,0 +1,73 @@
+{
+  "skill": "ui-content",
+  "eval_method": "micro",
+  "generator": "gpt-5.4-mini",
+  "judge": "gpt-5.2-chat",
+  "quality_lift_pp": 4.0,
+  "token_overhead_pct": 0.64,
+  "lift_per_aiu": null,
+  "wins": 2,
+  "losses": 2,
+  "worst_delta": -2.0,
+  "runs_with": [
+    "ui-content-1",
+    "ui-content-2",
+    "ui-content-3",
+    "ui-content-4",
+    "ui-content-5"
+  ],
+  "runs_without": [
+    "ui-content-1",
+    "ui-content-2",
+    "ui-content-3",
+    "ui-content-4",
+    "ui-content-5"
+  ],
+  "per_task": [
+    {
+      "task": "ui-content-1",
+      "with": 3.0,
+      "without": 5.0,
+      "delta": -2.0,
+      "reason": "Answer A clearly explains the section, why it is empty, and what to do next within the sentence limit, while Answer B exceeds the maximum length requirement.",
+      "prompt_delta": 358,
+      "completion_delta": 2
+    },
+    {
+      "task": "ui-content-2",
+      "with": 5.0,
+      "without": 5.0,
+      "delta": 0.0,
+      "reason": "Both answers replace vague/raw errors with calm, user-focused messages that explain the issue and provide next steps, though B includes one alternate email message without a fix.",
+      "prompt_delta": 358,
+      "completion_delta": -72
+    },
+    {
+      "task": "ui-content-3",
+      "with": 5.0,
+      "without": 3.0,
+      "delta": 2.0,
+      "reason": "Answer A satisfies all checks with clear sentence-case labels and confirmation text, while Answer B violates the sentence-case requirement by using title case in multiple labels.",
+      "prompt_delta": 358,
+      "completion_delta": -66
+    },
+    {
+      "task": "ui-content-4",
+      "with": 4.0,
+      "without": 5.0,
+      "delta": -1.0,
+      "reason": "Both are short and clear with consistent action verbs, but B more directly tells the user what to do next in each step.",
+      "prompt_delta": 358,
+      "completion_delta": -10
+    },
+    {
+      "task": "ui-content-5",
+      "with": 4.0,
+      "without": 2.0,
+      "delta": 2.0,
+      "reason": "Answer A uses short noun labels, example-based hints, and clearly marks the optional field, while Answer B's hints are instructions rather than examples.",
+      "prompt_delta": 358,
+      "completion_delta": -32
+    }
+  ]
+}

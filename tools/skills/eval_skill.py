@@ -75,7 +75,7 @@ def report(name: str, score: Literal["human", "ai"]) -> Json:
     tokens_wo = mean(wo, "prompt_tokens") + mean(wo, "completion_tokens")
     lift = (mean(w, f"{score}_score") - mean(wo, f"{score}_score")) / SCORE_MAX * 100
     result: Json = {
-        "skill": name, "score": score, "runs_with": [r["session_id"] for r in w], "runs_without": [r["session_id"] for r in wo],
+        "skill": name, "eval_method": "session", "score": score, "runs_with": [r["session_id"] for r in w], "runs_without": [r["session_id"] for r in wo],
         "quality_lift_pp": round(lift, 1),
         "token_overhead_pct": round((tokens_w / tokens_wo - 1) * 100, 1),
         "latency_delta_pct": round((mean(w, "wall_clock_s") / mean(wo, "wall_clock_s") - 1) * 100, 1),

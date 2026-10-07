@@ -1,0 +1,73 @@
+{
+  "skill": "api-design",
+  "eval_method": "micro",
+  "generator": "gpt-5.4-mini",
+  "judge": "gpt-5.2-chat",
+  "quality_lift_pp": 16.0,
+  "token_overhead_pct": 0.78,
+  "lift_per_aiu": null,
+  "wins": 3,
+  "losses": 0,
+  "worst_delta": 0.0,
+  "runs_with": [
+    "api-design-1",
+    "api-design-2",
+    "api-design-3",
+    "api-design-4",
+    "api-design-5"
+  ],
+  "runs_without": [
+    "api-design-1",
+    "api-design-2",
+    "api-design-3",
+    "api-design-4",
+    "api-design-5"
+  ],
+  "per_task": [
+    {
+      "task": "api-design-1",
+      "with": 5.0,
+      "without": 4.0,
+      "delta": 1.0,
+      "reason": "Answer B satisfies all checks including explicit versioning and robust status code handling, while Answer A lacks API versioning and mixes cursor/page pagination.",
+      "prompt_delta": 396,
+      "completion_delta": -18
+    },
+    {
+      "task": "api-design-2",
+      "with": 5.0,
+      "without": 3.0,
+      "delta": 2.0,
+      "reason": "Answer A fully satisfies all checks with a consistent Problem Details-style schema, field-level validation errors, and no internal identifiers, while Answer B includes a requestId that conflicts with the requirement to avoid internal ids.",
+      "prompt_delta": 396,
+      "completion_delta": -28
+    },
+    {
+      "task": "api-design-3",
+      "with": 5.0,
+      "without": 5.0,
+      "delta": 0.0,
+      "reason": "Both answers fully cover idempotency keys, server-side storage of results, replaying the same response on retries, and defining/documenting key scope or expiry, with solid implementation details.",
+      "prompt_delta": 396,
+      "completion_delta": 55
+    },
+    {
+      "task": "api-design-4",
+      "with": 5.0,
+      "without": 5.0,
+      "delta": 0.0,
+      "reason": "Both answers correctly identify field removal as a breaking change, recommend a deprecation/migration window with a new version, emphasize communication, and include OpenAPI/contract updates.",
+      "prompt_delta": 396,
+      "completion_delta": -31
+    },
+    {
+      "task": "api-design-5",
+      "with": 5.0,
+      "without": 4.0,
+      "delta": 1.0,
+      "reason": "Answer A explicitly covers all required security checks including no secrets in URLs, while Answer B omits that requirement despite otherwise addressing the core API security controls.",
+      "prompt_delta": 396,
+      "completion_delta": 0
+    }
+  ]
+}

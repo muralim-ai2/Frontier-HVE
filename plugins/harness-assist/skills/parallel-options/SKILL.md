@@ -17,4 +17,4 @@ Run from the project root; `<tools>` is the harness tools folder named in your a
    A plugin hook records the tick; you cannot write it yourself.
 5. Run `python <tools>/git/parallel_options.py choose . <feature> <ticked approach>`, then `loop.py verify .`.
 
-Losing branches stay in git as evidence; their worktrees are removed.
+Losing branches stay in git as evidence; their worktrees under `.hve/discovery/` are removed.

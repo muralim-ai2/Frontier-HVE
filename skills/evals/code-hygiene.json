@@ -1,0 +1,73 @@
+{
+  "skill": "code-hygiene",
+  "eval_method": "micro",
+  "generator": "gpt-5.4-mini",
+  "judge": "gpt-5.2-chat",
+  "quality_lift_pp": 8.0,
+  "token_overhead_pct": 0.63,
+  "lift_per_aiu": null,
+  "wins": 2,
+  "losses": 2,
+  "worst_delta": -2.0,
+  "runs_with": [
+    "code-hygiene-1",
+    "code-hygiene-2",
+    "code-hygiene-3",
+    "code-hygiene-4",
+    "code-hygiene-5"
+  ],
+  "runs_without": [
+    "code-hygiene-1",
+    "code-hygiene-2",
+    "code-hygiene-3",
+    "code-hygiene-4",
+    "code-hygiene-5"
+  ],
+  "per_task": [
+    {
+      "task": "code-hygiene-1",
+      "with": 5.0,
+      "without": 3.0,
+      "delta": 2.0,
+      "reason": "Answer A removes the factory, unused parameters, and redundant comment while preserving behavior; Answer B keeps the unused constructor parameters and attribute.",
+      "prompt_delta": 339,
+      "completion_delta": 77
+    },
+    {
+      "task": "code-hygiene-2",
+      "with": 5.0,
+      "without": 2.0,
+      "delta": 3.0,
+      "reason": "Answer A removes the swallowed error behavior, dead code, and wrapper variable while explicitly explaining the behavior change; Answer B keeps the swallowed-error fallback and does not explain behavior impact.",
+      "prompt_delta": 339,
+      "completion_delta": 28
+    },
+    {
+      "task": "code-hygiene-3",
+      "with": 5.0,
+      "without": 5.0,
+      "delta": 0.0,
+      "reason": "Both answers correctly identify the unused parameters, recommend the minimal signature, discourage speculative options, and preserve current behavior while noting future parameters should only be added when implemented.",
+      "prompt_delta": 339,
+      "completion_delta": -177
+    },
+    {
+      "task": "code-hygiene-4",
+      "with": 3.0,
+      "without": 5.0,
+      "delta": -2.0,
+      "reason": "Answer A preserves the original dictionary-based behavior while improving names and removing redundant comments; Answer B changes the function input contract from a dict to a numeric value.",
+      "prompt_delta": 339,
+      "completion_delta": 43
+    },
+    {
+      "task": "code-hygiene-5",
+      "with": 3.0,
+      "without": 4.0,
+      "delta": -1.0,
+      "reason": "Both answers correctly centralize the duplicated tax logic without unnecessary abstraction, but only B explicitly mentions validating the change with tests/checks; neither reports a line delta or concrete change summary.",
+      "prompt_delta": 339,
+      "completion_delta": -87
+    }
+  ]
+}

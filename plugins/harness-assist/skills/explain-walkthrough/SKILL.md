@@ -9,7 +9,7 @@ description: Explain what is being built and the concepts involved (frontend, AP
 Use the explanation depth from the session context (`guided`, `balanced`, `expert`). It is inferred from how the user works; adapt silently and never label, classify or quiz the user about their skills. If no depth is known, ask once with the ask-questions tool:
 - `header`: `build-preference`
 - `question`: `How do you prefer to build? [profile: .hve/user_profile.json]`
-- options (single choice), `label` exactly: `no code` (describe the outcome, the agent writes the code), `low code` (read and adjust code with guidance), `pro code` (write and review code yourself).
+- options (single choice), `label` exactly: `no code` (describe the outcome, the agent builds it and coaches you), `low code` (read and adjust code with guidance), `pro code` (use AI to code and review continuously).
 A plugin hook saves the answer as the starting point; the depth keeps adjusting to how the user actually works.
 
 ## 2. Walk through (guided and balanced)

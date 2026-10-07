@@ -1,0 +1,7 @@
+[
+  {"id": "build-approach-1", "prompt": "HR wants a leave-request app with manager approval for 300 employees on Microsoft 365. No-code, low-code or pro-code?", "checks": ["decides per component", "considers licensing and governance", "recommendation with deciding factor", "names hidden costs"]},
+  {"id": "build-approach-2", "prompt": "A startup wants a customer-facing mobile app with real-time chat for 50,000 users. Should they build it in Power Apps?", "checks": ["leans pro-code for external scale and real-time", "explains why", "notes hybrid options if any", "recommends experts"]},
+  {"id": "build-approach-3", "prompt": "Finance analysts maintain an Excel-based reconciliation with VBA. They ask to 'make it an app'. Recommend an approach.", "checks": ["scores components (UI, logic, data)", "considers who maintains it", "hybrid if appropriate", "states what must change before production"]},
+  {"id": "build-approach-4", "prompt": "List the hidden costs of choosing low-code for an internal tool.", "checks": ["per-user licensing", "connector/API limits", "source control and testing of low-code assets", "lock-in and ownership"]},
+  {"id": "build-approach-5", "prompt": "We prototyped a Copilot Studio bot that answers policy questions. When should it move to pro-code or a managed AI service?", "checks": ["triggers such as scale, custom security, evaluation needs", "per-component view", "governance/DLP", "names experts to involve"]}
+]

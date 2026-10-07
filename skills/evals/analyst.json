@@ -1,0 +1,73 @@
+{
+  "skill": "analyst",
+  "eval_method": "micro",
+  "generator": "gpt-5.4-mini",
+  "judge": "gpt-5.2-chat",
+  "quality_lift_pp": 44.0,
+  "token_overhead_pct": 0.97,
+  "lift_per_aiu": null,
+  "wins": 4,
+  "losses": 0,
+  "worst_delta": 0.0,
+  "runs_with": [
+    "analyst-1",
+    "analyst-2",
+    "analyst-3",
+    "analyst-4",
+    "analyst-5"
+  ],
+  "runs_without": [
+    "analyst-1",
+    "analyst-2",
+    "analyst-3",
+    "analyst-4",
+    "analyst-5"
+  ],
+  "per_task": [
+    {
+      "task": "analyst-1",
+      "with": 5.0,
+      "without": 1.0,
+      "delta": 4.0,
+      "reason": "Answer B fully satisfies all required checks with weighted criteria, a scored matrix, explicit arithmetic, and a recommendation including risks, while Answer A lacks the required weighted framework, matrix, and calculations.",
+      "prompt_delta": 342,
+      "completion_delta": 332
+    },
+    {
+      "task": "analyst-2",
+      "with": 5.0,
+      "without": 5.0,
+      "delta": 0.0,
+      "reason": "Both answers clearly frame the flip as a sensitivity result, make the recommendation conditional on cost weighting, explain the dependency, and recommend validating stakeholder weighting assumptions before finalizing.",
+      "prompt_delta": 342,
+      "completion_delta": 17
+    },
+    {
+      "task": "analyst-3",
+      "with": 5.0,
+      "without": 2.0,
+      "delta": 3.0,
+      "reason": "Answer B fully addresses the requested decision framework with weighted criteria, explicit judgment/assumption handling, and a recommendation plus validation step, while Answer A is useful but lacks weighted criteria and clear separation of facts, assumptions, and judgment.",
+      "prompt_delta": 342,
+      "completion_delta": 136
+    },
+    {
+      "task": "analyst-4",
+      "with": 5.0,
+      "without": 4.0,
+      "delta": 1.0,
+      "reason": "Both answers correctly treat the claim as unverified and request evidence, but Answer A more clearly addresses the impact of being wrong by describing how to adjust scoring, confidence, and decision weighting until validated.",
+      "prompt_delta": 342,
+      "completion_delta": 4
+    },
+    {
+      "task": "analyst-5",
+      "with": 4.0,
+      "without": 1.0,
+      "delta": 3.0,
+      "reason": "Answer B includes a concise score table, quantified scoring/units, and risks with mitigations, while Answer A lacks a table, quantitative detail, and mitigations.",
+      "prompt_delta": 342,
+      "completion_delta": 230
+    }
+  ]
+}

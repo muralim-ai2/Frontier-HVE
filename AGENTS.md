@@ -1,5 +1,9 @@
 # Agent Instructions
 
+## Wiki
+
+How-to pages for users and agents are in `docs/wiki/` (start at `Home.md`). For using the harness in Claude Code, Cursor or Codex CLI, or connecting Azure DevOps, read `docs/wiki/Adapters.md`.
+
 ## npm registry on Microsoft-managed devices
 
 Direct access to `https://registry.npmjs.org/` is blocked. Before installing

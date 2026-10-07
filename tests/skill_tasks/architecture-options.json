@@ -1,0 +1,7 @@
+[
+  {"id": "architecture-options-1", "prompt": "We need to store user-uploaded documents (about 5,000 per month) and search them by text. Give the architecture options and a decision.", "checks": ["2-3 genuinely different options incl. a managed service", "trade-offs on cost, risk, ops burden, licensing", "a clear decision with reason", "a trigger to revisit"]},
+  {"id": "architecture-options-2", "prompt": "Should our internal approval app use a single database or one per microservice? 3 developers, 200 users.", "checks": ["names the decision drivers (team size, scale)", "considers the simplest option", "recommends with reason", "records consequences (ADR-like)"]},
+  {"id": "architecture-options-3", "prompt": "Pick hosting for a Python API with spiky traffic (0-500 requests/min), small budget.", "checks": ["compares options such as serverless vs containers vs VM", "cost at expected and higher load", "operational burden", "decision with revisit trigger"]},
+  {"id": "architecture-options-4", "prompt": "Write a short ADR for choosing PostgreSQL over SQLite for a multi-user web app.", "checks": ["context, decision, options, consequences", "consequences include downsides", "status field", "concise"]},
+  {"id": "architecture-options-5", "prompt": "A prototype uses a local vector store and Tesseract OCR. The team wants to launch to customers. What architecture questions must be answered first?", "checks": ["flags prototype components needing enterprise alternatives", "data residency/compliance", "scale and cost", "recommends an architect review"]}
+]

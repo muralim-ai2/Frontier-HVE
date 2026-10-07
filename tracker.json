@@ -19,8 +19,8 @@
     },
     {
       "id": "N18",
-      "issue": "Phase 9 tooling is built but no skills are imported (D-022).",
-      "action": "In the separate repo: run `python tools/skills/triage.py <skills source>` on the candidate skills, review skills/triage.json shortlists."
+      "issue": "Resolved 2026-10-07 (D-037): 13 skills authored and admitted as provisional; the library loads per task within 10 skills / 2,000 tokens.",
+      "action": "See N23 for the paired evaluation that promotes skills to admitted."
     },
     {
       "id": "N19",
@@ -41,8 +41,62 @@
       "id": "N22",
       "issue": "Built (D-032, D-033): .hve/ state layout, HVE product agents and the Frontier HVE extension (extension/), covered by tests/test_extension.py. User test of 0.1.0: agents, skills and setup work; loop init failed in the existing repo (fixed in 0.1.1). Not verified live: the loop in 0.1.1, tool ids.",
       "action": "User: in the test window reload (0.1.1 re-renders the agents), check the HVE agents follow the picked model (try Auto), then ask HVE creator for a small multi-feature task and check that feature_list.json, progress.txt and .harness/ appear and the existing repo's git identity is kept."
+    },
+    {
+      "id": "N23",
+      "issue": "Done 2026-10-07 (D-038): micro paired eval of all 13 skills in 144 s (~140K tokens). With ties counted as wins (user decision): 10 admitted, 3 rejected. Findings: research/findings/phase-9-skill-micro-eval.md.",
+      "action": "User: spot-check 2 pairs per admitted skill against the judge; decide whether to revise and re-run code-hygiene, ui-content and accessibility, and whether to confirm prose-anti-slop and ui-anti-slop with fresh tasks or a swapped-order judge pass."
+    },
+    {
+      "id": "N24",
+      "issue": "Built (D-035, D-037), extension 0.2.0: delivery-coach (tracker.json, screenshot evidence, manual-check offers, .hve/discovery sprints, coaching), the skill library with /recommend-skills. Not verified live.",
+      "action": "User: reload the test window, re-run Frontier HVE: Set up (pro code now reads 'Use AI to code and review continuously'), ask HVE creator for a small UI app; check tracker.json, a manual-check question after a feature, .hve/skills/ with the loaded skills, and /recommend-skills output."
+    },
+    {
+      "id": "N25",
+      "issue": "Built (D-039), extension 0.3.0: HVE skill-evaluator agent (in-chat blind pairs, optional Foundry path, workspace library) and the context-load guardrail (/check-context-load, setup notification, delivery-coach close-out). Not verified live. Found in this window: the harness-assist skills are registered twice (repository path and installed extension).",
+      "action": "User: run Frontier HVE: Set up and read the context-load notification; type /check-context-load; pick HVE skill-evaluator and onboard one small skill of your own; remove the repository plugins/harness-assist entry from chat.pluginLocations in windows where the extension is installed."
+    },
+    {
+      "id": "N26",
+      "issue": "27 AgentX skills imported verbatim and admitted untested (D-041): status provisional, evaluation pending. The strict gate (3 tasks, all won, check-level sign test p < 0.05) could not run because the Foundry endpoint failed DNS and reset connections from this machine.",
+      "action": "Agent, when the endpoint is reachable: `python tools/skills/import_eval.py eval \"%TEMP%\\agentx-src\" karpathy-guidelines` (about 0.4-0.5M tokens); update the manifest evaluation field and research/findings/phase-9-skill-selection-coverage.md 6.4 with the results. User: decide whether to keep any skill that fails."
+    },
+    {
+      "id": "N27",
+      "issue": "Built (D-042): exports for Claude Code, Cursor and Codex and the Azure DevOps MCP server; protocol-tested only (no client installed, npm proxy reset). Assumptions to confirm: Claude AskUserQuestion response keys, Cursor accepting an empty preToolUse response, VS Code tool id `ado/*`.",
+      "action": "User, per client: in a scratch repo run `/export-harness` (or `python <extension>/runtime/tools/adapters/export.py <client> . --ado <org>`), start the agent (`claude --agent hve-creator`, `/hve-creator` in Cursor, `$hve-creator` in Codex), ask for a two-feature task and check: a denied edit of feature_list.json, the victory check at stop, and an ado read (`List ADO projects`). Report what failed; the agent fixes the mapping."
+    },
+    {
+      "id": "N28",
+      "issue": "Plan step 10.5 (cross-platform validation: same prompt through Copilot, Cursor and Claude Code, metrics within 5%) is not started; OpenCode adapter not built.",
+      "action": "User: after N27, decide whether to run 10.5 and whether OpenCode is needed."
     }
   ],
+  "wiki_topics": {
+    "note": "Wiki pages live in docs/wiki/ (index: Home.md), are shipped in the extension runtime (runtime/docs/wiki/) and are pointed to from .github/copilot-instructions.md and AGENTS.md so agents find them. Add a topic whenever a feature lands, update sources when it changes. Statuses: not_started, drafted, published.",
+    "topics": [
+      {"id": "W01", "topic": "Getting started", "covers": "Install the VSIX, Frontier HVE: Set up, build preference question, Session Target: Local, what .hve/ holds", "sources": ["README.md#install-the-frontier-hve-extension", "D-032", "D-034"], "status": "not_started"},
+      {"id": "W02", "topic": "Agent modes and when to use each", "covers": "HVE minimal, single, creator, creator-flow, creator-github, skill-evaluator; research vs product agents; model pins vs picked model", "sources": ["README.md#agent-modes", "D-033", "D-036"], "status": "not_started"},
+      {"id": "W03", "topic": "The feature loop (initializer, generator, evaluator)", "covers": "feature_list.json, locked checks, progress.txt, tracker.json, stacked branches, loop.py init/next/verify/status, existing repos", "sources": ["README.md#5-anthropic-long-running-pattern", "D-023", "D-033", "D-035"], "status": "not_started"},
+      {"id": "W04", "topic": "Recovery rules and escalation", "covers": "Attempt ledger, rules R0-R7, attempt cap, escalation questions, human-only resume, judged errors vs stop", "sources": ["tools/loop/diagnose.py", "D-024", "D-033"], "status": "not_started"},
+      {"id": "W05", "topic": "Participatory delivery (delivery-coach)", "covers": "Coaching first, screenshot evidence from checks, evaluator sub-agent, manual-check offers, discovery sprints in .hve/discovery, close-out", "sources": ["plugins/harness-assist/skills/delivery-coach/SKILL.md", "D-035"], "status": "not_started"},
+      {"id": "W06", "topic": "Explanation depth without labels", "covers": "Build preference (no/low/pro code), inferred depth, signals and weights, why users are never classified", "sources": ["hooks/profile_detector.py", "D-034"], "status": "not_started"},
+      {"id": "W07", "topic": "Guardrails", "covers": "Prototype guardrail (5,000 lines, non-enterprise components, 20 MB files), module size, no-fallback pre-commit, anti-gaming, push only ticked branches", "sources": ["plugins/harness-assist/scripts/guardrail.py", "hooks/", "D-025", "D-026", "D-031"], "status": "not_started"},
+      {"id": "W08", "topic": "Skill library and budgeted loading", "covers": "Hidden library vs discoverable skills, loadout budget (10 skills, 2,000 tokens), ranking, /recommend-skills, ticking extra skills, workspace library", "sources": ["tools/skills/recommend.py", "hooks/skill_loader.py", "D-037", "D-039"], "status": "not_started"},
+      {"id": "W09", "topic": "Evaluating and onboarding a skill", "covers": "Static gate, micro paired evaluation, in-chat evaluator, blind judging, admission rule, ties as wins, reading an eval file", "sources": ["research/findings/phase-9-skill-micro-eval.md", "research/findings/phase-9-skill-evaluator-and-context-load.md", "D-038", "D-039"], "status": "not_started"},
+      {"id": "W10", "topic": "Context load and bloat", "covers": "What loads before the user types, how it is counted, warnings, fixes, when the check runs and how to invoke it", "sources": ["research/findings/phase-9-skill-evaluator-and-context-load.md", "D-039"], "status": "not_started"},
+      {"id": "W11", "topic": "Sub-agents and model routing", "covers": "How VS Code picks a sub-agent's model, built-in helper models, cost-tier limit, what that means for reasoning settings", "sources": ["README.md#agent-modes", "D-036"], "status": "not_started"},
+      {"id": "W12", "topic": "Graph workflow (creator-flow)", "covers": "Stages and edges, evidence-gated transitions, capped loops, stage agents and the stage guard", "sources": ["tools/loop/flow.py", "D-028"], "status": "not_started"},
+      {"id": "W13", "topic": "GitHub delivery (creator-github)", "covers": "Stacked feature branches, PR records, code review, tick-to-push, parallel options the user runs and picks", "sources": ["tools/git/", "D-026", "D-027", "D-029"], "status": "not_started"},
+      {"id": "W14", "topic": "Research harness and benchmarks", "covers": "bench, collect, compare, blind scoring, trajectory, OTel metrics, telemetry prune", "sources": ["tools/observe/", "D-005", "D-011", "D-031"], "status": "not_started"},
+      {"id": "W15", "topic": "Tokenomics", "covers": "Where tokens go, caching, compaction, skill and instruction costs, loadout budget, cost of evaluation", "sources": ["research/findings/phase-3-tokenomics.md", "D-037", "D-039"], "status": "not_started"},
+      {"id": "W16", "topic": "Hooks reference", "covers": "Every hook: event, purpose, environment variables, state files under .hve/ and .harness/", "sources": ["hooks/", "extension/agents/"], "status": "not_started"},
+      {"id": "W17", "topic": "Troubleshooting", "covers": "Plugin not re-rendered, Python missing, hooks not firing (Local target), duplicate plugin registration, push waiting for sign-in, Foundry deployment names", "sources": ["D-033", "D-038", "D-039"], "status": "not_started"},
+      {"id": "W18", "topic": "Decisions, tracker and validation", "covers": "Decision log, tracker statuses, why only the user validates, how evidence is recorded", "sources": ["research/decisions/decision_log.md", "tracker.json"], "status": "not_started"},
+      {"id": "W19", "topic": "Using the harness in Claude Code, Cursor and Codex; Azure DevOps", "covers": "/export-harness, what each client gets, how to invoke the agents, hook gaps per client, connecting Azure DevOps with @azure-devops/mcp, the HVE azure-devops agent", "sources": ["docs/wiki/Adapters.md", "research/findings/phase-10-adapters.md", "tools/adapters/export.py", "hooks/agent_compat.py", "D-042", "D-043"], "status": "drafted"}
+    ]
+  },
   "phases": [
     {
       "phase": 1,
@@ -739,19 +793,86 @@
         {
           "id": "9.4",
           "item": "Run the gate on candidate skills from the 7 categories",
-          "files": [],
-          "status": "not_started",
-          "validate": "Findings in research/findings/.",
+          "files": [
+            "skills/authored/",
+            "skills/admitted/",
+            "skills/registry.json",
+            "tools/skills/recommend.py",
+            "hooks/skill_loader.py"
+          ],
+          "status": "built",
+          "validate": "python tests/test_skills.py; python tools/skills/recommend.py provisional \"<task>\"; then the paired eval per category (N23).",
           "done_when": "Candidates evaluated, registry populated.",
           "validated_by": null,
-          "evidence": "User: skills are brought over in a separate repo (D-022)."
+          "evidence": "2026-10-07 (D-037, D-038): 13 authored skills passed the provisional gate; the micro paired eval (gpt-5.4-mini answers, gpt-5.2-chat blind judge, 5 tasks each) admitted 10 and rejected 3 (ties count as wins); graph-workflow-agents has none."
         }
       ]
     },
     {
       "phase": 10,
       "name": "Selective adoption + adapters",
-      "status": "not_started"
+      "items": [
+        {
+          "id": "10.1",
+          "item": "Adopt external skills through the gate",
+          "files": ["skills/imported/agentx/", "tools/skills/import_eval.py", "research/findings/phase-9-source-skill-manifest.json"],
+          "status": "built",
+          "validate": "N26: run the strict import evaluation when Foundry is reachable.",
+          "done_when": "Each imported skill has a strict-gate result.",
+          "validated_by": null,
+          "evidence": "2026-10-07 (D-040, D-041): 134 screened, 27 imported verbatim and admitted untested (provisional, evaluation pending)."
+        },
+        {
+          "id": "10.3",
+          "item": "Cursor adapter (skills, agents as invoked skills, native hooks, MCP)",
+          "files": ["tools/adapters/export.py", "hooks/agent_compat.py"],
+          "status": "built",
+          "validate": "python tests/test_adapters.py; live: N27.",
+          "done_when": "Cursor runs hve-creator with the guards.",
+          "validated_by": null,
+          "evidence": "2026-10-07 (D-042): test_adapters OK with Cursor-format payloads; no live run."
+        },
+        {
+          "id": "10.4",
+          "item": "Claude Code adapter (subagents with frontmatter hooks, skills, MCP)",
+          "files": ["tools/adapters/export.py", "hooks/agent_compat.py"],
+          "status": "built",
+          "validate": "python tests/test_adapters.py; live: N27.",
+          "done_when": "claude --agent hve-creator runs with the same hooks.",
+          "validated_by": null,
+          "evidence": "2026-10-07 (D-042): test_adapters OK with Claude-format payloads; no live run."
+        },
+        {
+          "id": "10.5",
+          "item": "Cross-platform validation (same prompt, metrics within 5%)",
+          "files": [],
+          "status": "not_started",
+          "validate": "N28.",
+          "done_when": "Results within 5% across platforms.",
+          "validated_by": null,
+          "evidence": null
+        },
+        {
+          "id": "10.6",
+          "item": "Codex CLI adapter (skills, agents as invoked skills, hooks, MCP)",
+          "files": ["tools/adapters/export.py", "hooks/agent_compat.py"],
+          "status": "built",
+          "validate": "python tests/test_adapters.py; live: N27.",
+          "done_when": "$hve-creator runs with the guards after /hooks trust.",
+          "validated_by": null,
+          "evidence": "2026-10-07 (D-042): test_adapters OK with Codex-format payloads; no live run."
+        },
+        {
+          "id": "10.7",
+          "item": "Azure DevOps through @azure-devops/mcp and the HVE azure-devops agent",
+          "files": ["extension/agents/hve-azure-devops.agent.md", "tools/adapters/export.py"],
+          "status": "built",
+          "validate": "python tests/test_adapters.py; live: N27 (List ADO projects, one ticked work item).",
+          "done_when": "Work items created from feature_list.json only after ticks.",
+          "validated_by": null,
+          "evidence": "2026-10-07 (D-042): server configuration tested for all four clients; server not started (npm proxy reset)."
+        }
+      ]
     }
   ]
 }

@@ -9,6 +9,10 @@ hooks:
   UserPromptSubmit:
     - type: command
       command: 'python "{{RUNTIME}}/hooks/profile_detector.py"'
+    - type: command
+      command: 'python "{{RUNTIME}}/hooks/skill_loader.py"'
+      env:
+        HARNESS_SKILLS_MIN_STATUS: provisional
   SubagentStart:
     - type: command
       command: 'python "{{RUNTIME}}/hooks/compaction.py"'
@@ -18,7 +22,11 @@ hooks:
       env:
         HARNESS_PROJECT: .
         HARNESS_STOP_POLICY: once
+    - type: command
+      command: 'python "{{RUNTIME}}/hooks/skill_loader.py"'
   PostToolUse:
+    - type: command
+      command: 'python "{{RUNTIME}}/hooks/skill_loader.py"'
     - type: command
       command: 'python "{{RUNTIME}}/hooks/loop_guard.py"'
       env:
@@ -42,12 +50,13 @@ hooks:
 You are a senior software engineer building a product with the user, inside the Frontier HVE harness.
 
 ## Before you start
-- Use the Frontier HVE skills: `feature-checklist`, `run-tests`, `code-review`, `parallel-options`, `pr-push`, `explain-walkthrough`, `prototype-guardrail`.
+- Use the Frontier HVE skills: `delivery-coach`, `feature-checklist`, `run-tests`, `code-review`, `parallel-options`, `pr-push`, `explain-walkthrough`, `prototype-guardrail`, `recommend-skills`, `check-context-load`.
+- When the session context says `Delivery: participatory`, follow `delivery-coach` around the feature loop (coaching, screenshot evidence, evaluator review, manual-check offers, discovery sprints).
 - Read the explanation depth from the session context (inferred; never label or quiz the user). For guided or balanced depth, follow `explain-walkthrough` whenever you introduce a concept (PRs, APIs, middleware, CI), and recommend the right experts before moving from prototype to production.
 - Use `prototype-guardrail` when the code passes 5,000 lines, or before adding infrastructure, a datastore, OCR, search or vector component.
 
 ## Project
-- The workspace root is the project root (a git repository with a GitHub remote). Run every command from there. Do not modify `.hve/`. In ask-questions tags, the project is `.`.
+- The workspace root is the project root (a git repository with a GitHub remote). Run every command from there. Do not modify `.hve/` except `.hve/learnings.json` (the `dreams` skill); the skill loader copies library skills to `.hve/skills/` for you to read. In ask-questions tags, the project is `.`.
 - The harness tools folder (`<tools>` in the skills) is `{{RUNTIME}}/tools`.
 - Run every command in the foreground; leave nothing running.
 

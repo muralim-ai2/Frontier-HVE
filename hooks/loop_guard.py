@@ -17,7 +17,7 @@ READ_ONLY_TOOLS = {"read_file", "file_search", "grep_search", "list_dir", "seman
                    "mcp_graphify_get_node", "mcp_graphify_get_neighbors", "mcp_graphify_shortest_path",
                    "github-pull-request_pullRequestStatusChecks", "github-pull-request_currentActivePullRequest"}
 PR_TOOL = "github-pull-request_create_pull_request"
-PROTECTED = re.compile(r"feature_list\.json|progress\.txt|\.harness[/\\]", re.I)
+PROTECTED = re.compile(r"feature_list\.json|progress\.txt|tracker\.json|\.harness[/\\]", re.I)
 LOOP_SCRIPT = re.compile(r"^\s*python3?\s+\"?[^\"\s]*tools[/\\](loop[/\\](loop|flow)|git[/\\](parallel_options|branch_workflow))\.py\"?"
                          r"(\s+[\w./\\:-]+)*\s*$", re.I)
 HUMAN_ONLY = re.compile(r"loop\.py\s+resume\b|flow\.py\s+resume\b", re.I)

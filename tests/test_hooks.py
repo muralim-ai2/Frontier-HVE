@@ -72,7 +72,7 @@ def test_depth_is_inferred_not_asked() -> None:
         root = make_root(tmp, {**EMPTY_PROFILE, "build_preference": "pro_code"})
         context = output(fire(root, "profile_detector.py", {"hook_event_name": "SessionStart", "source": "new"}))
         text = context["hookSpecificOutput"]["additionalContext"]
-        assert "Explanation depth: expert" in text and "never label" in text, text
+        assert "Explanation depth: expert" in text and "never label" in text and "Delivery: participatory" in text, text
         fire(root, "profile_detector.py", {"hook_event_name": "UserPromptSubmit", "prompt": "As a TPM I need a status view."})
         assert profile_of(root)["explanation_depth"] == "balanced"
         fire(root, "profile_detector.py", {"hook_event_name": "UserPromptSubmit", "prompt": "What is a pull request? Just make it work."})

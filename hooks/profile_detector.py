@@ -55,14 +55,16 @@ GUIDED_SIGNS = re.compile(
     r"database|ci|pipeline|deployment|terminal|git|framework)\b|\bexplain (?:what|how|it)\b|\bi don'?t (?:understand|know (?:how|what))\b|"
     r"\bin plain (?:english|terms|language)\b|\bjust make it work\b|\bmake it look\b|\bwhat do i (?:click|run|do next)\b", re.I)
 DEPTH_CONTEXT: dict[Depth, str] = {
-    "guided": ("Explanation depth: guided. Explain in plain business terms with the explain-walkthrough skill, avoid jargon, "
-               "and recommend the right experts (UI/UX, backend, full-stack, data scientist, AI engineer, solution architect, DevOps) "
-               "before moving from prototype to production."),
+    "guided": ("Explanation depth: guided. Coach with the explain-walkthrough skill in plain business terms, avoid jargon, "
+               "challenge choices that need an enterprise stack or experts (delivery-coach section 1), and recommend the right experts "
+               "(UI/UX, backend, full-stack, data scientist, AI engineer, solution architect, DevOps) before moving from prototype to production."),
     "balanced": ("Explanation depth: balanced. Explain new concepts briefly with the explain-walkthrough skill and recommend experts "
                  "before production infrastructure."),
     "expert": "Explanation depth: expert. Skip basic explanations.",
 }
 DEPTH_NOTE = "The depth is inferred from how the user works; adapt silently and never label, classify or quiz the user."
+DELIVERY = ("Delivery: participatory. Follow the delivery-coach skill: feature_list.json, tracker.json and progress.txt through the loop, "
+            "unit tests and screenshots as evidence, a manual check offered after each feature, discovery sprints for complex features.")
 EVIDENCE = re.compile(r"\b(with evidence|cite (your )?sources?|show me (the )?proof|with citations)\b", re.I)
 CONCISE = re.compile(r"\b(in (under )?\d+ words|keep it (short|brief)|be (brief|concise)|briefly)\b", re.I)
 FORMATS = {
@@ -164,6 +166,8 @@ def session_context(profile: Profile) -> str:
     depth = infer_depth(profile)
     if depth:
         lines.append(f"{DEPTH_CONTEXT[depth]} {DEPTH_NOTE}")
+    if profile["build_preference"]:
+        lines.append(DELIVERY)
     if profile["bloat_triggers"]:
         lines.append(f"The user has asked for token-wasteful patterns before ({', '.join(profile['bloat_triggers'])}): "
                      "challenge them with the token-cost reason and the better alternative instead of complying.")

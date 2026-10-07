@@ -1,0 +1,13 @@
+Frontier HVE authored skills
+
+The skills in this folder are original text written for Frontier HVE. Their topics and
+several ideas (UX flows and states, accessibility checklist, UI content, architecture
+options and ADRs, API design, low-code vs pro-code selection, code hygiene passes, UI and
+prose anti-slop, scrub, research and analyst workflows) were informed by the skill library
+of AgentX by jnPiyush (https://github.com/jnPiyush/AgentX), licensed under the Apache
+License 2.0. That project's NOTICE in turn credits open-design (Apache-2.0), impeccable
+(Apache-2.0) and no-ai-slop (MIT) for its design and anti-slop patterns.
+
+No text was copied from those projects. The "dreams" skill has no counterpart there.
+Evaluation method and skill-count evidence: SkillsBench, https://www.skillsbench.ai
+(arXiv 2602.12670).

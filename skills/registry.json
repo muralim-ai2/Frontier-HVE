@@ -1,4 +1,715 @@
 {
-  "admitted": [],
-  "rejected": []
+  "admitted": [
+    {
+      "name": "analyst",
+      "description": "Analyst workflow - turn evidence into a decision with an options matrix, weighted criteria, sourced data, a sensitivity check and a recommendation with its risks.",
+      "source": "authored (see skills/authored/NOTICE)",
+      "status": "admitted",
+      "task_categories": [
+        "research"
+      ],
+      "skill_tokens": 360,
+      "quality_lift_pp": 44.0,
+      "token_overhead_pct": 0.97,
+      "lift_per_aiu": null,
+      "eval_method": "micro",
+      "eval_run_ids": [
+        "analyst-1",
+        "analyst-2",
+        "analyst-3",
+        "analyst-4",
+        "analyst-5",
+        "analyst-1",
+        "analyst-2",
+        "analyst-3",
+        "analyst-4",
+        "analyst-5"
+      ],
+      "admitted_date": "2026-10-07"
+    },
+    {
+      "name": "api-design",
+      "description": "API design for HTTP services - resources, versioning, pagination, errors, idempotency and auth - written as an OpenAPI contract before implementation.",
+      "source": "authored (see skills/authored/NOTICE)",
+      "status": "admitted",
+      "task_categories": [
+        "architecture"
+      ],
+      "skill_tokens": 416,
+      "quality_lift_pp": 16.0,
+      "token_overhead_pct": 0.78,
+      "lift_per_aiu": null,
+      "eval_method": "micro",
+      "eval_run_ids": [
+        "api-design-1",
+        "api-design-2",
+        "api-design-3",
+        "api-design-4",
+        "api-design-5",
+        "api-design-1",
+        "api-design-2",
+        "api-design-3",
+        "api-design-4",
+        "api-design-5"
+      ],
+      "admitted_date": "2026-10-07"
+    },
+    {
+      "name": "architecture-options",
+      "description": "Compare 2-3 architecture options with trade-offs on cost, risk, scale, team skills and licensing, then record the chosen design as an ADR before building.",
+      "source": "authored (see skills/authored/NOTICE)",
+      "status": "admitted",
+      "task_categories": [
+        "architecture"
+      ],
+      "skill_tokens": 411,
+      "quality_lift_pp": 12.0,
+      "token_overhead_pct": 0.97,
+      "lift_per_aiu": null,
+      "eval_method": "micro",
+      "eval_run_ids": [
+        "architecture-options-1",
+        "architecture-options-2",
+        "architecture-options-3",
+        "architecture-options-4",
+        "architecture-options-5",
+        "architecture-options-1",
+        "architecture-options-2",
+        "architecture-options-3",
+        "architecture-options-4",
+        "architecture-options-5"
+      ],
+      "admitted_date": "2026-10-07"
+    },
+    {
+      "name": "build-approach",
+      "description": "Choose no-code, low-code or pro-code per component, with trade-offs on fit, scale, governance, licensing and skills, then recommend the platform and the experts to involve.",
+      "source": "authored (see skills/authored/NOTICE)",
+      "status": "admitted",
+      "task_categories": [
+        "architecture"
+      ],
+      "skill_tokens": 440,
+      "quality_lift_pp": 28.0,
+      "token_overhead_pct": 0.81,
+      "lift_per_aiu": null,
+      "eval_method": "micro",
+      "eval_run_ids": [
+        "build-approach-1",
+        "build-approach-2",
+        "build-approach-3",
+        "build-approach-4",
+        "build-approach-5",
+        "build-approach-1",
+        "build-approach-2",
+        "build-approach-3",
+        "build-approach-4",
+        "build-approach-5"
+      ],
+      "admitted_date": "2026-10-07"
+    },
+    {
+      "name": "dreams",
+      "description": "Dreams - self-learning between sessions. Consolidate interventions, escalations, failed checks and manual-check results into lessons learned in .hve/learnings.json, then apply them next time.",
+      "source": "authored (see skills/authored/NOTICE)",
+      "status": "admitted",
+      "task_categories": [
+        "self-learning"
+      ],
+      "skill_tokens": 426,
+      "quality_lift_pp": 56.0,
+      "token_overhead_pct": 0.7,
+      "lift_per_aiu": null,
+      "eval_method": "micro",
+      "eval_run_ids": [
+        "dreams-1",
+        "dreams-2",
+        "dreams-3",
+        "dreams-4",
+        "dreams-5",
+        "dreams-1",
+        "dreams-2",
+        "dreams-3",
+        "dreams-4",
+        "dreams-5"
+      ],
+      "admitted_date": "2026-10-07"
+    },
+    {
+      "name": "prose-anti-slop",
+      "description": "Edit prose to remove AI slop - filler openers, hedging, inflated adjectives, reflexive lists of three, false balance - while keeping the author's voice and every fact.",
+      "source": "authored (see skills/authored/NOTICE)",
+      "status": "admitted",
+      "task_categories": [
+        "de-slop"
+      ],
+      "skill_tokens": 380,
+      "quality_lift_pp": 28.0,
+      "token_overhead_pct": 0.74,
+      "lift_per_aiu": null,
+      "eval_method": "micro",
+      "eval_run_ids": [
+        "prose-anti-slop-1",
+        "prose-anti-slop-2",
+        "prose-anti-slop-3",
+        "prose-anti-slop-4",
+        "prose-anti-slop-5",
+        "prose-anti-slop-1",
+        "prose-anti-slop-2",
+        "prose-anti-slop-3",
+        "prose-anti-slop-4",
+        "prose-anti-slop-5"
+      ],
+      "admitted_date": "2026-10-07"
+    },
+    {
+      "name": "scrub",
+      "description": "Scrub changed files before commit - stale or restating comments, AI filler, debug leftovers, commented-out code, empty catches, secrets and PII; fix the safe ones, report the rest.",
+      "source": "authored (see skills/authored/NOTICE)",
+      "status": "admitted",
+      "task_categories": [
+        "scrub"
+      ],
+      "skill_tokens": 382,
+      "quality_lift_pp": 40.0,
+      "token_overhead_pct": 0.77,
+      "lift_per_aiu": null,
+      "eval_method": "micro",
+      "eval_run_ids": [
+        "scrub-1",
+        "scrub-2",
+        "scrub-3",
+        "scrub-4",
+        "scrub-5",
+        "scrub-1",
+        "scrub-2",
+        "scrub-3",
+        "scrub-4",
+        "scrub-5"
+      ],
+      "admitted_date": "2026-10-07"
+    },
+    {
+      "name": "ui-anti-slop",
+      "description": "Spot and fix AI slop in UI - generic gradients, emoji icons, fake metrics, lorem copy, uneven spacing - and replace it with honest placeholders and one coherent design system.",
+      "source": "authored (see skills/authored/NOTICE)",
+      "status": "admitted",
+      "task_categories": [
+        "ux",
+        "de-slop"
+      ],
+      "skill_tokens": 397,
+      "quality_lift_pp": 12.0,
+      "token_overhead_pct": 0.74,
+      "lift_per_aiu": null,
+      "eval_method": "micro",
+      "eval_run_ids": [
+        "ui-anti-slop-1",
+        "ui-anti-slop-2",
+        "ui-anti-slop-3",
+        "ui-anti-slop-4",
+        "ui-anti-slop-5",
+        "ui-anti-slop-1",
+        "ui-anti-slop-2",
+        "ui-anti-slop-3",
+        "ui-anti-slop-4",
+        "ui-anti-slop-5"
+      ],
+      "admitted_date": "2026-10-07"
+    },
+    {
+      "name": "ux-flows",
+      "description": "Design UI user flows, screens and states before code - primary task path, empty, loading and error states, responsive layout and accessible defaults.",
+      "source": "authored (see skills/authored/NOTICE)",
+      "status": "admitted",
+      "task_categories": [
+        "ux"
+      ],
+      "skill_tokens": 382,
+      "quality_lift_pp": 28.0,
+      "token_overhead_pct": 0.73,
+      "lift_per_aiu": null,
+      "eval_method": "micro",
+      "eval_run_ids": [
+        "ux-flows-1",
+        "ux-flows-2",
+        "ux-flows-3",
+        "ux-flows-4",
+        "ux-flows-5",
+        "ux-flows-1",
+        "ux-flows-2",
+        "ux-flows-3",
+        "ux-flows-4",
+        "ux-flows-5"
+      ],
+      "admitted_date": "2026-10-07"
+    },
+    {
+      "name": "web-research",
+      "description": "Web research with citations - plan the questions, gather primary sources with the fetch tool, cross-check each claim, and write a sourced brief with confidence levels.",
+      "source": "authored (see skills/authored/NOTICE)",
+      "status": "admitted",
+      "task_categories": [
+        "research"
+      ],
+      "skill_tokens": 370,
+      "quality_lift_pp": 28.0,
+      "token_overhead_pct": 0.72,
+      "lift_per_aiu": null,
+      "eval_method": "micro",
+      "eval_run_ids": [
+        "web-research-1",
+        "web-research-2",
+        "web-research-3",
+        "web-research-4",
+        "web-research-5",
+        "web-research-1",
+        "web-research-2",
+        "web-research-3",
+        "web-research-4",
+        "web-research-5"
+      ],
+      "admitted_date": "2026-10-07"
+    },
+    {
+      "name": "agent-memory-systems",
+      "description": "Design agent memory beyond a single context window: short-term (working / scratchpad), long-term (episodic, semantic, procedural), and shared / cross-session memory. Covers mem0, Zep, Letta / MemGPT, LangMem, OpenAI Memory, retrieval and consolidation policies, PII handling, and eviction.",
+      "source": "AgentX fc39b29, verbatim (Apache-2.0, skills/imported/agentx/LICENSE and NOTICE)",
+      "status": "provisional",
+      "task_categories": [
+        "scrub"
+      ],
+      "skill_tokens": 1330,
+      "quality_lift_pp": null,
+      "evaluation": "pending",
+      "admitted_date": "2026-10-07"
+    },
+    {
+      "name": "ai-safety-and-red-teaming",
+      "description": "Defend LLM systems against prompt injection, jailbreaks, data exfiltration, and unsafe output. Covers input/output guardrails (NeMo Guardrails, LlamaGuard 3, ShieldGemma, Azure AI Content Safety, Bedrock Guardrails), red-team frameworks (Microsoft PyRIT, Garak, promptfoo redteam), and Responsible AI controls (groundedness, PII, toxicity, indirect prompt injection).",
+      "source": "AgentX fc39b29, verbatim (Apache-2.0, skills/imported/agentx/LICENSE and NOTICE)",
+      "status": "provisional",
+      "task_categories": [
+        "scrub"
+      ],
+      "skill_tokens": 1559,
+      "quality_lift_pp": null,
+      "evaluation": "pending",
+      "admitted_date": "2026-10-07"
+    },
+    {
+      "name": "azure-foundry",
+      "description": "Design and architect AI agents on Azure AI Foundry -- lifecycle planning, model selection strategy, evaluation frameworks, guardrail design, and deployment patterns. Use when designing agent architecture on Foundry, choosing models, planning evaluation strategy, or defining guardrails. For step-by-step operational workflows (create, deploy, invoke, trace, troubleshoot), install the Azure MCP Extension (ms-azuretools.vscode-azure-mcp-server), which also brings in the Azure Skills plugin and Foundry MCP support in VS Code.",
+      "source": "AgentX fc39b29, verbatim (Apache-2.0, skills/imported/agentx/LICENSE and NOTICE)",
+      "status": "provisional",
+      "task_categories": [
+        "architecture"
+      ],
+      "skill_tokens": 1201,
+      "quality_lift_pp": null,
+      "evaluation": "pending",
+      "admitted_date": "2026-10-07"
+    },
+    {
+      "name": "foundry-sdk",
+      "description": "Implement agentic applications with the Microsoft Foundry SDKs. Use when coding against Microsoft Foundry project clients, agent operations, evaluations, datasets, indexes, tracing, or SDK-driven tool wiring rather than only high-level architecture guidance.",
+      "source": "AgentX fc39b29, verbatim (Apache-2.0, skills/imported/agentx/LICENSE and NOTICE)",
+      "status": "provisional",
+      "task_categories": [
+        "architecture"
+      ],
+      "skill_tokens": 1712,
+      "quality_lift_pp": null,
+      "evaluation": "pending",
+      "admitted_date": "2026-10-07"
+    },
+    {
+      "name": "iterative-retrieval",
+      "description": "Progressive context refinement for subagents and tool-using LLMs. Use when a parent agent must delegate research, code reading, or document Q&A to a subagent with a tight context budget. Replaces one-shot context dumps with a query -> retrieve -> filter -> requery loop that returns only the evidence the parent needs.",
+      "source": "AgentX fc39b29, verbatim (Apache-2.0, skills/imported/agentx/LICENSE and NOTICE)",
+      "status": "provisional",
+      "task_categories": [
+        "research"
+      ],
+      "skill_tokens": 1730,
+      "quality_lift_pp": null,
+      "evaluation": "pending",
+      "admitted_date": "2026-10-07"
+    },
+    {
+      "name": "mcp-apps-development",
+      "description": "Build MCP Apps (ext-apps) that render interactive UI inside conversational AI clients. Use when creating visual tool outputs, interactive dashboards, form-based tools, or rich media experiences in MCP-compatible hosts like Claude Desktop, VS Code Copilot Chat, or other MCP clients that support the Apps specification.",
+      "source": "AgentX fc39b29, verbatim (Apache-2.0, skills/imported/agentx/LICENSE and NOTICE)",
+      "status": "provisional",
+      "task_categories": [
+        "ux"
+      ],
+      "skill_tokens": 3158,
+      "quality_lift_pp": null,
+      "evaluation": "pending",
+      "admitted_date": "2026-10-07"
+    },
+    {
+      "name": "reasoning-models",
+      "description": "Use reasoning / thinking models (OpenAI o-series, Anthropic extended thinking, DeepSeek R1, Gemini Thinking) effectively. Covers when to choose reasoning vs fast models, prompt patterns for reasoners, reasoning_effort / thinking budget controls, structured outputs with reasoning, cost/latency trade-offs, and combining reasoners with fast models.",
+      "source": "AgentX fc39b29, verbatim (Apache-2.0, skills/imported/agentx/LICENSE and NOTICE)",
+      "status": "provisional",
+      "task_categories": [
+        "architecture"
+      ],
+      "skill_tokens": 1273,
+      "quality_lift_pp": null,
+      "evaluation": "pending",
+      "admitted_date": "2026-10-07"
+    },
+    {
+      "name": "core-principles",
+      "description": "Apply fundamental coding principles (SOLID, DRY, KISS) and structure projects for maintainability with clean architecture and separation of concerns. Use when refactoring, reviewing patterns, setting up project structure, or organizing modules.",
+      "source": "AgentX fc39b29, verbatim (Apache-2.0, skills/imported/agentx/LICENSE and NOTICE)",
+      "status": "provisional",
+      "task_categories": [
+        "architecture"
+      ],
+      "skill_tokens": 2291,
+      "quality_lift_pp": null,
+      "evaluation": "pending",
+      "admitted_date": "2026-10-07"
+    },
+    {
+      "name": "frontend-ui",
+      "description": "Build frontend UIs with HTML5, CSS3, and Tailwind CSS following accessibility and performance best practices. Use when creating responsive layouts, styling with Tailwind CSS, implementing accessible forms, optimizing frontend performance, or building common UI patterns.",
+      "source": "AgentX fc39b29, verbatim (Apache-2.0, skills/imported/agentx/LICENSE and NOTICE)",
+      "status": "provisional",
+      "task_categories": [
+        "ux"
+      ],
+      "skill_tokens": 1678,
+      "quality_lift_pp": null,
+      "evaluation": "pending",
+      "admitted_date": "2026-10-07"
+    },
+    {
+      "name": "impeccable-integration",
+      "description": "Drive the Impeccable design language for a target app -- PRODUCT.md and DESIGN.md authoring, the 23-command intervention vocabulary, and the 59-rule deterministic detector wired as a three-state gate (PASS / BLOCKED / DEGRADED). Use when defining the design language for a target app, or when running design-language conformance on a prototype or shipped UI.",
+      "source": "AgentX fc39b29, verbatim (Apache-2.0, skills/imported/agentx/LICENSE and NOTICE)",
+      "status": "provisional",
+      "task_categories": [
+        "ux"
+      ],
+      "skill_tokens": 1476,
+      "quality_lift_pp": null,
+      "evaluation": "pending",
+      "admitted_date": "2026-10-07"
+    },
+    {
+      "name": "prototype-audit",
+      "description": "Mechanically audit a UX prototype or front-end build through ten self-healing passes -- deterministic design-language conformance, accessibility, performance, content, responsive layout, routes, build hygiene, usability heuristics, visual regression, and anti-slop critique. Use before declaring any prototype review-ready, or whenever the prototype-auditor sub-agent is invoked. Each pass follows check -> diagnose -> fix -> verify with a maximum of three fix cycles per pass before escalating.",
+      "source": "AgentX fc39b29, verbatim (Apache-2.0, skills/imported/agentx/LICENSE and NOTICE)",
+      "status": "provisional",
+      "task_categories": [
+        "ux",
+        "de-slop"
+      ],
+      "skill_tokens": 1460,
+      "quality_lift_pp": null,
+      "evaluation": "pending",
+      "admitted_date": "2026-10-07"
+    },
+    {
+      "name": "prototype-craft",
+      "description": "Craft visually polished, production-quality HTML/CSS prototypes with modern styling, typography, color theory, and micro-interactions. Use when building UX deliverables that need visual polish beyond wireframes, implementing color systems, typography scales, elevation shadows, or smooth transitions for interactive prototypes.",
+      "source": "AgentX fc39b29, verbatim (Apache-2.0, skills/imported/agentx/LICENSE and NOTICE)",
+      "status": "provisional",
+      "task_categories": [
+        "ux"
+      ],
+      "skill_tokens": 1463,
+      "quality_lift_pp": null,
+      "evaluation": "pending",
+      "admitted_date": "2026-10-07"
+    },
+    {
+      "name": "usability-heuristics",
+      "description": "Score a UX prototype or shipped UI against Nielsen-10 heuristics with a severity rubric. Use when reviewing a design, running prototype-auditor Pass 7, or producing a heuristic evaluation report. Mechanically maps each heuristic to inspection prompts, severity (0-4), and fix patterns so two reviewers reach the same score.",
+      "source": "AgentX fc39b29, verbatim (Apache-2.0, skills/imported/agentx/LICENSE and NOTICE)",
+      "status": "provisional",
+      "task_categories": [
+        "ux"
+      ],
+      "skill_tokens": 2124,
+      "quality_lift_pp": null,
+      "evaluation": "pending",
+      "admitted_date": "2026-10-07"
+    },
+    {
+      "name": "working-prototype-app",
+      "description": "Build a runnable, multi-page UX prototype as a real SPA when static HTML is insufficient. Use when the prototype must demonstrate routing, state persistence, dynamic data, or interactive flows that exceed what plain HTML/CSS can convey. Provides a Vite + React + Tailwind + Framer Motion + Lucide scaffold, data-driven page layout, debounced localStorage state, and a clean file structure for `src/`.",
+      "source": "AgentX fc39b29, verbatim (Apache-2.0, skills/imported/agentx/LICENSE and NOTICE)",
+      "status": "provisional",
+      "task_categories": [
+        "ux"
+      ],
+      "skill_tokens": 1927,
+      "quality_lift_pp": null,
+      "evaluation": "pending",
+      "admitted_date": "2026-10-07"
+    },
+    {
+      "name": "code-optimization",
+      "description": "Rewrite working code into its minimal, elegant form -- lower cyclomatic complexity, fewer lines, no dead code, no needless abstractions -- using a Draft -> Optimize -> Verify loop. Use when asked to compress, minimize, simplify, or make code more elegant WITHOUT sacrificing correctness, boundary validation, or readability.",
+      "source": "AgentX fc39b29, verbatim (Apache-2.0, skills/imported/agentx/LICENSE and NOTICE)",
+      "status": "provisional",
+      "task_categories": [
+        "de-slop"
+      ],
+      "skill_tokens": 2442,
+      "quality_lift_pp": null,
+      "evaluation": "pending",
+      "admitted_date": "2026-10-07"
+    },
+    {
+      "name": "documentation",
+      "description": "Write effective documentation including inline docs, README structure, API documentation, and code comments. Use when writing README files, documenting APIs, creating architecture decision records, adding inline code documentation, or setting up documentation tooling.",
+      "source": "AgentX fc39b29, verbatim (Apache-2.0, skills/imported/agentx/LICENSE and NOTICE)",
+      "status": "provisional",
+      "task_categories": [
+        "architecture"
+      ],
+      "skill_tokens": 1314,
+      "quality_lift_pp": null,
+      "evaluation": "pending",
+      "admitted_date": "2026-10-07"
+    },
+    {
+      "name": "karpathy-guidelines",
+      "description": "Use when writing, reviewing, or refactoring code to avoid LLM coding mistakes. Apply Karpathy's principles to avoid overcomplication, make surgical changes, surface assumptions, and define verifiable success criteria.",
+      "source": "AgentX fc39b29, verbatim (Apache-2.0, skills/imported/agentx/LICENSE and NOTICE)",
+      "status": "provisional",
+      "task_categories": [
+        "de-slop"
+      ],
+      "skill_tokens": 2087,
+      "quality_lift_pp": null,
+      "evaluation": "pending",
+      "admitted_date": "2026-10-07"
+    },
+    {
+      "name": "systematic-debugging",
+      "description": "Disciplined debugging for stalled bug fixes. Use when an Engineer or Reviewer has tried two or more fixes that did not work, when symptoms keep moving, or when the same test keeps failing for different reasons. Forces root-cause investigation, pattern analysis, hypothesis testing, and a final implementation, in that order.",
+      "source": "AgentX fc39b29, verbatim (Apache-2.0, skills/imported/agentx/LICENSE and NOTICE)",
+      "status": "provisional",
+      "task_categories": [
+        "research"
+      ],
+      "skill_tokens": 1815,
+      "quality_lift_pp": null,
+      "evaluation": "pending",
+      "admitted_date": "2026-10-07"
+    },
+    {
+      "name": "diagram-as-code",
+      "description": "Author, review, and maintain diagrams as code across Mermaid, PlantUML, Structurizr DSL, Graphviz DOT, and draw.io XML. Covers swimlane/cross-functional workflows, C4 architecture, sequence, state, ER, dependency, and network diagrams. Use when any agent needs to create or update a diagram in a PRD, ADR, spec, UX flow, or architecture doc.",
+      "source": "AgentX fc39b29, verbatim (Apache-2.0, skills/imported/agentx/LICENSE and NOTICE)",
+      "status": "provisional",
+      "task_categories": [
+        "ux",
+        "architecture"
+      ],
+      "skill_tokens": 1653,
+      "quality_lift_pp": null,
+      "evaluation": "pending",
+      "admitted_date": "2026-10-07"
+    },
+    {
+      "name": "financial-services",
+      "description": "Financial services advisory skill for consulting engagements. Use when preparing research briefs on banking, insurance, capital markets, or wealth management, building performance benchmarking frameworks, regulatory impact assessments, or stakeholder materials for CFOs, CROs, and technology leaders.",
+      "source": "AgentX fc39b29, verbatim (Apache-2.0, skills/imported/agentx/LICENSE and NOTICE)",
+      "status": "provisional",
+      "task_categories": [
+        "research"
+      ],
+      "skill_tokens": 4066,
+      "quality_lift_pp": null,
+      "evaluation": "pending",
+      "admitted_date": "2026-10-07"
+    },
+    {
+      "name": "legal",
+      "description": "Legal advisory skill for consulting engagements. Use when preparing legal department research briefs, contract review frameworks, compliance gap assessments, legal technology comparisons, or stakeholder materials for GCs, CLOs, and legal ops leaders.",
+      "source": "AgentX fc39b29, verbatim (Apache-2.0, skills/imported/agentx/LICENSE and NOTICE)",
+      "status": "provisional",
+      "task_categories": [
+        "research"
+      ],
+      "skill_tokens": 4552,
+      "quality_lift_pp": null,
+      "evaluation": "pending",
+      "admitted_date": "2026-10-07"
+    },
+    {
+      "name": "dataverse-plugins",
+      "description": "Build Microsoft Dataverse server-side extensions in C# (.NET) -- plugins implementing IPlugin and custom workflow activities -- and register them via SdkMessageProcessingStep so an agent can add transactional business logic that runs inside the Dataverse event pipeline. Covers the execution context, pipeline stages, registration metadata, and pro-code-vs-low-code boundaries.",
+      "source": "AgentX fc39b29, verbatim (Apache-2.0, skills/imported/agentx/LICENSE and NOTICE)",
+      "status": "provisional",
+      "task_categories": [
+        "architecture"
+      ],
+      "skill_tokens": 1274,
+      "quality_lift_pp": null,
+      "evaluation": "pending",
+      "admitted_date": "2026-10-07"
+    },
+    {
+      "name": "environment-variables",
+      "description": "Author Microsoft Power Platform environment variables and connection references inside an unpacked solution so an agent can parameterize apps, flows, and plugins across dev/test/prod without hardcoding -- definitions, current values, data types (string/number/JSON/secret/Data Source), and Key Vault-backed secrets. Covers the ALM mechanism that makes a solution portable.",
+      "source": "AgentX fc39b29, verbatim (Apache-2.0, skills/imported/agentx/LICENSE and NOTICE)",
+      "status": "provisional",
+      "task_categories": [
+        "scrub"
+      ],
+      "skill_tokens": 947,
+      "quality_lift_pp": null,
+      "evaluation": "pending",
+      "admitted_date": "2026-10-07"
+    },
+    {
+      "name": "model-driven-app",
+      "description": "Author Microsoft Power Apps model-driven app source (AppModule, SiteMap, FormXml, SavedQuery views) inside an unpacked Power Platform solution so an agent can generate the navigation, forms, and views that pac solution pack will accept and Dataverse will render. Covers the component-driven UI metadata model that sits on top of Dataverse tables.",
+      "source": "AgentX fc39b29, verbatim (Apache-2.0, skills/imported/agentx/LICENSE and NOTICE)",
+      "status": "provisional",
+      "task_categories": [
+        "ux"
+      ],
+      "skill_tokens": 1344,
+      "quality_lift_pp": null,
+      "evaluation": "pending",
+      "admitted_date": "2026-10-07"
+    },
+    {
+      "name": "power-automate-desktop",
+      "description": "Author Microsoft Power Automate desktop (RPA) flows -- attended and unattended robotic process automation that drives UI, browsers, files, and Excel -- so an agent can design the action sequence, variables, error handling, and cloud-flow trigger wiring. Covers when RPA is appropriate versus API/connector automation and the desktop-flow execution model.",
+      "source": "AgentX fc39b29, verbatim (Apache-2.0, skills/imported/agentx/LICENSE and NOTICE)",
+      "status": "provisional",
+      "task_categories": [
+        "ux"
+      ],
+      "skill_tokens": 974,
+      "quality_lift_pp": null,
+      "evaluation": "pending",
+      "admitted_date": "2026-10-07"
+    },
+    {
+      "name": "yaml-pipelines",
+      "description": "Build YAML-based CI/CD pipelines across Azure Pipelines and GitLab CI with progressive disclosure. Use when creating Azure DevOps YAML pipelines, configuring GitLab CI/CD, designing multi-stage pipelines, implementing pipeline templates, or managing pipeline secrets and variables.",
+      "source": "AgentX fc39b29, verbatim (Apache-2.0, skills/imported/agentx/LICENSE and NOTICE)",
+      "status": "provisional",
+      "task_categories": [
+        "scrub"
+      ],
+      "skill_tokens": 3208,
+      "quality_lift_pp": null,
+      "evaluation": "pending",
+      "admitted_date": "2026-10-07"
+    },
+    {
+      "name": "prd",
+      "description": "Produce production-grade Product Requirements Documents (PRDs) that bridge business vision and technical execution. Use when writing, reading, reviewing, or extending a PRD -- by Product Manager agents authoring one, or by Architect/UX/Engineer/Agent-X agents that need to consume or fact-check PRD conventions without loading the full PM agent contract.",
+      "source": "AgentX fc39b29, verbatim (Apache-2.0, skills/imported/agentx/LICENSE and NOTICE)",
+      "status": "provisional",
+      "task_categories": [
+        "ux",
+        "architecture"
+      ],
+      "skill_tokens": 1850,
+      "quality_lift_pp": null,
+      "evaluation": "pending",
+      "admitted_date": "2026-10-07"
+    }
+  ],
+  "rejected": [
+    {
+      "name": "accessibility",
+      "description": "Check UI against WCAG 2.2 AA with a POUR checklist - semantics, keyboard, focus, contrast, motion and labels - and verify with an automated axe run where possible.",
+      "source": "authored (see skills/authored/NOTICE)",
+      "status": "rejected",
+      "task_categories": [
+        "ux"
+      ],
+      "skill_tokens": 427,
+      "quality_lift_pp": 0.0,
+      "token_overhead_pct": 0.78,
+      "lift_per_aiu": null,
+      "eval_method": "micro",
+      "eval_run_ids": [
+        "accessibility-1",
+        "accessibility-2",
+        "accessibility-3",
+        "accessibility-4",
+        "accessibility-5",
+        "accessibility-1",
+        "accessibility-2",
+        "accessibility-3",
+        "accessibility-4",
+        "accessibility-5"
+      ],
+      "reason": "quality lift 0.0 pp below 10 pp",
+      "rejected_date": "2026-10-07"
+    },
+    {
+      "name": "code-hygiene",
+      "description": "De-slop code after AI generation - remove over-engineering, dead code, speculative options and comments that restate the code; simplify without changing behavior.",
+      "source": "authored (see skills/authored/NOTICE)",
+      "status": "rejected",
+      "task_categories": [
+        "de-slop"
+      ],
+      "skill_tokens": 374,
+      "quality_lift_pp": 8.0,
+      "token_overhead_pct": 0.63,
+      "lift_per_aiu": null,
+      "eval_method": "micro",
+      "eval_run_ids": [
+        "code-hygiene-1",
+        "code-hygiene-2",
+        "code-hygiene-3",
+        "code-hygiene-4",
+        "code-hygiene-5",
+        "code-hygiene-1",
+        "code-hygiene-2",
+        "code-hygiene-3",
+        "code-hygiene-4",
+        "code-hygiene-5"
+      ],
+      "reason": "quality lift 8.0 pp below 10 pp; lost a task by 2.0 points, more than 1",
+      "rejected_date": "2026-10-07"
+    },
+    {
+      "name": "ui-content",
+      "description": "Write UI copy for usability - labels, buttons, empty states, errors, confirmations and onboarding - in clear, short, inclusive wording that tells users what to do next.",
+      "source": "authored (see skills/authored/NOTICE)",
+      "status": "rejected",
+      "task_categories": [
+        "ux"
+      ],
+      "skill_tokens": 381,
+      "quality_lift_pp": 4.0,
+      "token_overhead_pct": 0.64,
+      "lift_per_aiu": null,
+      "eval_method": "micro",
+      "eval_run_ids": [
+        "ui-content-1",
+        "ui-content-2",
+        "ui-content-3",
+        "ui-content-4",
+        "ui-content-5",
+        "ui-content-1",
+        "ui-content-2",
+        "ui-content-3",
+        "ui-content-4",
+        "ui-content-5"
+      ],
+      "reason": "quality lift 4.0 pp below 10 pp; lost a task by 2.0 points, more than 1",
+      "rejected_date": "2026-10-07"
+    }
+  ]
 }

@@ -42,7 +42,7 @@ def triage(source: Path) -> Json:
             by_category[name].append(entry)
         if not matched:
             uncategorized.append(report["name"])
-    limit = categories["max_skills_per_session"]
+    limit = categories["loadout"]["max_skills"]
     result: Json = {"source": source.as_posix(), "skills_scanned": len(reports), "passing": sum(r["ok"] for r in reports),
                     "categories": {}, "uncategorized": uncategorized}
     for name, entries in by_category.items():

@@ -55,9 +55,13 @@ Setup renders the HVE agents and skills as an agent plugin in the extension's st
 | `creator-flow` | Graph workflow: Designer → Prototyper → Builder ⇄ Architect → Sweeper → Grower ⇄ Maintainer | [.github/agents/creator-flow.agent.md](.github/agents/creator-flow.agent.md) and six `flow-*` stage agents |
 | `creator-github` | Product work: GitHub PRs the user ticks, human-picked parallel options; tick recording and guardrail hooks are wired in the agent | [.github/agents/creator-github.agent.md](.github/agents/creator-github.agent.md) |
 
-The installed extension ships the same five agents with an **HVE** prefix ([extension/agents](extension/agents)); they work on the open workspace itself instead of `.hve/outputs/<mode>/current/`, and leave out the research-only metrics, Graphify and skill-loader hooks. They have no model pin and no time budget: they run on the model chosen in the picker, including Auto (D-033).
+The installed extension ships the same five agents with an **HVE** prefix ([extension/agents](extension/agents)), plus `HVE skill-evaluator` for onboarding a user's own skills and `HVE azure-devops` for Azure DevOps work items, pull requests and builds through Microsoft's Azure DevOps MCP server (D-042); they work on the open workspace itself instead of `.hve/outputs/<mode>/current/`, and leave out the research-only metrics and Graphify hooks. They have no model pin and no time budget: they run on the model chosen in the picker, including Auto (D-033).
+
+**Other clients (D-042).** `/export-harness` (or `python <extension>/runtime/tools/adapters/export.py <claude|cursor|codex|vscode> . [--ado <organization>]`) exports `HVE creator`, `HVE single`, `HVE azure-devops`, the plugin skills and the guard hooks to Claude Code (`claude --agent hve-creator`), Cursor (`/hve-creator`) or Codex CLI (`$hve-creator`), and adds the `ado` MCP server (`@azure-devops/mcp`, harness domains only). [agent_compat.py](hooks/agent_compat.py) maps each client's hook payloads to the VS Code shape so the same hooks run everywhere. Protocol-tested, not yet run live. How to use it, per-client guards and troubleshooting: [docs/wiki/Adapters.md](docs/wiki/Adapters.md); test results and gaps: [research/findings/phase-10-adapters.md](research/findings/phase-10-adapters.md).
 
 All agents pin their model in the agent file; `metrics.py flush` rejects a run served by another model. `minimal` and `single` stop hard after 10 minutes. The three creator agents get 15 minutes; then VS Code asks the user to allow the next tool call, and each allowed call adds 15 more minutes (D-030).
+
+**Sub-agents can run on a different model than the session (D-036).** VS Code picks a Local sub-agent's model in this order: a `model` the main agent passes to the sub-agent tool; the custom agent's own `model` property; Auto, if `chat.subagents.defaultToAuto` is on; otherwise the main model ([docs](https://code.visualstudio.com/docs/copilot/agents/subagents#_select-the-model-for-a-subagent)). Built-in helpers carry their own fast model: the Explore sub-agent ran on Claude Haiku 4.5 under a Claude Opus 5.5 session, and run a187413b recorded `gpt-5.6-luna` sub-agent calls under `gpt-5.6-sol`. Requested models above the main model's cost tier are refused. So the reasoning level set for the session does not carry over to every sub-agent: the research flow stage agents pin their model, the HVE product agents inherit the picker's model, and `metrics.py` records each sub-agent call's model separately.
 
 ---
 
@@ -160,9 +164,10 @@ Research rationale and sources: [blueprint](reference/Enterprise%20AI%20Harness%
 
 Implemented in [tools/loop/loop.py](tools/loop/loop.py) and guarded by [hooks/loop_guard.py](hooks/loop_guard.py) (decisions D-023, D-026, D-027):
 
-- **Initializer** (`loop.py init --review local|github`): validates `feature_list.json` (3 or more features, exact fields, non-trivial shell check), locks names, descriptions and checks, writes `progress.txt`, runs `git init` with the no-fallback pre-commit hook.
+- **Initializer** (`loop.py init --review local|github`): validates `feature_list.json` (3 or more features, exact fields, non-trivial shell check), locks names, descriptions and checks, writes `progress.txt` and `tracker.json`, and starts git with the no-fallback pre-commit hook (a new repo, or the existing one with its identity and branch kept).
 - **Worker** (`loop.py next` / `verify`): one feature at a time on a stacked `feature/<name>` branch, built by a fresh sub-agent. `next` first runs the check and requires it to fail (attempt 0). `verify` runs the locked check, commits, and only then flips `passes` and writes a PR record.
-- **Anti-gaming**: edits to `feature_list.json`, `progress.txt` and `.harness/` are denied except through the loop scripts (blindspot B5); the loop also re-checks the lock.
+- **Tracker** (`loop.py status`, also refreshed by `next`, `verify` and `resume`): `tracker.json` lists each feature's status, attempts, check, evidence files the check produced in `.harness/evidence/<feature>/` (for example screenshots) and the user's manual check.
+- **Anti-gaming**: edits to `feature_list.json`, `progress.txt`, `tracker.json` and `.harness/` are denied except through the loop scripts (blindspot B5); the loop also re-checks the lock.
 - **No circular retries**: every failed check is recorded in an attempt ledger and gets one rule-chosen action, then the human:
 
 | Rule | Signal | Action |
@@ -220,7 +225,7 @@ Budget hooks act at tool boundaries; they cannot interrupt an already-running co
 | P5 | Human in the loop | Built: time-budget stop or user-approved extension, retry rules, escalation questions, ticked option choice and PR pushes |
 | P6 | Prompt fragility | Partial: typed profile with inferred explanation depth; DSPy/GEPA not used |
 | P7 | Sub-agents | Built: at most 3, one role each, under 2K-token returns |
-| P8 | Skill selection | Built: Phase 9 gate (scan, paired eval, lift thresholds, top 3 per task) |
+| P8 | Skill selection | Built: Phase 9 gate (scan, provisional static gate, paired eval, lift thresholds, ranked loadout within 10 skills and 2,000 tokens per task) |
 
 ### Research tradeoffs: the rabbit holes we avoid
 
@@ -252,11 +257,43 @@ See the [blueprint's ranked problems and research review](reference/Enterprise%2
 
 ## 8. Tooling, skills and governance
 
-**SkillOpt-style admission: skills earn their place in context.** Discovery is not installation, and installation is not evidence of value. The gate is built; external skills have not yet been imported or admitted (D-022). NVIDIA SkillEvaluator is an optional scanner integration, not a currently running dependency.
+**SkillOpt-style admission: skills earn their place in context.** Discovery is not installation, and installation is not evidence of value. Thirteen skills were authored; a micro paired evaluation admitted ten and rejected three (D-022, D-037, D-038; method and results in [research/findings/phase-9-skill-micro-eval.md](research/findings/phase-9-skill-micro-eval.md)). NVIDIA SkillEvaluator is an optional scanner integration, not a currently running dependency.
 
-- **Skill gate (Phase 9, D-022)**: [scan.py](tools/skills/scan.py) blocks malformed or unsafe skills (prompt injection, external fetches, encoded payloads, destructive commands, secrets); [triage.py](tools/skills/triage.py) maps candidates to the selected categories ([skills/categories.json](skills/categories.json)); [eval_skill.py](tools/skills/eval_skill.py) runs paired with/without benchmarks and computes lift; [onboard.py](tools/skills/onboard.py) admits at a lift of 10 or more points and token overhead under 20%; [hooks/skill_loader.py](hooks/skill_loader.py) loads the top 3 admitted skills per task and denies all others.
-- **harness-assist plugin (D-029)**: [plugins/harness-assist](plugins/harness-assist) adds the skills `feature-checklist`, `run-tests`, `code-review`, `parallel-options`, `pr-push`, `explain-walkthrough` and `prototype-guardrail`, plus two hook scripts wired into the creator agents. The choice recorder turns the user's ticks in ask-questions answers into files the harness enforces. The prototype guardrail flags code over 5,000 lines, files over 20 MB, non-enterprise components (for example FalkorDB, Tesseract, SQLite, local vector stores) with their licensed Azure alternative, and self-built infrastructure, and names the experts to involve. The extension ships these skills; in this repository enable them with the `chat.pluginLocations` setting.
+- **Skill gate (Phase 9, D-022, D-037)**: [scan.py](tools/skills/scan.py) blocks malformed or unsafe skills (prompt injection, external fetches, encoded payloads, destructive commands, secrets); [triage.py](tools/skills/triage.py) maps candidates to the selected categories ([skills/categories.json](skills/categories.json)); [onboard.py](tools/skills/onboard.py) `--provisional` admits a skill that passes the scan, matches a category, stays under 800 tokens and a 200-character description and ships no non-Python scripts; [eval_skill.py](tools/skills/eval_skill.py) runs paired with/without benchmarks of full sessions, [micro_eval.py](tools/skills/micro_eval.py) runs a fast micro version (below), and [onboard.py](tools/skills/onboard.py) without the flag promotes a skill to `admitted` at a lift of 10 or more points with token overhead under 20% (micro evals also need wins or ties on 3 of 5 tasks and no task lost by more than 1 point).
+- **Micro paired evaluation (D-038)**: each skill has 5 small tasks with 3-4 checks each ([tests/skill_tasks](tests/skill_tasks)). One tool-less call of `gpt-5.4-mini` answers each task with the skill in its instructions and once without; `gpt-5.2-chat` judges every pair blind (A/B order fixed by a hash of the task id) against the checks, scoring 0-5. Both answers come from the same model, so judge self-preference does not favour either condition. Token overhead is the extra prompt and answer tokens divided by a typical creator call (50K tokens). Keyless Entra auth through the Azure CLI; every response is cached in `.hve/evals/micro/`, so re-runs and resumes are free. The full run for 13 skills took 144 s and about 140K tokens.
+
+| Skill | Lift (pp) | Wins/ties/losses | Result |
+|---|---|---|---|
+| `dreams` | 56 | 5/0/0 | admitted |
+| `analyst` | 44 | 4/1/0 | admitted |
+| `scrub` | 40 | 4/1/0 | admitted |
+| `build-approach` | 28 | 4/1/0 | admitted |
+| `ux-flows` | 28 | 5/0/0 | admitted |
+| `web-research` | 28 | 3/2/0 | admitted |
+| `prose-anti-slop` | 28 | 2/2/1 | admitted (ties count as wins) |
+| `api-design` | 16 | 3/2/0 | admitted |
+| `architecture-options` | 12 | 3/2/0 | admitted |
+| `ui-anti-slop` | 12 | 2/3/0 | admitted (ties count as wins) |
+| `code-hygiene` | 8 | 2/1/2 | rejected |
+| `ui-content` | 4 | 2/1/2 | rejected |
+| `accessibility` | 0 | 1/3/1 | rejected |
+- **Skill library and budgeted loading (D-037)**: library skills ([skills/admitted](skills/admitted), registry [skills/registry.json](skills/registry.json)) are not discoverable, so they add nothing to ordinary chats. In creator sessions [hooks/skill_loader.py](hooks/skill_loader.py) ranks them per prompt with [recommend.py](tools/skills/recommend.py) (admitted first, then relevance to the prompt, measured lift, size), loads as many as fit the loadout budget (up to 10 skills and 2,000 tokens) by copying them to `.hve/skills/`, offers the rest ranked so the user can tick more (ask-questions `load-skills`), and denies reading any other library skill. Plugin skills stay readable. `/recommend-skills` shows the same ranking on demand with the evidence: [SkillsBench](https://www.skillsbench.ai) (arXiv 2602.12670) found curated skills raise pass rates by 16.6 points on average and that focused skills beat exhaustive bundles. HVE agents load `provisional` and `admitted` skills; research agents load `admitted` only.
+
+| Category | Library skills (admitted) |
+|---|---|
+| UX | `ux-flows`, `ui-anti-slop` |
+| Architecture | `architecture-options`, `api-design`, `build-approach` (no code, low code or pro code) |
+| De-slop | `ui-anti-slop`, `prose-anti-slop` (`code-hygiene` rejected) |
+| Scrub | `scrub` |
+| Dreams / self-learning | `dreams` (lessons learned into `.hve/learnings.json`) |
+| Research | `web-research`, `analyst` |
+
+  The skills are original text; their topics and several ideas were informed by the skill library of [AgentX](https://github.com/jnPiyush/AgentX) (Apache-2.0) and the projects its NOTICE credits. See [skills/authored/NOTICE](skills/authored/NOTICE).
+- **Skill evaluator for extension users (D-039)**: pick the `HVE skill-evaluator` agent and give it a skill folder. It runs the static gate ([evaluate.py](tools/skills/evaluate.py) `static`), drafts 5 tasks for the user to approve, gets with/without answers from a tool-less `HVE skill-worker` sub-agent (or from Foundry when `.env.local` is set), has a separate `HVE skill-judge` sub-agent score blind pairs, and applies the same admission rule. Admitted skills go to the workspace library (`.hve/skill-library/`, `.hve/skills-registry.json`) and load per task like the harness library, never into every chat.
+- **Context-load guardrail (D-039)**: [context_load.py](tools/skills/context_load.py) measures what loads into every request before the user types: every discoverable skill (workspace, user and plugin folders), always-on instructions (`copilot-instructions.md`, `AGENTS.md`, `*.instructions.md` with `applyTo: **`), the agent prompt and an estimate per MCP server. It reports the total, its share of the context window, the top contributors, duplicate and never-measured skills, and warns when the load grows noticeably or takes a large share of the window, with fixes. No fixed token limit. It runs on demand as `/check-context-load`, at **Frontier HVE: Set up** (notification), at the delivery-coach close-out, and at the end of a skill evaluation. Details and invocation: [research/findings/phase-9-skill-evaluator-and-context-load.md](research/findings/phase-9-skill-evaluator-and-context-load.md).
+- **harness-assist plugin (D-029)**: [plugins/harness-assist](plugins/harness-assist) adds the skills `delivery-coach`, `recommend-skills`, `check-context-load`, `export-harness`, `feature-checklist`, `run-tests`, `code-review`, `parallel-options`, `pr-push`, `explain-walkthrough` and `prototype-guardrail`, plus two hook scripts wired into the creator agents. The choice recorder turns the user's ticks in ask-questions answers into files the harness enforces. The prototype guardrail flags code over 5,000 lines, files over 20 MB, non-enterprise components (for example FalkorDB, Tesseract, SQLite, local vector stores) with their licensed Azure alternative, and self-built infrastructure, and names the experts to involve. The extension ships these skills; in this repository enable them with the `chat.pluginLocations` setting.
 - **Explanation depth (D-034)**: the user is never asked how technical they are. Setup asks only how they prefer to build (no code, low code, pro code) as a starting point; the profile then infers `guided`, `balanced` or `expert` from role statements and how prompts are written, so a stated preference can be outweighed by behavior. Agents adapt silently and never label the user.
+- **delivery-coach: protection against vibe-coded production apps (D-035)**: once setup records a build preference, the HVE creator agents run every request as a participatory, verified loop. *Initializer*: `feature_list.json`, `tracker.json` and `progress.txt`. *Generator*: one fresh sub-agent per feature. *Evaluator*: the locked unit-test check, a screenshot captured by the check itself for UI features, and a second sub-agent reviewing the diff and screenshot. After each passing feature the user is offered a manual check (`looks right`, `needs changes`, `skip`), recorded by a hook into the tracker. Complex features get a discovery sprint: 2-3 approaches on their own branches and worktrees under `.hve/discovery/`, each built, run and reviewed before the user ticks the winner. For guided and balanced users the skill coaches first (`explain-walkthrough`) and challenges choices that need an enterprise stack or experts (`prototype-guardrail`), so non-experts are not left scaling a prototype without the right stack or design knowledge.
 - **Governance**: enforced by local hooks instead of the Microsoft Agent Governance Toolkit: budget stop or user-approved continuation, anti-gaming, git-hook bypass, human-only commands, force-push ban, and pushes or PRs only for branches the user ticked (D-026).
 - **Guardrails (D-025)**: [module_guard.py](hooks/module_guard.py) blocks files over 500 lines; [no_fallback.py](hooks/no_fallback.py) rejects commits that hide errors or ship TODOs.
 
@@ -334,8 +371,9 @@ The full source trail is in the [blueprint](reference/Enterprise%20AI%20Harness%
 | [tests/test_metrics.py](tests/test_metrics.py) | Hook and OTel join, token, cache, cost and effort fields, model pin |
 | [tests/test_collect.py](tests/test_collect.py) | Run collection and prompt verification |
 | [tests/test_hooks.py](tests/test_hooks.py) | Profile memory and inferred explanation depth, compaction, graph refresh, budget |
-| [tests/test_skills.py](tests/test_skills.py) | Skill scan, triage, onboarding thresholds, lift report, skill loader |
+| [tests/test_skills.py](tests/test_skills.py) | Skill scan, triage, onboarding thresholds, provisional gate, lift report, ranked loadout within budget, offer and tick, scoped denies |
 | [tests/test_trajectory.py](tests/test_trajectory.py) | Context-rot detector and context growth |
 | [tests/test_loop.py](tests/test_loop.py) | Feature loop, rules R0–R7, guards, push gate, no-fallback scan, module guard, parallel options |
 | [tests/test_flow_plugin.py](tests/test_flow_plugin.py) | `creator-flow` edges, evidence and caps, stage guard, choice recorder, prototype guardrail, plugin skill scan |
 | [tests/test_extension.py](tests/test_extension.py) | Extension build, plugin rendering, and the rendered HVE agents' hooks and loop tools run from a temp workspace |
+| [tests/test_adapters.py](tests/test_adapters.py) | Exports for Claude Code, Cursor, Codex and the Azure DevOps MCP server; exported hooks answer each client's documented payloads |
