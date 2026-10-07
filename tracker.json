@@ -61,6 +61,16 @@
       "id": "N26",
       "issue": "27 AgentX skills imported verbatim and admitted untested (D-041): status provisional, evaluation pending. The strict gate (3 tasks, all won, check-level sign test p < 0.05) could not run because the Foundry endpoint failed DNS and reset connections from this machine.",
       "action": "Agent, when the endpoint is reachable: `python tools/skills/import_eval.py eval \"%TEMP%\\agentx-src\" karpathy-guidelines` (about 0.4-0.5M tokens); update the manifest evaluation field and research/findings/phase-9-skill-selection-coverage.md 6.4 with the results. User: decide whether to keep any skill that fails."
+    },
+    {
+      "id": "N27",
+      "issue": "Built (D-042): exports for Claude Code, Cursor and Codex and the Azure DevOps MCP server; protocol-tested only (no client installed, npm proxy reset). Assumptions to confirm: Claude AskUserQuestion response keys, Cursor accepting an empty preToolUse response, VS Code tool id `ado/*`.",
+      "action": "User, per client: in a scratch repo run `/export-harness` (or `python <extension>/runtime/tools/adapters/export.py <client> . --ado <org>`), start the agent (`claude --agent hve-creator`, `/hve-creator` in Cursor, `$hve-creator` in Codex), ask for a two-feature task and check: a denied edit of feature_list.json, the victory check at stop, and an ado read (`List ADO projects`). Report what failed; the agent fixes the mapping."
+    },
+    {
+      "id": "N28",
+      "issue": "Plan step 10.5 (cross-platform validation: same prompt through Copilot, Cursor and Claude Code, metrics within 5%) is not started; OpenCode adapter not built.",
+      "action": "User: after N27, decide whether to run 10.5 and whether OpenCode is needed."
     }
   ],
   "wiki_topics": {
@@ -83,7 +93,8 @@
       {"id": "W15", "topic": "Tokenomics", "covers": "Where tokens go, caching, compaction, skill and instruction costs, loadout budget, cost of evaluation", "sources": ["research/findings/phase-3-tokenomics.md", "D-037", "D-039"], "status": "not_started"},
       {"id": "W16", "topic": "Hooks reference", "covers": "Every hook: event, purpose, environment variables, state files under .hve/ and .harness/", "sources": ["hooks/", "extension/agents/"], "status": "not_started"},
       {"id": "W17", "topic": "Troubleshooting", "covers": "Plugin not re-rendered, Python missing, hooks not firing (Local target), duplicate plugin registration, push waiting for sign-in, Foundry deployment names", "sources": ["D-033", "D-038", "D-039"], "status": "not_started"},
-      {"id": "W18", "topic": "Decisions, tracker and validation", "covers": "Decision log, tracker statuses, why only the user validates, how evidence is recorded", "sources": ["research/decisions/decision_log.md", "tracker.json"], "status": "not_started"}
+      {"id": "W18", "topic": "Decisions, tracker and validation", "covers": "Decision log, tracker statuses, why only the user validates, how evidence is recorded", "sources": ["research/decisions/decision_log.md", "tracker.json"], "status": "not_started"},
+      {"id": "W19", "topic": "Using the harness in Claude Code, Cursor and Codex; Azure DevOps", "covers": "/export-harness, what each client gets, how to invoke the agents, hook gaps per client, connecting Azure DevOps with @azure-devops/mcp, the HVE azure-devops agent", "sources": ["research/findings/phase-10-adapters.md", "tools/adapters/export.py", "hooks/agent_compat.py", "D-042"], "status": "not_started"}
     ]
   },
   "phases": [
@@ -800,7 +811,68 @@
     {
       "phase": 10,
       "name": "Selective adoption + adapters",
-      "status": "not_started"
+      "items": [
+        {
+          "id": "10.1",
+          "item": "Adopt external skills through the gate",
+          "files": ["skills/imported/agentx/", "tools/skills/import_eval.py", "research/findings/phase-9-source-skill-manifest.json"],
+          "status": "built",
+          "validate": "N26: run the strict import evaluation when Foundry is reachable.",
+          "done_when": "Each imported skill has a strict-gate result.",
+          "validated_by": null,
+          "evidence": "2026-10-07 (D-040, D-041): 134 screened, 27 imported verbatim and admitted untested (provisional, evaluation pending)."
+        },
+        {
+          "id": "10.3",
+          "item": "Cursor adapter (skills, agents as invoked skills, native hooks, MCP)",
+          "files": ["tools/adapters/export.py", "hooks/agent_compat.py"],
+          "status": "built",
+          "validate": "python tests/test_adapters.py; live: N27.",
+          "done_when": "Cursor runs hve-creator with the guards.",
+          "validated_by": null,
+          "evidence": "2026-10-07 (D-042): test_adapters OK with Cursor-format payloads; no live run."
+        },
+        {
+          "id": "10.4",
+          "item": "Claude Code adapter (subagents with frontmatter hooks, skills, MCP)",
+          "files": ["tools/adapters/export.py", "hooks/agent_compat.py"],
+          "status": "built",
+          "validate": "python tests/test_adapters.py; live: N27.",
+          "done_when": "claude --agent hve-creator runs with the same hooks.",
+          "validated_by": null,
+          "evidence": "2026-10-07 (D-042): test_adapters OK with Claude-format payloads; no live run."
+        },
+        {
+          "id": "10.5",
+          "item": "Cross-platform validation (same prompt, metrics within 5%)",
+          "files": [],
+          "status": "not_started",
+          "validate": "N28.",
+          "done_when": "Results within 5% across platforms.",
+          "validated_by": null,
+          "evidence": null
+        },
+        {
+          "id": "10.6",
+          "item": "Codex CLI adapter (skills, agents as invoked skills, hooks, MCP)",
+          "files": ["tools/adapters/export.py", "hooks/agent_compat.py"],
+          "status": "built",
+          "validate": "python tests/test_adapters.py; live: N27.",
+          "done_when": "$hve-creator runs with the guards after /hooks trust.",
+          "validated_by": null,
+          "evidence": "2026-10-07 (D-042): test_adapters OK with Codex-format payloads; no live run."
+        },
+        {
+          "id": "10.7",
+          "item": "Azure DevOps through @azure-devops/mcp and the HVE azure-devops agent",
+          "files": ["extension/agents/hve-azure-devops.agent.md", "tools/adapters/export.py"],
+          "status": "built",
+          "validate": "python tests/test_adapters.py; live: N27 (List ADO projects, one ticked work item).",
+          "done_when": "Work items created from feature_list.json only after ticks.",
+          "validated_by": null,
+          "evidence": "2026-10-07 (D-042): server configuration tested for all four clients; server not started (npm proxy reset)."
+        }
+      ]
     }
   ]
 }

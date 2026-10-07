@@ -13,7 +13,8 @@ SKILLS = EXTENSION / "skills"
 PLUGIN_SRC = REPO / "plugins" / "harness-assist"
 FILES = {
     "hooks": ["hve_paths.py", "interventions.py", "profile_detector.py", "compaction.py", "loop_guard.py", "flow_guard.py",
-              "module_guard.py", "no_fallback.py", "skill_loader.py"],
+              "module_guard.py", "no_fallback.py", "skill_loader.py", "agent_compat.py"],
+    "tools/adapters": ["export.py"],
     "tools/loop": ["loop.py", "diagnose.py", "flow.py"],
     "tools/git": ["branch_workflow.py", "parallel_options.py"],
     "tools/skills": ["recommend.py", "scan.py", "triage.py", "onboard.py", "micro_eval.py", "evaluate.py", "context_load.py"],

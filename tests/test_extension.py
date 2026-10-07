@@ -56,9 +56,9 @@ def test_rendered_plugin_shape() -> None:
     with tempfile.TemporaryDirectory() as tmp:
         out = Path(tmp) / "plugin"
         agents = render(out)
-        assert len(agents) == 14, agents
+        assert len(agents) == 15, agents
         assert json.loads((out / "plugin.json").read_text(encoding="utf-8"))["name"] == "frontier-hve"
-        assert len(list((out / "skills").glob("*/SKILL.md"))) == 10
+        assert len(list((out / "skills").glob("*/SKILL.md"))) == 11
         assert not (out / "skills" / "ux-flows").exists() and (EXTENSION / "runtime" / "skills" / "admitted" / "ux-flows" / "SKILL.md").is_file()
         assert (out / "scripts" / "guardrail.py").exists()
         for name in agents:
@@ -78,7 +78,7 @@ def test_rerender_updates_in_place() -> None:
         stale = out / "com.github.copilot" / "agents" / "old.agent.md"
         stale.write_text("old", encoding="utf-8")
         (out / "skills" / "old-skill").mkdir()
-        assert len(render(out, "0.1.1")) == 14
+        assert len(render(out, "0.1.1")) == 15
         assert json.loads((out / "plugin.json").read_text(encoding="utf-8"))["version"] == "0.1.1"
         assert not stale.exists() and not (out / "skills" / "old-skill").exists()
 
