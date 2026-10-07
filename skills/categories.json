@@ -11,7 +11,8 @@
     "min_quality_lift_pp": 10,
     "max_token_overhead_pct": 20,
     "micro_min_wins_or_ties": 3,
-    "micro_max_task_loss": 1
+    "micro_max_task_loss": 1,
+    "strict_alpha": 0.05
   },
   "context_load": {
     "reference_windows": [128000, 200000, 1000000],
@@ -23,7 +24,7 @@
   "micro_eval": {
     "generator": "gpt-5.4-mini",
     "judge": "gpt-5.2-chat",
-    "concurrency": 6,
+    "concurrency": 8,
     "baseline_tokens_per_call": 50000,
     "models": {
       "gpt-5.4-mini": {"max_completion_tokens": 1200, "reasoning_effort": "low"},
@@ -40,7 +41,7 @@
       "task_pattern": "\\b(apps?|applications?|service|api|system|architect\\w*|backend|database|platform|low-?code|no-?code|pro-?code|power (apps|automate))\\b"
     },
     "de-slop": {
-      "skill_pattern": "\\b(de-?slop\\w*|slop|over-?engineer\\w*|simplif\\w*|dead code|bloat\\w*|verbos\\w*)\\b",
+      "skill_pattern": "\\b(de-?slop\\w*|slop|over-?engineer\\w*|overcomplicat\\w*|simplif\\w*|simplicity|surgical|dead code|bloat\\w*|verbos\\w*)\\b",
       "task_pattern": "\\b(clean ?up|simplif\\w*|refactor\\w*|review\\w*|polish\\w*|slop|bloat\\w*|readab\\w*|tidy|copy|wording)\\b"
     },
     "scrub": {

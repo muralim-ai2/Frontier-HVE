@@ -48,6 +48,12 @@ def decide(report: Json, evaluation: Json | None, categories: list[str], thresho
         reasons.append(f"quality lift {evaluation['quality_lift_pp']} pp below {thresholds['min_quality_lift_pp']} pp")
     if evaluation["token_overhead_pct"] >= thresholds["max_token_overhead_pct"]:
         reasons.append(f"token overhead {evaluation['token_overhead_pct']}% not under {thresholds['max_token_overhead_pct']}%")
+    if evaluation["eval_method"] == "micro-strict":
+        if evaluation["wins"] < len(evaluation["per_task"]):
+            reasons.append(f"won {evaluation['wins']} of {len(evaluation['per_task'])} tasks; imported skills must win every task")
+        if evaluation["check_sign_test_p"] >= thresholds["strict_alpha"]:
+            reasons.append(f"check-level sign test p={evaluation['check_sign_test_p']} not below {thresholds['strict_alpha']} "
+                           f"({evaluation['check_gains']} checks gained, {evaluation['check_losses']} lost)")
     if evaluation["eval_method"] == "micro":
         held = len(evaluation["per_task"]) - evaluation["losses"]
         if held < thresholds["micro_min_wins_or_ties"]:

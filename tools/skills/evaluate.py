@@ -102,7 +102,8 @@ def record(skill_dir: Path) -> Json:
     for task in read(folder / "tasks.json"):
         v = micro_eval.unblind(verdicts[task["id"]], micro_eval.with_first(task["id"]))
         rows.append({"task": task["id"], "with": v["with"], "without": v["without"], "delta": v["with"] - v["without"],
-                     "reason": v["reason"], "prompt_delta": body_tokens, "completion_delta": 0})
+                     "reason": v["reason"], "with_checks": v["with_checks"], "without_checks": v["without_checks"],
+                     "prompt_delta": body_tokens, "completion_delta": 0})
     config = load_categories()["micro_eval"]
     evaluation = micro_eval.summarize(name, rows, config, "in-chat", {"generator": "chat model (sub-agents)", "judge": "chat model (sub-agent)"})
     (folder / "eval.json").write_text(json.dumps(evaluation, indent=2) + "\n", encoding="utf-8")

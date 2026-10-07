@@ -2,6 +2,7 @@
 
 import hashlib
 import json
+import math
 import statistics
 import subprocess
 import sys
@@ -94,10 +95,17 @@ def judge_prompt(task: Json, a: str, b: str) -> str:
 
 
 def unblind(verdict: Json, shown_first: bool) -> Json:
-    """Map a judge verdict on A and B back to with-skill and without-skill scores."""
+    """Map a judge verdict on A and B back to with-skill and without-skill scores and checks met."""
     first, second = (verdict["a"], verdict["b"]) if shown_first else (verdict["b"], verdict["a"])
     return {"with": float(first["score"]), "without": float(second["score"]), "reason": verdict["reason"],
+            "with_checks": sorted(first["checks_met"]), "without_checks": sorted(second["checks_met"]),
             "with_shown_as": "A" if shown_first else "B"}
+
+
+def sign_test_p(gains: int, losses: int) -> float:
+    """Return the one-sided exact sign-test p-value that the skill helps, from checks met only with it (gains) or only without (losses)."""
+    n = gains + losses
+    return sum(math.comb(n, k) for k in range(gains, n + 1)) / 2 ** n if n else 1.0
 
 
 def judge(client: Client, model: str, task: Json, with_skill: str, without_skill: str) -> Json:
@@ -111,10 +119,13 @@ def judge(client: Client, model: str, task: Json, with_skill: str, without_skill
 def summarize(name: str, rows: list[Json], config: Json, method: str, models: Json) -> Json:
     """Return the eval of one skill from per-task rows: quality lift, wins, losses, worst task and per-call token overhead."""
     added = statistics.mean(r["prompt_delta"] + r["completion_delta"] for r in rows)
+    gains = sum(len(set(r["with_checks"]) - set(r["without_checks"])) for r in rows)
+    losses = sum(len(set(r["without_checks"]) - set(r["with_checks"])) for r in rows)
     return {"skill": name, "eval_method": method} | models | {
         "quality_lift_pp": round(statistics.mean(r["delta"] for r in rows) / SCORE_MAX * 100, 1),
         "token_overhead_pct": round(added / config["baseline_tokens_per_call"] * 100, 2), "lift_per_aiu": None,
         "wins": sum(r["delta"] > 0 for r in rows), "losses": sum(r["delta"] < 0 for r in rows), "worst_delta": min(r["delta"] for r in rows),
+        "check_gains": gains, "check_losses": losses, "check_sign_test_p": round(sign_test_p(gains, losses), 4),
         "runs_with": [r["task"] for r in rows], "runs_without": [r["task"] for r in rows], "per_task": rows}
 
 
@@ -125,6 +136,7 @@ def report(name: str, tasks: list[Json], answers: dict[tuple[str, bool], Json], 
     for task in tasks:
         w, wo, v = answers[(task["id"], True)]["usage"], answers[(task["id"], False)]["usage"], verdicts[task["id"]]
         rows.append({"task": task["id"], "with": v["with"], "without": v["without"], "delta": v["with"] - v["without"], "reason": v["reason"],
+                     "with_checks": v["with_checks"], "without_checks": v["without_checks"],
                      "prompt_delta": w["prompt_tokens"] - wo["prompt_tokens"], "completion_delta": w["completion_tokens"] - wo["completion_tokens"]})
     result = summarize(name, rows, config, "micro", {"generator": config["generator"], "judge": config["judge"]})
     evals_dir.mkdir(parents=True, exist_ok=True)

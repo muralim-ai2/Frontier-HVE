@@ -17,7 +17,8 @@ from onboard import decide, decide_provisional  # noqa: E402
 from scan import scan  # noqa: E402
 from triage import load_categories, skill_categories  # noqa: E402
 
-THRESHOLDS = {"min_quality_lift_pp": 10, "max_token_overhead_pct": 20, "micro_min_wins_or_ties": 3, "micro_max_task_loss": 1}
+THRESHOLDS = {"min_quality_lift_pp": 10, "max_token_overhead_pct": 20, "micro_min_wins_or_ties": 3, "micro_max_task_loss": 1,
+              "strict_alpha": 0.05}
 
 
 def write_skill(root: Path, name: str, description: str, body: str = "Follow these steps.\n", dirname: str | None = None) -> Path:
@@ -63,6 +64,12 @@ def test_onboarding_thresholds() -> None:
     micro_reasons = decide(report, micro, ["ux"], THRESHOLDS)
     assert len(micro_reasons) == 2 and "won or tied 2 of 5" in micro_reasons[0] and "by 2.0 points" in micro_reasons[1], micro_reasons
     assert decide(report, micro | {"losses": 1, "worst_delta": -1.0}, ["ux"], THRESHOLDS) == []
+    strict = {"quality_lift_pp": 40.0, "token_overhead_pct": 4.0, "eval_method": "micro-strict", "wins": 2, "per_task": [{}] * 3,
+              "check_sign_test_p": 0.125, "check_gains": 3, "check_losses": 0}
+    strict_reasons = decide(report, strict, ["ux"], THRESHOLDS)
+    assert len(strict_reasons) == 2 and "must win every task" in strict_reasons[0] and "p=0.125" in strict_reasons[1], strict_reasons
+    assert decide(report, strict | {"wins": 3, "check_sign_test_p": 0.0156}, ["ux"], THRESHOLDS) == []
+    assert micro_eval.sign_test_p(6, 0) == 0.015625 and micro_eval.sign_test_p(3, 0) == 0.125 and micro_eval.sign_test_p(0, 0) == 1.0
     blocked = decide({"name": "x", "ok": False, "findings": [{"rule": "secret", "file": "a.py", "line": 3}]}, None, ["ux"], THRESHOLDS)
     assert blocked == ["scan: secret in a.py:3"], blocked
     try:
@@ -177,7 +184,8 @@ def test_workspace_skill_evaluator_flow() -> None:
         verdicts = {}
         for p in prompts:
             good_is_a = p["prompt"].index("GOOD") < p["prompt"].index("PLAIN")
-            verdicts[p["task"]] = {"a": {"score": 5 if good_is_a else 3}, "b": {"score": 3 if good_is_a else 5}, "reason": "r"}
+            verdicts[p["task"]] = {"a": {"score": 5 if good_is_a else 3, "checks_met": [1, 2] if good_is_a else [1]},
+                                   "b": {"score": 3 if good_is_a else 5, "checks_met": [1] if good_is_a else [1, 2]}, "reason": "r"}
         (folder / "verdicts.json").write_text(json.dumps(verdicts), encoding="utf-8")
         recorded = tool("evaluate.py", ws, "record", str(skill))
         assert recorded["admitted"] and recorded["quality_lift_pp"] == 40.0 and recorded["wins"] == 5, recorded
