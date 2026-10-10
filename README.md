@@ -34,6 +34,8 @@ The design follows [reference/Enterprise AI Harness Blueprint v3.html](reference
 
 Setup renders the HVE agents and skills as an agent plugin in the extension's storage and registers it in `chat.pluginLocations`. Workspace state goes to `<workspace>/.hve/` (profile, budgets, interventions); setup offers to add `.hve/` to `.gitignore`. The Copilot telemetry export is optional and only needed for research metrics (D-032).
 
+**Configured deliverables.** The authoring agents use bundled PRD, Technical Design Specification and Test Strategy templates. Teams can commit `frontier-hve.templates.json` to select company templates and output locations. The template manager initializes documents without overwriting existing files and validates structure, placeholders and template provenance before handoff. Configuration, commands and enforcement limits: [Templates](docs/wiki/Templates.md).
+
 ## Quick start (research workspace)
 
 | Step | Command or action |

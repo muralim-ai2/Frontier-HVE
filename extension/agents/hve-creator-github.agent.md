@@ -5,8 +5,12 @@ tools: [read/readFile, search/fileSearch, search/textSearch, search/listDirector
 hooks:
   SessionStart:
     - type: command
+      command: 'python "{{RUNTIME}}/hooks/template_guard.py"'
+    - type: command
       command: 'python "{{RUNTIME}}/hooks/profile_detector.py"'
   UserPromptSubmit:
+    - type: command
+      command: 'python "{{RUNTIME}}/hooks/template_guard.py"'
     - type: command
       command: 'python "{{RUNTIME}}/hooks/profile_detector.py"'
     - type: command
@@ -41,6 +45,8 @@ hooks:
       timeout: 60
   Stop:
     - type: command
+      command: 'python "{{RUNTIME}}/hooks/template_guard.py"'
+    - type: command
       command: 'python "{{RUNTIME}}/hooks/loop_guard.py"'
       env:
         HARNESS_PROJECT: .
@@ -59,6 +65,9 @@ You are a senior software engineer building a product with the user, inside the 
 - The workspace root is the project root (a git repository with a GitHub remote). Run every command from there. Do not modify `.hve/` except `.hve/learnings.json` (the `dreams` skill); the skill loader copies library skills to `.hve/skills/` for you to read. In ask-questions tags, the project is `.`.
 - The harness tools folder (`<tools>` in the skills) is `{{RUNTIME}}/tools`.
 - Run every command in the foreground; leave nothing running.
+
+## Deliverable templates
+- For PRD, technical design or test strategy authoring, follow `deliverable-templates` before writing or delegating. Register all requested types in the parent session, including those the prompt hook did not recognize. Use the configured manager; only it may write `.hve/deliverables/`. Validate and report every output before handoff or queuing a push.
 
 ## Feature loop
 0. If the request is trivial (one small file, one check), ask the user once whether to run the feature loop; if not, build and verify it directly.

@@ -58,7 +58,10 @@ def test_rendered_plugin_shape() -> None:
         agents = render(out)
         assert len(agents) == 15, agents
         assert json.loads((out / "plugin.json").read_text(encoding="utf-8"))["name"] == "frontier-hve"
-        assert len(list((out / "skills").glob("*/SKILL.md"))) == 11
+        assert len(list((out / "skills").glob("*/SKILL.md"))) == 12
+        assert (out / "skills" / "deliverable-templates" / "SKILL.md").is_file()
+        assert (EXTENSION / "runtime" / "tools" / "templates" / "manage.py").is_file()
+        assert (EXTENSION / "runtime" / "templates" / "deliverables" / "prd-v1.md").is_file()
         assert not (out / "skills" / "ux-flows").exists() and (EXTENSION / "runtime" / "skills" / "admitted" / "ux-flows" / "SKILL.md").is_file()
         assert (out / "scripts" / "guardrail.py").exists()
         for name in agents:
@@ -81,6 +84,31 @@ def test_rerender_updates_in_place() -> None:
         assert len(render(out, "0.1.1")) == 15
         assert json.loads((out / "plugin.json").read_text(encoding="utf-8"))["version"] == "0.1.1"
         assert not stale.exists() and not (out / "skills" / "old-skill").exists()
+
+
+def test_packaged_template_guard() -> None:
+    """The packaged manager and guard enforce all authoring agents, but not minimal."""
+    with tempfile.TemporaryDirectory() as tmp:
+        out = Path(tmp) / "plugin"
+        render(out)
+        ws = workspace(tmp)
+        folder = out / "com.github.copilot" / "agents"
+        for name in ("creator", "creator-flow", "creator-github", "single"):
+            text = (folder / f"hve-{name}.agent.md").read_text(encoding="utf-8")
+            assert text.count("/hooks/template_guard.py") == 3, name
+        assert "template_guard.py" not in (folder / "hve-minimal.agent.md").read_text(encoding="utf-8")
+        creator = (folder / "hve-creator.agent.md").read_text(encoding="utf-8")
+        command = hook(creator, "template_guard.py")
+        start = run(command, ws, {"hook_event_name": "SessionStart"})
+        assert start and "deliverable-templates" in json.dumps(start)
+        run(command, ws, {"hook_event_name": "UserPromptSubmit", "prompt": "Create a PRD"})
+        blocked = run(command, ws, {"hook_event_name": "Stop", "stop_hook_active": False})
+        assert blocked and blocked["hookSpecificOutput"]["decision"] == "block"
+        manager = EXTENSION / "runtime" / "tools" / "templates" / "manage.py"
+        initialized = subprocess.run([sys.executable, str(manager), "init", "prd", "--slug", "sample", "--session", "s1"],
+                                     cwd=ws, capture_output=True, text=True)
+        assert initialized.returncode == 0, initialized.stderr
+        assert (ws / "docs" / "product" / "PRD-sample.md").is_file()
 
 
 def test_rendered_hooks_run_in_a_workspace() -> None:
@@ -137,6 +165,7 @@ if __name__ == "__main__":
     test_extension_js_parses()
     test_rendered_plugin_shape()
     test_rerender_updates_in_place()
+    test_packaged_template_guard()
     test_rendered_hooks_run_in_a_workspace()
     test_rendered_flow_and_loop_tools_run()
     print("test_extension: OK")

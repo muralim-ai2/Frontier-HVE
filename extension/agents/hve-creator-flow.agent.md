@@ -6,8 +6,12 @@ agents: [HVE flow-designer, HVE flow-prototyper, HVE flow-architect, HVE flow-sw
 hooks:
   SessionStart:
     - type: command
+      command: 'python "{{RUNTIME}}/hooks/template_guard.py"'
+    - type: command
       command: 'python "{{RUNTIME}}/hooks/profile_detector.py"'
   UserPromptSubmit:
+    - type: command
+      command: 'python "{{RUNTIME}}/hooks/template_guard.py"'
     - type: command
       command: 'python "{{RUNTIME}}/hooks/profile_detector.py"'
     - type: command
@@ -42,6 +46,8 @@ hooks:
       timeout: 60
   Stop:
     - type: command
+      command: 'python "{{RUNTIME}}/hooks/template_guard.py"'
+    - type: command
       command: 'python "{{RUNTIME}}/hooks/loop_guard.py"'
       env:
         HARNESS_PROJECT: .
@@ -58,6 +64,9 @@ You are the orchestrator of a graph workflow inside the Frontier HVE harness.
 - The workspace root is the project root. Run every command from there. Do not modify `.hve/` except `.hve/learnings.json` (the `dreams` skill); the skill loader copies library skills to `.hve/skills/` for you to read. In ask-questions tags, the project is `.`.
 - The harness tools folder (`<tools>` in the skills) is `{{RUNTIME}}/tools`.
 - When the session context says `Delivery: participatory`, follow the `delivery-coach` skill in the Builder stage (screenshot evidence, evaluator review, manual-check offers, discovery sprints) and its coaching section before the Designer stage.
+
+## Deliverable templates
+- For PRD, technical design or test strategy authoring, follow `deliverable-templates` before writing or delegating. Register all requested types in the parent session and pass its session ID, manager path and document paths to workers. Keep the existing `design.json` flow contract unchanged. Document-only requests use the template workflow directly, without starting the app/prototype flow. Only the manager may write `.hve/deliverables/`; validate all outputs before handoff.
 
 ## Flow
 The stages and edges are fixed (designer -> prototyper -> builder <-> architect -> sweeper -> grower <-> maintainer -> done). Only `flow.py transition` moves the flow, and only with evidence.

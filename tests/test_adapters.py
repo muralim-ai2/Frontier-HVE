@@ -83,17 +83,21 @@ def test_export_structure() -> None:
         ws = exported_workspace(tmp)
         runtime = ws / ".hve" / "runtime"
         assert (runtime / "hooks" / "agent_compat.py").is_file() and (runtime / "skills" / "licenses" / "agentx" / "LICENSE").is_file()
+        assert (runtime / "tools" / "templates" / "manage.py").is_file()
+        assert (runtime / "templates" / "deliverables" / "test-strategy-v1.md").is_file()
         for skills in (".claude/skills", ".cursor/skills", ".agents/skills"):
             names = {p.parent.name for p in (ws / skills).glob("*/SKILL.md")}
-            assert {"delivery-coach", "feature-checklist"} <= names and not {"pr-push", "export-harness"} & names, (skills, names)
+            assert {"delivery-coach", "feature-checklist", "deliverable-templates"} <= names and not {"pr-push", "export-harness"} & names, (skills, names)
             for skill in (ws / skills).glob("*/SKILL.md"):
                 assert re.search(rf"^name: \"?{skill.parent.name}\"?$", skill.read_text(encoding="utf-8"), re.M), skill
         agents = {p.stem for p in (ws / ".claude" / "agents").glob("*.md")}
         assert agents == {"hve-creator", "hve-single", "hve-azure-devops"}, agents
         argv = [a for args in claude_hooks(ws).values() for a in args]
         assert {a[2] for a in argv} == {"hooks/profile_detector.py", "hooks/skill_loader.py", "hooks/compaction.py", "hooks/loop_guard.py",
-                                        "hooks/module_guard.py", "scripts/choice_recorder.py", "scripts/guardrail.py"}
+                                        "hooks/module_guard.py", "hooks/template_guard.py", "scripts/choice_recorder.py", "scripts/guardrail.py"}
         assert all((runtime / a[2]).is_file() for a in argv)
+        single = (ws / ".claude" / "agents" / "hve-single.md").read_text(encoding="utf-8")
+        assert "hooks:" in single and single.count("hooks/template_guard.py") == 3
         assert any(a[2] == "scripts/guardrail.py" and a[-2:] == ["--", "--hook"] for a in argv), argv
         creator = (ws / ".claude" / "agents" / "hve-creator.md").read_text(encoding="utf-8")
         assert "{{RUNTIME}}" not in creator and ".hve/runtime/tools/loop/loop.py" in creator
@@ -165,7 +169,7 @@ def test_cursor_hooks() -> None:
         ws = exported_workspace(tmp)
         base = {"conversation_id": "u1", "generation_id": "g1", "model": "m", "cursor_version": "2.4", "workspace_roots": [str(ws)]}
         start = fire(ws, "cursor", base | {"hook_event_name": "sessionStart", "session_id": "u1", "composer_mode": "agent"})
-        assert "Delivery" in start[0]["additional_context"], start
+        assert any("Delivery" in output.get("additional_context", "") for output in start), start
         prompt = fire(ws, "cursor", base | {"hook_event_name": "beforeSubmitPrompt", "prompt": "Build a login form", "attachments": []})
         assert prompt == [{"continue": True}] * len(prompt), prompt
         start_loop(ws)
@@ -184,6 +188,23 @@ def test_cursor_hooks() -> None:
         assert fire(ws, "cursor", base | {"hook_event_name": "stop", "status": "completed", "loop_count": 1}) == []
 
 
+def test_exported_template_stop_gate() -> None:
+    """All adapters convey missing deliverables; Cursor reentry stays bounded."""
+    with tempfile.TemporaryDirectory() as tmp:
+        ws = exported_workspace(tmp)
+        for client in ("claude", "cursor", "codex"):
+            base = {"session_id": "templates", "conversation_id": "templates", "cwd": str(ws)}
+            prompt_event = "beforeSubmitPrompt" if client == "cursor" else "UserPromptSubmit"
+            fire(ws, client, base | {"hook_event_name": prompt_event, "prompt": "Create a PRD"})
+            stop_event = "stop" if client == "cursor" else "Stop"
+            blocked = fire(ws, client, base | {"hook_event_name": stop_event, "stop_hook_active": False, "loop_count": 0})
+            message = "followup_message" if client == "cursor" else "reason"
+            assert any("no initialized prd" in output.get(message, "") for output in blocked), (client, blocked)
+            if client == "cursor":
+                assert any("report" in output.get(message, "") for output in blocked)
+                assert fire(ws, client, base | {"hook_event_name": "stop", "loop_count": 1}) == []
+
+
 def test_codex_hooks() -> None:
     """Codex payloads: apply_patch guarded, no unsupported continue on PreToolUse, Stop always answers JSON."""
     with tempfile.TemporaryDirectory() as tmp:
@@ -191,7 +212,7 @@ def test_codex_hooks() -> None:
         base = {"session_id": "x1", "cwd": str(ws), "transcript_path": None, "model": "gpt", "turn_id": "r1", "permission_mode": "default"}
         fire(ws, "codex", base | {"hook_event_name": "UserPromptSubmit", "prompt": "Fix the login check"})
         start_loop(ws, passes=True)
-        assert fire(ws, "codex", base | {"hook_event_name": "Stop", "stop_hook_active": False, "last_assistant_message": None}) == [{}]
+        assert fire(ws, "codex", base | {"hook_event_name": "Stop", "stop_hook_active": False, "last_assistant_message": None}) == [{}, {}]
         start_loop(ws, escalated=True)
         patch = "*** Begin Patch\n*** Update File: progress.txt\n@@\n-a\n+b\n*** End Patch\n"
         denied = fire(ws, "codex", base | {"hook_event_name": "PreToolUse", "tool_name": "apply_patch", "tool_use_id": "t1",
@@ -200,7 +221,8 @@ def test_codex_hooks() -> None:
         assert "Which database?" in guard["hookSpecificOutput"]["permissionDecisionReason"] and "continue" not in guard, denied
         start_loop(ws)
         stop = fire(ws, "codex", base | {"hook_event_name": "Stop", "stop_hook_active": False, "last_assistant_message": "done"})
-        assert stop[0]["decision"] == "block" and "login" in stop[0]["reason"], stop
+        blocking = next(output for output in stop if output.get("decision") == "block")
+        assert "login" in blocking["reason"], stop
         sub = fire(ws, "codex", base | {"hook_event_name": "SubagentStart", "agent_id": "a1", "agent_type": "default"})
         assert sub and "additionalContext" in sub[0]["hookSpecificOutput"], sub
 
@@ -226,6 +248,7 @@ if __name__ == "__main__":
     test_export_refuses_foreign_files_and_bad_organizations()
     test_claude_code_hooks()
     test_cursor_hooks()
+    test_exported_template_stop_gate()
     test_codex_hooks()
     test_wiki_is_shipped_and_linked()
     print("test_adapters: OK")

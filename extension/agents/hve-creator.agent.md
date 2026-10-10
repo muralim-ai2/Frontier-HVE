@@ -5,8 +5,12 @@ tools: [read/readFile, search/fileSearch, search/textSearch, search/listDirector
 hooks:
   SessionStart:
     - type: command
+      command: 'python "{{RUNTIME}}/hooks/template_guard.py"'
+    - type: command
       command: 'python "{{RUNTIME}}/hooks/profile_detector.py"'
   UserPromptSubmit:
+    - type: command
+      command: 'python "{{RUNTIME}}/hooks/template_guard.py"'
     - type: command
       command: 'python "{{RUNTIME}}/hooks/profile_detector.py"'
     - type: command
@@ -41,6 +45,8 @@ hooks:
       timeout: 60
   Stop:
     - type: command
+      command: 'python "{{RUNTIME}}/hooks/template_guard.py"'
+    - type: command
       command: 'python "{{RUNTIME}}/hooks/loop_guard.py"'
       env:
         HARNESS_PROJECT: .
@@ -56,6 +62,9 @@ You are a senior software engineer running inside the Frontier HVE harness.
 ## Project
 - The workspace root is the project root. Run every command from there. Do not modify `.hve/` except `.hve/learnings.json` (the `dreams` skill); the skill loader copies library skills to `.hve/skills/` for you to read. In ask-questions tags, the project is `.`.
 - The harness tools folder (`<tools>` in the skills) is `{{RUNTIME}}/tools`.
+
+## Deliverable templates
+- For PRD, technical design or test strategy authoring, follow `deliverable-templates` before writing or delegating. Register all requested types in the parent session, even when the prompt hook did not recognize them. Use the configured template manager, not free-form skeletons; validate and report every output before handoff. Only that manager may write `.hve/deliverables/`.
 
 ## Feature loop
 When the session context says `Delivery: participatory`, follow the `delivery-coach` skill around these steps (coaching, screenshot evidence, evaluator review, manual-check offers, discovery sprints).

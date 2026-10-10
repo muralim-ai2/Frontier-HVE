@@ -13,8 +13,9 @@ SKILLS = EXTENSION / "skills"
 PLUGIN_SRC = REPO / "plugins" / "harness-assist"
 FILES = {
     "hooks": ["hve_paths.py", "interventions.py", "profile_detector.py", "compaction.py", "loop_guard.py", "flow_guard.py",
-              "module_guard.py", "no_fallback.py", "skill_loader.py", "agent_compat.py"],
+              "module_guard.py", "no_fallback.py", "skill_loader.py", "agent_compat.py", "template_guard.py"],
     "tools/adapters": ["export.py"],
+    "tools/templates": ["manage.py"],
     "tools/loop": ["loop.py", "diagnose.py", "flow.py"],
     "tools/git": ["branch_workflow.py", "parallel_options.py"],
     "tools/skills": ["recommend.py", "scan.py", "triage.py", "onboard.py", "micro_eval.py", "evaluate.py", "context_load.py"],
@@ -43,6 +44,7 @@ def build() -> list[str]:
     for name in ("LICENSE", "NOTICE"):
         shutil.copy2(REPO / "skills" / "imported" / "agentx" / name, RUNTIME / "skills" / "licenses" / "agentx" / name)
     shutil.copytree(REPO / "docs" / "wiki", RUNTIME / "docs" / "wiki")
+    shutil.copytree(REPO / "templates" / "deliverables", RUNTIME / "templates" / "deliverables")
     for path in RUNTIME.rglob("*.py"):
         if RUNTIME / "skills" not in path.parents:
             py_compile.compile(str(path), doraise=True)
