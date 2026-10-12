@@ -52,11 +52,11 @@ def test_extension_js_parses() -> None:
 
 
 def test_rendered_plugin_shape() -> None:
-    """The plugin has its manifest, 7 skills, guardrail scripts and 11 HVE agents with every runtime path filled in."""
+    """The plugin has its manifest, 12 skills, guardrail scripts and 17 HVE agents with every runtime path filled in."""
     with tempfile.TemporaryDirectory() as tmp:
         out = Path(tmp) / "plugin"
         agents = render(out)
-        assert len(agents) == 15, agents
+        assert len(agents) == 17, agents
         assert json.loads((out / "plugin.json").read_text(encoding="utf-8"))["name"] == "frontier-hve"
         assert len(list((out / "skills").glob("*/SKILL.md"))) == 12
         assert (out / "skills" / "deliverable-templates" / "SKILL.md").is_file()
@@ -81,7 +81,7 @@ def test_rerender_updates_in_place() -> None:
         stale = out / "com.github.copilot" / "agents" / "old.agent.md"
         stale.write_text("old", encoding="utf-8")
         (out / "skills" / "old-skill").mkdir()
-        assert len(render(out, "0.1.1")) == 15
+        assert len(render(out, "0.1.1")) == 17
         assert json.loads((out / "plugin.json").read_text(encoding="utf-8"))["version"] == "0.1.1"
         assert not stale.exists() and not (out / "skills" / "old-skill").exists()
 
@@ -93,7 +93,7 @@ def test_packaged_template_guard() -> None:
         render(out)
         ws = workspace(tmp)
         folder = out / "com.github.copilot" / "agents"
-        for name in ("creator", "creator-flow", "creator-github", "single"):
+        for name in ("creator", "creator-flow", "creator-github", "single", "product-manager"):
             text = (folder / f"hve-{name}.agent.md").read_text(encoding="utf-8")
             assert text.count("/hooks/template_guard.py") == 3, name
         assert "template_guard.py" not in (folder / "hve-minimal.agent.md").read_text(encoding="utf-8")
@@ -109,6 +109,55 @@ def test_packaged_template_guard() -> None:
                                      cwd=ws, capture_output=True, text=True)
         assert initialized.returncode == 0, initialized.stderr
         assert (ws / "docs" / "product" / "PRD-sample.md").is_file()
+
+
+def test_product_manager_agent() -> None:
+    """The product manager registers only PRDs, names no fixed template, and its backlog validator runs from the runtime."""
+    with tempfile.TemporaryDirectory() as tmp:
+        out = Path(tmp) / "plugin"
+        render(out)
+        ws = workspace(tmp)
+        folder = out / "com.github.copilot" / "agents"
+        pm = (folder / "hve-product-manager.agent.md").read_text(encoding="utf-8")
+        assert pm.count("HVE_TEMPLATE_TYPES: prd") == 3, pm
+        assert "HARNESS_REQUIRED_SKILLS: prd" in pm
+        assert "github/search_issues" in pm and "scoped to that repository" in pm
+        assert "host-selected; actual model unconfirmed" in pm and 'label it "session model"' not in pm
+        assert "read `.hve/skills/prd/SKILL.md`" in pm and "skills/admitted/prd/SKILL.md" not in pm
+        assert "register prd --slug" in pm and "Create parents and dependencies before" in pm and "`uncovered`" in pm
+        ado = (folder / "hve-azure-devops.agent.md").read_text(encoding="utf-8")
+        assert "Epic / Issue / Task (Basic" in ado and "Create parents and dependencies before" in ado
+        loader = hook(pm, "skill_loader.py")
+        for prompt, minimum in (("Create a PRD for an employee leave portal", 1), ("Revise the PRD to clarify goals", 1),
+                                ("Create a PRD for a search app", 2)):
+            run(loader, ws, {"hook_event_name": "UserPromptSubmit", "prompt": prompt},
+                HARNESS_SKILLS_MIN_STATUS="provisional", HARNESS_REQUIRED_SKILLS="prd")
+            loadout = json.loads((ws / ".hve" / "runs" / "s1.skills.json").read_text(encoding="utf-8"))
+            assert loadout["skills"][0] == "skills/admitted/prd" and len(loadout["skills"]) >= minimum, loadout
+            registry = json.loads((EXTENSION / "runtime" / "skills" / "registry.json").read_text(encoding="utf-8"))
+            tokens = {entry["name"]: entry["skill_tokens"] for entry in registry["admitted"]}
+            budget = json.loads((EXTENSION / "runtime" / "skills" / "categories.json").read_text(encoding="utf-8"))["loadout"]
+            assert sum(tokens[Path(skill).name] for skill in loadout["skills"]) <= budget["max_tokens"]
+            skill_path = ws / ".hve" / "skills" / "prd" / "SKILL.md"
+            assert skill_path.is_file()
+            for path in (skill_path, EXTENSION / "runtime" / "skills" / "admitted" / "prd" / "SKILL.md"):
+                read = run(loader, ws, {"hook_event_name": "PreToolUse", "tool_input": {"filePath": str(path)}})
+                assert read is None or "permissionDecision" not in read["hookSpecificOutput"], read
+        residue = [s for s in ("PRD-TEMPLATE", "12 sections", "12-section", "docs/artifacts", "Research Summary") if s in pm]
+        assert not residue, residue
+        assert re.search(r"^user-invocable: false", (folder / "hve-council.agent.md").read_text(encoding="utf-8"), re.M)
+        guard = hook(pm, "template_guard.py")
+        run(guard, ws, {"hook_event_name": "UserPromptSubmit", "prompt": "Write a PRD and a technical design specification"},
+            HVE_TEMPLATE_TYPES="prd")
+        blocked = run(guard, ws, {"hook_event_name": "Stop", "stop_hook_active": False}, HVE_TEMPLATE_TYPES="prd")
+        assert blocked and "prd" in blocked["hookSpecificOutput"]["reason"] and "technicalDesign" not in blocked["hookSpecificOutput"]["reason"]
+        backlog_py = re.search(r'python "([^"]+/tools/backlog/backlog\.py)"', pm)[1]  # type: ignore[index]
+        (ws / "docs" / "product").mkdir(parents=True)
+        (ws / "docs" / "product" / "BACKLOG-x.json").write_text(json.dumps({"version": 1, "prd": "docs/product/PRD-x.md", "items": []}),
+                                                                 encoding="utf-8")
+        (ws / "docs" / "product" / "PRD-x.md").write_text("FR-1\n", encoding="utf-8")
+        result = subprocess.run([sys.executable, backlog_py, "validate", "docs/product/BACKLOG-x.json"], cwd=ws, capture_output=True, text=True)
+        assert result.returncode == 1 and "non-empty list" in result.stdout, (result.stdout, result.stderr)
 
 
 def test_rendered_hooks_run_in_a_workspace() -> None:
@@ -166,6 +215,7 @@ if __name__ == "__main__":
     test_rendered_plugin_shape()
     test_rerender_updates_in_place()
     test_packaged_template_guard()
+    test_product_manager_agent()
     test_rendered_hooks_run_in_a_workspace()
     test_rendered_flow_and_loop_tools_run()
     print("test_extension: OK")

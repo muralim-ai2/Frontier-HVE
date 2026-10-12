@@ -10,7 +10,8 @@ from any other installed extension. Only the requested document types are loaded
 After installing the updated VSIX and running **Frontier HVE: Set up**, ask
 `HVE creator`, `HVE creator-flow`, `HVE creator-github` or `HVE single` to create
 the documents. For example: "Create a PRD, technical design specification and
-test strategy for the employee leave portal."
+test strategy for the employee leave portal." `HVE product-manager` authors PRDs
+only (see [Product Manager](Product-Manager.md)).
 
 Defaults work without configuration. Output locations are:
 
@@ -24,6 +25,13 @@ The agent registers all requested types, initializes each document, fills its
 sections and validates it before handoff. `creator-flow` handles document-only
 requests directly; its app-flow `design.json` contract is unchanged. Constrained
 minimal, evaluation and specialist agents are not document-authoring entry points.
+
+An agent can limit which types its prompt hook registers with the
+`HVE_TEMPLATE_TYPES` environment variable on its `template_guard.py` hooks (a
+comma list of `prd`, `technicalDesign`, `testStrategy`; an unknown type is an
+error). `HVE product-manager` sets `prd`, so a request that also names a technical
+design does not leave an unwritten document blocking its Stop gate. Without the
+variable, all three types are registered.
 
 ## Company Templates
 

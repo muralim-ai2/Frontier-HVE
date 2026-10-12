@@ -57,7 +57,9 @@ def choose(prompt: str) -> Loadout:
     if OVERRIDE_FILE.exists():
         return Loadout(categories=[], skills=json.loads(OVERRIDE_FILE.read_text(encoding="utf-8"))["skills"], recommended=[],
                        announced=False)
-    ranked = rank(prompt, os.environ["HARNESS_SKILLS_MIN_STATUS"])  # type: ignore[arg-type]
+    value = os.environ.get("HARNESS_REQUIRED_SKILLS")
+    required = tuple(name.strip() for name in value.split(",")) if value is not None else ()
+    ranked = rank(prompt, os.environ["HARNESS_SKILLS_MIN_STATUS"], required)  # type: ignore[arg-type]
     return Loadout(categories=ranked["categories"], skills=[r["path"] for r in ranked["load"]],
                    recommended=[r["path"] for r in ranked["recommend"]], announced=False)
 

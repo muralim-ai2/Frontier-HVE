@@ -71,6 +71,11 @@
       "id": "N28",
       "issue": "Plan step 10.5 (cross-platform validation: same prompt through Copilot, Cursor and Claude Code, metrics within 5%) is not started; OpenCode adapter not built.",
       "action": "User: after N27, decide whether to run 10.5 and whether OpenCode is needed."
+    },
+    {
+      "id": "N29",
+      "issue": "Built (D-044, D-045), extension 0.6.0: HVE product-manager and HVE council agents, backlog validator (tools/backlog/backlog.py), HVE_TEMPLATE_TYPES in template_guard, template-neutral prd skill, backlog-to-work-items in HVE azure-devops. Review fixes: reserved prd loadout (skill trimmed to ~1.2K tokens), GitHub issue discovery, strict backlog field types, uncovered-requirement report, PRD revision via register, per-process ADO type mapping, parent/dependency-first creation and honest host-selected council reporting. Unit-tested; not verified live. Assumptions to confirm: tool ids `web/fetch`, `github/search_issues`, `github/issue_read`, `github/issue_write`, `github/sub_issue_write`; per-call sub-agent model selection; handoff buttons.",
+      "action": "User: rebuild and install 0.6.0, reload, pick HVE product-manager and ask 'Create a PRD for an employee leave portal'. Check: clarifying questions, the council model table, docs/product/PRD-leave-portal.md with `check` exit 0, the backlog-target question. Repeat once per target (Local JSON with backlog.py exit 0; Azure DevOps handoff with ticked work items; GitHub with ticked issues and sub-issues). Repeat with a company template, and with 'Write a PRD and a TDS' (PRD only, Stop not blocked)."
     }
   ],
   "wiki_topics": {
@@ -94,7 +99,8 @@
       {"id": "W16", "topic": "Hooks reference", "covers": "Every hook: event, purpose, environment variables, state files under .hve/ and .harness/", "sources": ["hooks/", "extension/agents/"], "status": "not_started"},
       {"id": "W17", "topic": "Troubleshooting", "covers": "Plugin not re-rendered, Python missing, hooks not firing (Local target), duplicate plugin registration, push waiting for sign-in, Foundry deployment names", "sources": ["D-033", "D-038", "D-039"], "status": "not_started"},
       {"id": "W18", "topic": "Decisions, tracker and validation", "covers": "Decision log, tracker statuses, why only the user validates, how evidence is recorded", "sources": ["research/decisions/decision_log.md", "tracker.json"], "status": "not_started"},
-      {"id": "W19", "topic": "Using the harness in Claude Code, Cursor and Codex; Azure DevOps", "covers": "/export-harness, what each client gets, how to invoke the agents, hook gaps per client, connecting Azure DevOps with @azure-devops/mcp, the HVE azure-devops agent", "sources": ["docs/wiki/Adapters.md", "research/findings/phase-10-adapters.md", "tools/adapters/export.py", "hooks/agent_compat.py", "D-042", "D-043"], "status": "drafted"}
+      {"id": "W19", "topic": "Using the harness in Claude Code, Cursor and Codex; Azure DevOps", "covers": "/export-harness, what each client gets, how to invoke the agents, hook gaps per client, connecting Azure DevOps with @azure-devops/mcp, the HVE azure-devops agent", "sources": ["docs/wiki/Adapters.md", "research/findings/phase-10-adapters.md", "tools/adapters/export.py", "hooks/agent_compat.py", "D-042", "D-043"], "status": "drafted"},
+      {"id": "W20", "topic": "Product manager agent", "covers": "HVE product-manager workflow, research sub-agents, council models and their reporting, PRD in the configured template, backlog targets (local JSON, Azure DevOps, GitHub), backlog validator, GitHub MCP setup", "sources": ["docs/wiki/Product-Manager.md", "extension/agents/hve-product-manager.agent.md", "tools/backlog/backlog.py", "D-044", "D-045"], "status": "drafted"}
     ]
   },
   "phases": [

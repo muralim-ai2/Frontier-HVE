@@ -53,8 +53,8 @@ def library_entries() -> list[Json]:
     return entries
 
 
-def rank(prompt: str, min_status: MinStatus) -> Json:
-    """Return the prompt's categories, the skills to load (most relevant first, within max skills and tokens) and the rest to recommend."""
+def rank(prompt: str, min_status: MinStatus, required: tuple[str, ...] = ()) -> Json:
+    """Reserve required skills within budget, then rank task-matching skills for loading or recommendation."""
     if min_status not in STATUS_ORDER:
         raise ValueError(f"min_status {min_status!r}, expected one of {list(STATUS_ORDER)}")
     config = read("categories.json")
@@ -62,17 +62,31 @@ def rank(prompt: str, min_status: MinStatus) -> Json:
     categories = task_categories(prompt, config)
     allowed = {s for s, order in STATUS_ORDER.items() if order <= STATUS_ORDER[min_status]}
     library = library_entries()
+    reserved: list[Json] = []
+    for name in required:
+        matches = [e for e in library if e["name"] == name]
+        if len(matches) != 1 or matches[0]["status"] not in allowed:
+            found = [f"{e['path']} ({e['status']})" for e in matches] or "none"
+            raise ValueError(f"required skill {name!r} must resolve uniquely with status allowed by {min_status}; found {found}. "
+                             f"A workspace skill (.hve/skills-registry.json) with the same name as a library skill is ambiguous")
+        if name not in {e["name"] for e in reserved}:
+            reserved.append(matches[0])
+    tokens = sum(e["skill_tokens"] for e in reserved)
+    if len(reserved) > budget["max_skills"] or tokens > budget["max_tokens"]:
+        raise ValueError(f"required skills {list(required)} exceed the loadout budget: {budget}")
     frequency = Counter(s for e in library for s in skill_stems(e))
     frequency = Counter({s: n for s, n in frequency.items() if n <= len(library) / 2})
-    matching = [e for e in library if e["status"] in allowed and set(e["task_categories"]) & set(categories)]
+    matching = [e for e in library if e["status"] in allowed and set(e["task_categories"]) & set(categories)
+                and e["name"] not in required]
     matching.sort(key=lambda e: (STATUS_ORDER[e["status"]], -relevance(prompt, e, categories, frequency), -(e["quality_lift_pp"] or 0),
                                  e["skill_tokens"]))
     load: list[Json] = []
     recommend: list[Json] = []
-    tokens = 0
-    for e in matching:
+    for e in reserved + matching:
         row = {k: e[k] for k in ("name", "status", "task_categories", "skill_tokens", "quality_lift_pp", "path")}
-        if len(load) < budget["max_skills"] and tokens + e["skill_tokens"] <= budget["max_tokens"]:
+        if e in reserved:
+            load.append(row)
+        elif len(load) < budget["max_skills"] and tokens + e["skill_tokens"] <= budget["max_tokens"]:
             load.append(row)
             tokens += e["skill_tokens"]
         else:

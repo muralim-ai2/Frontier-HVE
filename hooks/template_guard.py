@@ -1,6 +1,7 @@
 """Announce template policy and gate registered deliverables at session stop."""
 
 import json
+import os
 import re
 import sys
 from pathlib import Path
@@ -48,6 +49,18 @@ def requested_types(prompt: str) -> list[str]:
     return [kind for kind in KINDS if kind in kinds]
 
 
+def allowed_types() -> list[str]:
+    """Return the types this agent may register: HVE_TEMPLATE_TYPES (comma list) or all types."""
+    value = os.environ.get("HVE_TEMPLATE_TYPES")
+    if value is None:
+        return list(KINDS)
+    kinds = [kind.strip() for kind in value.split(",")]
+    unknown = [kind for kind in kinds if kind not in KINDS]
+    if unknown:
+        raise ValueError(f"HVE_TEMPLATE_TYPES has unknown types {unknown}; expected a comma list of {list(KINDS)}")
+    return kinds
+
+
 def handle(payload: Payload, workspace: Path) -> dict[str, object] | None:
     """Return policy context or explicit, bounded validation failure feedback."""
     event = payload["hook_event_name"]
@@ -65,10 +78,11 @@ def handle(payload: Payload, workspace: Path) -> dict[str, object] | None:
         if payload["stop_hook_active"]:
             return {"systemMessage": reason}
         return {"hookSpecificOutput": {"hookEventName": "Stop", "decision": "block", "reason": reason}}
+    allowed = allowed_types()
     policy = configuration(workspace)
     command = f'python "{(ROOT / "tools" / "templates" / "manage.py").as_posix()}"'
     context = (f"Frontier HVE deliverable templates: session {session}. "
-               f"For PRD, technical design or test strategy authoring use the deliverable-templates skill. "
+               f"For {', '.join(allowed)} authoring use the deliverable-templates skill. "
                f"Register every requested type with {command} request <types> --session {session}; "
                f"init/register and validate documents with the same session. "
                f"Configured sources: {json.dumps(policy['templates'])}. "
@@ -76,7 +90,7 @@ def handle(payload: Payload, workspace: Path) -> dict[str, object] | None:
     if event == "SessionStart":
         return {"hookSpecificOutput": {"hookEventName": event, "additionalContext": context}}
     if event == "UserPromptSubmit":
-        kinds = requested_types(payload["prompt"])
+        kinds = [kind for kind in requested_types(payload["prompt"]) if kind in allowed]
         if not kinds:
             return None
         request(workspace, session, kinds)

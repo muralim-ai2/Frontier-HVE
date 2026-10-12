@@ -1,6 +1,7 @@
 """Regression cases for configured deliverables, path safety and session guards."""
 
 import json
+import os
 import subprocess
 import sys
 import tempfile
@@ -206,6 +207,23 @@ def test_prompt_detection_and_stop_guard() -> None:
         assert template_guard.handle(stop, workspace) is None
 
 
+def test_allowed_types_limit_registration() -> None:
+    """HVE_TEMPLATE_TYPES limits what a prompt registers, and an unknown type fails."""
+    with tempfile.TemporaryDirectory() as tmp:
+        workspace = Path(tmp)
+        os.environ["HVE_TEMPLATE_TYPES"] = "prd"
+        try:
+            prompt: template_guard.Payload = {"hook_event_name": "UserPromptSubmit", "session_id": "s1",
+                                              "prompt": "Write a PRD and a technical design specification"}
+            template_guard.handle(prompt, workspace)
+            errors = manage.check_session(workspace, "s1")
+            assert len(errors) == 1 and "prd" in errors[0], errors
+            os.environ["HVE_TEMPLATE_TYPES"] = "prd,roadmap"
+            fails(ValueError, lambda: template_guard.handle(prompt, workspace))
+        finally:
+            del os.environ["HVE_TEMPLATE_TYPES"]
+
+
 def test_cli_exit_codes() -> None:
     """CLI initialization and configuration succeed, while an incomplete document fails."""
     with tempfile.TemporaryDirectory() as tmp:
@@ -225,5 +243,6 @@ if __name__ == "__main__":
     test_registry_lock_and_all_documents_checked()
     test_validation_errors_produce_stop_decisions()
     test_prompt_detection_and_stop_guard()
+    test_allowed_types_limit_registration()
     test_cli_exit_codes()
     print("test_templates: OK")
