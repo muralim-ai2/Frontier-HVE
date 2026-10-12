@@ -248,3 +248,28 @@
 - Pages are Markdown in `docs/wiki/` (GitHub-wiki compatible names, index `Home.md`); the first page is `Adapters.md` (topic W19, status drafted). Agents in this repository find it through one line in `.github/copilot-instructions.md` and `AGENTS.md`. Extension users' agents find it in the runtime: the build copies `docs/wiki/` to `runtime/docs/wiki/`, the `/export-harness` skill and the `HVE azure-devops` agent reference it, and the exporter's report names it (`guide`). Exported clients get it in `.hve/runtime/docs/wiki/`.
 - The page is not loaded into context: only the pointer lines are always-on (about 40 tokens); the page is read when needed. Pages name files in backticks instead of relative links so the shipped copy has no broken links; `tests/test_adapters.py` checks that wiki links resolve and that every pointer reaches the shipped page.
 - Not published to the GitHub wiki repository; publishing is a user action.
+
+## D-044 — HVE product-manager: AgentX judgment, Frontier mechanisms; backlog in the user's tracker
+- User decisions (2026-10-12): bring the AgentX product manager as an optimized HVE agent with no template content in its instructions; council on different models with honest reporting of which ran; the backlog goes to the tracker the user chooses (local JSON, Azure DevOps, GitHub), never into the PRD; PRDs only; `web/fetch` allowed; no export to other clients yet. Plan reviewed before implementation.
+- Kept from AgentX (`.github/agents/product-manager.agent.md`, ~22 KB): discovery before drafting, research before writing, intent preservation, measurable requirements, non-goals, the AI product contract, item quality and a three-lens challenge. Dropped: the PRD and roadmap templates, the 12-section list, fixed paths, issue and label formats, the self-review and report checklists, the Node policy hooks, `frontier.ps1` council/loop/stage-gate, the shared protocol files and the model pin (D-033). The agent prompt is about 1.5K tokens.
+- Mechanisms: structure from the configured template through `manage.py` and `template_guard.py`. A new `HVE_TEMPLATE_TYPES` variable limits registration, so the PRD-only agent is not blocked at Stop by an unwritten TDS. The prompt hook sets `HARNESS_REQUIRED_SKILLS: prd`: the loader reserves its tokens and slot before optional skills, even when the prompt matches no category. Missing, ambiguous, disallowed or over-budget required skills fail explicitly, naming the matching paths. The agent reads the installed `.hve/skills/prd/SKILL.md` copy only once; research runs as up to 3 compacted sub-agents; the hidden `HVE council` runs with no tools. PRD revisions edit in place and `register`, since `init` never overwrites.
+- Council models: the agent passes a model per call from different vendors. VS Code refuses a model above the session's cost tier and lists the allowed ones; the agent then picks another vendor, or runs the lens without a model labelled "host-selected; actual model unconfirmed" (Auto may be enabled). Only the Copilot OTel export confirms which model answered; the report says "not confirmed" otherwise.
+- Backlog: one item shape for all trackers. Local JSON is checked by `tools/backlog/backlog.py validate`:
+  - exact fields and strict JSON types, including an integer version and string path, ids and references;
+  - epic → feature → story hierarchy;
+  - unique ids, known dependencies and no cycles;
+  - non-goals and Given/When/Then criteria;
+  - requirement IDs that exist in the PRD.
+
+  A valid backlog also reports `uncovered` PRD `FR`/`NFR` IDs. These are not errors, since a PRD can sequence requirements for later. Azure DevOps goes through a handoff to `HVE azure-devops` (a new backlog-to-work-items workflow, ticked writes only, epic/feature/story mapped per process including Basic's Epic/Issue/Task). GitHub uses the GitHub MCP server's `search_issues` for repository-scoped duplicate discovery, then `issue_read`, `issue_write` and `sub_issue_write`, ticked writes only, existing types and labels only, and no `gh` CLI fallback. On both, a ticked item's parent and dependencies must be ticked or already exist, and they are created first.
+- Verified by `tests/test_backlog.py`, `tests/test_templates.py` and `tests/test_extension.py`. Not verified live: tool ids, per-call model selection and handoffs. Follow-up: tracker `N29`. Extension 0.6.0.
+
+## D-045 — The admitted `prd` skill is adapted, an exception to D-040's verbatim rule
+- User decision (2026-10-12): make the PRD skill generic so it works with any configured template.
+- `skills/imported/agentx/product/prd/` stays verbatim as provenance. The loaded copy `skills/admitted/prd/` is adapted:
+  - no template file, section numbers, AgentX paths or issue formats;
+  - content blocks mapped to the configured template's sections;
+  - stable `FR`/`NFR`/`AC` IDs;
+  - the backlog moved out of the PRD;
+  - an item shape with field mapping for local JSON, Azure DevOps and GitHub.
+- Apache-2.0 §4(b): every changed file carries a modification notice. The registry `source` says "adapted" and `skill_tokens` is recounted (1,206, after moving the AI contract, examples and consumer checklist into `references/requirements-quality.md` so the required skill leaves room in the 2K loadout for task skills such as `web-research`). The status stays `provisional` with evaluation `pending`, so the adapted text still needs the same paired evaluation before admission. `tests/test_skills.py` checks that no template-specific text returns.

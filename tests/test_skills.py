@@ -275,6 +275,63 @@ def test_skill_loader_budget_offer_and_scoped_deny() -> None:
         assert fire(root, {"session_id": "s3", "hook_event_name": "PreToolUse", "tool_input": {"filePath": "x.ts"}}) == ""
 
 
+def test_required_skills_reserve_budget_and_load_outside_categories() -> None:
+    """Required skills load before optional matches and fail explicitly when unavailable or over budget."""
+    with tempfile.TemporaryDirectory() as tmp:
+        root = library_root(tmp)
+        env = {"HARNESS_SKILLS_MIN_STATUS": "provisional", "HARNESS_REQUIRED_SKILLS": "research,research"}
+        for session, prompt in (("r1", "Create a PRD for leave"), ("r2", "Build a color palette page.")):
+            fire(root, {"session_id": session, "hook_event_name": "UserPromptSubmit", "prompt": prompt}, **env)
+            loadout = json.loads((root / ".hve" / "runs" / f"{session}.skills.json").read_text(encoding="utf-8"))
+            assert loadout["skills"][0] == "skills/admitted/research", loadout
+            assert loadout["skills"].count("skills/admitted/research") == 1, loadout
+            assert len(loadout["skills"]) <= 2, loadout
+            assert (root / ".hve" / "skills" / "research" / "SKILL.md").is_file()
+            result = json.loads(fire(root, {"session_id": session, "hook_event_name": "PreToolUse",
+                                           "tool_input": {"filePath": ".hve/skills/research/SKILL.md"}}))
+            assert "permissionDecision" not in result["hookSpecificOutput"], result
+        registry_path = root / "skills" / "registry.json"
+        registry = json.loads(registry_path.read_text(encoding="utf-8"))
+        entries = registry["admitted"]
+        cases = [
+            ("missing", "provisional", "must resolve uniquely", entries),
+            ("research", "admitted", "must resolve uniquely", entries),
+            ("forms,layout", "provisional", "", entries),
+            ("forms,layout,proven", "provisional", "exceed the loadout budget", entries),
+            ("research", "provisional", "exceed the loadout budget",
+             [entry | {"skill_tokens": 1001} if entry["name"] == "research" else entry for entry in entries]),
+            ("research", "provisional", "skill-library/research (provisional)']", entries),
+        ]
+        for required, status, needle, variant in cases:
+            registry_path.write_text(json.dumps(registry | {"admitted": variant}), encoding="utf-8")
+            if needle.startswith("skill-library"):
+                workspace_skill = entries[-1] | {"description": "Our own research."}
+                (root / ".hve" / "skills-registry.json").write_text(json.dumps({"admitted": [workspace_skill]}), encoding="utf-8")
+            result = subprocess.run([sys.executable, str(root / "hooks" / "skill_loader.py")],
+                                    input=json.dumps({"session_id": "bad", "hook_event_name": "UserPromptSubmit", "prompt": "Create a PRD"}),
+                                    capture_output=True, text=True, cwd=root,
+                                    env={**os.environ, "HARNESS_SKILLS_MIN_STATUS": status, "HARNESS_REQUIRED_SKILLS": required})
+            if needle:
+                assert result.returncode != 0 and needle in result.stderr, result.stderr
+            else:
+                assert result.returncode == 0, result.stderr
+                loadout = json.loads((root / ".hve" / "runs" / "bad.skills.json").read_text(encoding="utf-8"))
+                assert loadout["skills"] == ["skills/admitted/forms", "skills/admitted/layout"], loadout
+
+
+def test_prd_skill_is_template_and_tracker_neutral() -> None:
+    """The admitted prd skill names no fixed template, section numbers or AgentX paths, carries a modification notice, and its registry tokens match."""
+    folder = REPO / "skills" / "admitted" / "prd"
+    banned = ("PRD-TEMPLATE", "12-section", "section 11", "Research Summary", ".github/", "docs/artifacts", "needs:ai", "[Story]")
+    for path in folder.rglob("*.md"):
+        text = path.read_text(encoding="utf-8")
+        assert "Modified** by Frontier HVE" in text, path
+        assert not [b for b in banned if b in text], (path, [b for b in banned if b in text])
+    entry = next(e for e in json.loads((REPO / "skills" / "registry.json").read_text(encoding="utf-8"))["admitted"] if e["name"] == "prd")
+    assert entry["skill_tokens"] == scan(folder)["skill_tokens"] and "adapted" in entry["source"], entry
+    assert (REPO / "skills" / "imported" / "agentx" / "product" / "prd" / "SKILL.md").read_text(encoding="utf-8").count("PRD-TEMPLATE") > 0
+
+
 if __name__ == "__main__":
     test_scan_passes_clean_and_flags_unsafe_skills()
     test_triage_maps_skills_to_user_categories()
@@ -286,4 +343,6 @@ if __name__ == "__main__":
     test_context_load_counts_always_on_and_warns_on_growth()
     test_workspace_skill_evaluator_flow()
     test_skill_loader_budget_offer_and_scoped_deny()
+    test_required_skills_reserve_budget_and_load_outside_categories()
+    test_prd_skill_is_template_and_tracker_neutral()
     print("test_skills: OK")

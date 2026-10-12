@@ -613,14 +613,14 @@
     },
     {
       "name": "prd",
-      "description": "Produce production-grade Product Requirements Documents (PRDs) that bridge business vision and technical execution. Use when writing, reading, reviewing, or extending a PRD -- by Product Manager agents authoring one, or by Architect/UX/Engineer/Agent-X agents that need to consume or fact-check PRD conventions without loading the full PM agent contract.",
-      "source": "AgentX fc39b29, verbatim (Apache-2.0, skills/imported/agentx/LICENSE and NOTICE)",
+      "description": "Produce production-grade Product Requirements Documents (PRDs) that bridge business vision and technical execution, in whatever template the workspace configures. Use when writing, reading, reviewing, or extending a PRD, or when turning a PRD into backlog items for a local JSON backlog, Azure DevOps or GitHub.",
+      "source": "AgentX fc39b29, adapted 2026-10-12 to be template- and tracker-neutral (D-045; Apache-2.0, skills/imported/agentx/LICENSE and NOTICE; original in skills/imported/agentx/product/prd)",
       "status": "provisional",
       "task_categories": [
         "ux",
         "architecture"
       ],
-      "skill_tokens": 1850,
+      "skill_tokens": 1206,
       "quality_lift_pp": null,
       "evaluation": "pending",
       "admitted_date": "2026-10-07"
