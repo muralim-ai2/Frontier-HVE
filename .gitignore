@@ -14,9 +14,7 @@ skills/eval_override.json
 .hve/runs/bench.lock
 
 # Extension build output (assembled by extension/build.py)
-extension/runtime/
-extension/skills/
-extension/*.vsix
+
 
 # Python and tool caches
 __pycache__/
@@ -32,3 +30,4 @@ graphify-out/
 *.pem
 *.key
 *.pfx
+
