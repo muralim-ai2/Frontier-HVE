@@ -111,7 +111,7 @@ def test_provenance_reports_component_evidence() -> None:
         agent.write_text('hooks: skill_loader.py template_guard.py\nRun "tools/loop/loop.py" then "tools/evaluation/reflection.py".\n',
                          encoding="utf-8")
         (ws / ".hve" / "runs").mkdir(parents=True)
-        (ws / ".hve" / "runs" / "s1.skills.json").write_text("{}", encoding="utf-8")
+        (ws / ".hve" / "runs" / "s1.skills.json").write_text(json.dumps({"skills": ["skills/admitted/prd"]}), encoding="utf-8")
         cli = [sys.executable, str(REPO / "tools" / "observe" / "provenance.py"), str(agent), "latest", "--workspace", str(ws)]
         result = subprocess.run([*cli, "--require", "templates"], capture_output=True, text=True)
         report = json.loads(result.stdout)
@@ -126,8 +126,10 @@ def test_provenance_reports_component_evidence() -> None:
         prd.write_text(re.sub(r"\{\{\s*FILL:[^{}]*\}\}", "Filled.", prd.read_text(encoding="utf-8")), encoding="utf-8")
         (ws / "feature_list.json").write_text(json.dumps([{"name": "a", "passes": True}]), encoding="utf-8")
         (ws / ".harness").mkdir()
+        (ws / "progress.txt").write_text("a: pass\n", encoding="utf-8")
         result = subprocess.run([*cli, "--require", "templates"], capture_output=True, text=True)
         report = json.loads(result.stdout)
+        assert report["components"]["skills"]["detail"] == "loaded: prd" and report["trace"] is None, report
         assert report["components"]["templates"] == {"status": "verified", "detail": "prd/leave from builtin:prd@1"}, report
         assert report["components"]["reflection"]["status"] == "failed" and result.returncode == 1, report
         assert (ws / ".hve" / "runs" / "s1.provenance.json").is_file()

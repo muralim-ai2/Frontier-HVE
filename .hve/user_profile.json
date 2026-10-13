@@ -1,10 +1,11 @@
 {
-  "prompt_style": "over_specifier",
+  "prompt_style": "simple",
   "wants_evidence": null,
   "verbosity": null,
   "output_format": null,
   "build_preference": null,
-  "depth_evidence": 0,
-  "explanation_depth": null,
-  "bloat_triggers": []
+  "depth_evidence": 1,
+  "explanation_depth": "balanced",
+  "bloat_triggers": [],
+  "confirm_plan_before_build": true
 }

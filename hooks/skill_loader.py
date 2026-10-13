@@ -31,6 +31,7 @@ class Loadout(TypedDict):
     skills: list[str]
     recommended: list[str]
     announced: bool
+    used: list[str]
 
 
 def state_file(session_id: str) -> Path:
@@ -55,13 +56,14 @@ def install(sources: list[str]) -> None:
 def choose(prompt: str) -> Loadout:
     """Return the eval override's skills if present, else the ranked skills that fit the loadout budget and the ranked rest."""
     if OVERRIDE_FILE.exists():
-        return Loadout(categories=[], skills=json.loads(OVERRIDE_FILE.read_text(encoding="utf-8"))["skills"], recommended=[],
-                       announced=False)
+        skills = json.loads(OVERRIDE_FILE.read_text(encoding="utf-8"))["skills"]
+        return Loadout(categories=[], skills=skills, recommended=[], announced=False, used=list(skills))
     value = os.environ.get("HARNESS_REQUIRED_SKILLS")
     required = tuple(name.strip() for name in value.split(",")) if value is not None else ()
     ranked = rank(prompt, os.environ["HARNESS_SKILLS_MIN_STATUS"], required)  # type: ignore[arg-type]
-    return Loadout(categories=ranked["categories"], skills=[r["path"] for r in ranked["load"]],
-                   recommended=[r["path"] for r in ranked["recommend"]], announced=False)
+    skills = [r["path"] for r in ranked["load"]]
+    return Loadout(categories=ranked["categories"], skills=skills,
+                   recommended=[r["path"] for r in ranked["recommend"]], announced=False, used=list(skills))
 
 
 def announcement(loadout: Loadout) -> str:
@@ -98,6 +100,7 @@ def add_ticked(loadout: Loadout, tool_input: Json, tool_response: Any) -> list[s
     answer = (json.loads(tool_response) if isinstance(tool_response, str) else tool_response)["answers"][LOAD_HEADER]
     ticked = [s for s in loadout["recommended"] if Path(s).name in (answer.get("selected") or [])]
     loadout["skills"] += ticked
+    loadout["used"] = sorted({*loadout.get("used", []), *ticked})
     loadout["recommended"] = [s for s in loadout["recommended"] if s not in ticked]
     loadout["announced"] = loadout["announced"] and not ticked
     return ticked
@@ -110,6 +113,10 @@ def main() -> None:
     event = payload["hook_event_name"]
     if event == "UserPromptSubmit":
         loadout = choose(payload["prompt"])
+        if path.exists():
+            previous = json.loads(path.read_text(encoding="utf-8"))
+            # Loadouts written before `used` existed carry only their current skills.
+            loadout["used"] = sorted({*previous.get("used", previous["skills"]), *loadout["used"]})
         install(loadout["skills"])
         path.write_text(json.dumps(loadout), encoding="utf-8")
         return
