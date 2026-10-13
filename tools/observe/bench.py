@@ -13,6 +13,7 @@ ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "hooks"))
 from metrics import request_effort  # noqa: E402
 from otel_prune import LOCK_FILE, prune  # noqa: E402
+from provenance import provenance  # noqa: E402
 
 RUNS_DIR = ROOT / ".hve" / "runs"
 OTEL_FILE = RUNS_DIR / "copilot-otel.jsonl"
@@ -196,6 +197,10 @@ def follow(bench: Bench, session_id: str) -> None:
     bench.log(f"done: {len(turns)} model calls, {sum(t['prompt_tokens'] for t in turns):,} prompt / "
               f"{sum(t['completion_tokens'] for t in turns):,} completion tokens, cost {sum(t['cost_nano_aiu'] for t in turns) / 1e9:.2f} AI units, "
               f"{sum(1 for r in rows if r['tool_name'])} tool calls, {len(manifest['files'])} files in {manifest['output_dir']}")
+    trace = provenance(ROOT / ".github" / "agents" / f"{bench.agent}.agent.md", ROOT, ROOT / manifest["output_dir"], session_id, [])
+    bench.log(f"provenance {'ok' if trace['ok'] else 'FAILED'}: "
+              + ", ".join(f"{name} {c['status']}" for name, c in trace["components"].items())
+              + f"; {trace['interventions']} interventions (.hve/runs/{session_id}.provenance.json)")
 
 
 if __name__ == "__main__":

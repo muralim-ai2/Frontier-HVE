@@ -8,23 +8,25 @@ const { execFile } = require('child_process');
 const { renderPlugin } = require('./render');
 
 const MIN_PYTHON = [3, 11];
+const PYTHON_LAUNCHERS = [['python'], ['python3'], ['py', '-3']];
+const PYTHON_DOWNLOAD = 'https://www.python.org/downloads/';
 const EMPTY_PROFILE = {
   prompt_style: null, wants_evidence: null, verbosity: null, output_format: null, build_preference: null, depth_evidence: 0,
   explanation_depth: null, bloat_triggers: [],
 };
 const PREFERENCES = [
-  { label: 'No code', value: 'no_code', description: 'Describe the outcome; the agent builds it and coaches you through the choices' },
-  { label: 'Low code', value: 'low_code', description: 'Read and adjust code with guidance' },
-  { label: 'Pro code', value: 'pro_code', description: 'Use AI to code and review continuously' },
+  { label: 'Assisted', value: 'low_code', description: 'Read and adjust code with guidance' },
+  { label: 'Pro', value: 'pro_code', description: 'Use AI to code and review continuously' },
 ];
 
 /**
- * Return the Python version on PATH as [major, minor], or null when python cannot be run.
+ * Return the Python version a launcher runs as [major, minor], or null when it cannot be run.
+ * @param {string[]} launcher Command and leading arguments, for example ['py', '-3'].
  * @returns {Promise<number[] | null>}
  */
-function pythonVersion() {
+function pythonVersion(launcher) {
   return new Promise((resolve) => {
-    execFile('python', ['--version'], (error, stdout, stderr) => {
+    execFile(launcher[0], [...launcher.slice(1), '--version'], (error, stdout, stderr) => {
       const match = /Python (\d+)\.(\d+)/.exec(`${stdout}${stderr}`);
       resolve(error || !match ? null : [Number(match[1]), Number(match[2])]);
     });
@@ -32,19 +34,45 @@ function pythonVersion() {
 }
 
 /**
+ * Return the first launcher on PATH that runs Python 3.11 or newer, as a command string, or null when there is none.
+ * @returns {Promise<string | null>}
+ */
+async function findPython() {
+  for (const launcher of PYTHON_LAUNCHERS) {
+    const version = await pythonVersion(launcher);
+    if (version && (version[0] > MIN_PYTHON[0] || (version[0] === MIN_PYTHON[0] && version[1] >= MIN_PYTHON[1]))) {
+      return launcher.join(' ');
+    }
+  }
+  return null;
+}
+
+/**
  * Render the plugin into global storage and register it in chat.pluginLocations; return the plugin folder.
  * @param {vscode.ExtensionContext} context
+ * @param {string | null} python Python launcher, or null to render without Python hooks.
  * @returns {Promise<string>}
  */
-async function registerPlugin(context) {
+async function registerPlugin(context, python) {
   const pluginDir = path.join(context.globalStorageUri.fsPath, 'plugin');
-  renderPlugin(context.extensionPath, pluginDir, context.extension.packageJSON.version);
+  renderPlugin(context.extensionPath, pluginDir, context.extension.packageJSON.version, python);
   const chat = vscode.workspace.getConfiguration('chat');
   const locations = { ...(chat.get('pluginLocations') || {}), [pluginDir]: true };
   await chat.update('pluginLocations', locations, vscode.ConfigurationTarget.Global);
   await chat.update('plugins.enabled', true, vscode.ConfigurationTarget.Global);
   await context.globalState.update('renderedVersion', context.extension.packageJSON.version);
+  await context.globalState.update('renderedPython', python);
   return pluginDir;
+}
+
+/** Explain that Python is missing and offer the download page. */
+async function warnNoPython() {
+  const open = await vscode.window.showWarningMessage(
+    `Frontier HVE needs Python ${MIN_PYTHON.join('.')}+ on PATH for its guards and harness tools; agents run without them until then. `
+    + 'Install Python, then run "Frontier HVE: Set up".', 'Download Python');
+  if (open) {
+    vscode.env.openExternal(vscode.Uri.parse(PYTHON_DOWNLOAD));
+  }
 }
 
 /**
@@ -71,31 +99,37 @@ async function setUpWorkspace(workspace) {
 }
 
 /**
- * Optionally point the Copilot OTel file export at this workspace (research metrics; the file grows and needs pruning).
- * @param {string} workspace
+ * Point the Copilot OTel file export at the open workspace for benchmark metrics (the file holds full chat content and grows large).
  */
-async function offerTelemetry(workspace) {
-  const choice = await vscode.window.showQuickPick(['No', 'Yes'], {
-    title: 'Turn on the Copilot telemetry file export for research metrics? (large file; benchmark use only)',
-  });
-  if (choice !== 'Yes') {
+async function enableResearchTelemetry() {
+  const folders = vscode.workspace.workspaceFolders;
+  if (!folders || folders.length === 0) {
+    vscode.window.showErrorMessage('Open the research workspace first.');
+    return;
+  }
+  const choice = await vscode.window.showWarningMessage(
+    'Turn on the Copilot telemetry file export? It records full chat content into .hve/runs/copilot-otel.jsonl; use it for benchmarks only.',
+    { modal: true }, 'Turn on');
+  if (choice !== 'Turn on') {
     return;
   }
   const otel = vscode.workspace.getConfiguration('github.copilot.chat.otel');
   await otel.update('enabled', true, vscode.ConfigurationTarget.Global);
   await otel.update('exporterType', 'file', vscode.ConfigurationTarget.Global);
-  await otel.update('outfile', path.join(workspace, '.hve', 'runs', 'copilot-otel.jsonl'), vscode.ConfigurationTarget.Global);
+  await otel.update('outfile', path.join(folders[0].uri.fsPath, '.hve', 'runs', 'copilot-otel.jsonl'), vscode.ConfigurationTarget.Global);
 }
 
 /**
  * Measure the always-on context load (skills, instructions, MCP) and show its size and any warnings; the report is .hve/context_load.json.
  * @param {vscode.ExtensionContext} context
  * @param {string} workspace
+ * @param {string} python Python launcher.
  */
-async function reportContextLoad(context, workspace) {
+async function reportContextLoad(context, workspace, python) {
   const script = path.join(context.extensionPath, 'runtime', 'tools', 'skills', 'context_load.py');
+  const [command, ...args] = python.split(' ');
   const stdout = await new Promise((resolve, reject) => {
-    execFile('python', [script], { cwd: workspace, maxBuffer: 10 * 1024 * 1024 }, (error, out, err) => {
+    execFile(command, [...args, script], { cwd: workspace, maxBuffer: 10 * 1024 * 1024 }, (error, out, err) => {
       if (error) {
         reject(new Error(`context_load.py failed: ${err || error.message}`));
       } else {
@@ -115,20 +149,14 @@ async function reportContextLoad(context, workspace) {
 }
 
 /**
- * Run the full setup: Python check, plugin registration, workspace state, optional telemetry, context-load report.
+ * Re-detect Python, re-render the plugin, then set up the open workspace: build preference, .gitignore and context-load report.
  * @param {vscode.ExtensionContext} context
  */
 async function setUp(context) {
-  const version = await pythonVersion();
-  if (!version || version[0] < MIN_PYTHON[0] || (version[0] === MIN_PYTHON[0] && version[1] < MIN_PYTHON[1])) {
-    const install = await vscode.window.showErrorMessage(
-      `Frontier HVE needs Python ${MIN_PYTHON.join('.')} or newer on PATH (found ${version ? version.join('.') : 'none'}).`,
-      'Install Python 3.12 with winget');
-    if (install) {
-      const terminal = vscode.window.createTerminal('Frontier HVE setup');
-      terminal.show();
-      terminal.sendText('winget install -e --id Python.Python.3.12');
-    }
+  const python = await findPython();
+  await registerPlugin(context, python);
+  if (!python) {
+    await warnNoPython();
     return;
   }
   const folders = vscode.workspace.workspaceFolders;
@@ -136,28 +164,48 @@ async function setUp(context) {
     vscode.window.showErrorMessage('Open the project folder first, then run "Frontier HVE: Set up" again.');
     return;
   }
-  await registerPlugin(context);
   await setUpWorkspace(folders[0].uri.fsPath);
-  await offerTelemetry(folders[0].uri.fsPath);
-  await reportContextLoad(context, folders[0].uri.fsPath);
+  await reportContextLoad(context, folders[0].uri.fsPath, python);
+  await offerReload(`Frontier HVE is ready (Python: ${python}).`);
+}
+
+/**
+ * Ask to reload the window so Copilot Chat picks up the rendered agents.
+ * @param {string} message
+ */
+async function offerReload(message) {
   const reload = await vscode.window.showInformationMessage(
-    'Frontier HVE is ready. Reload the window, then pick an HVE agent in the Chat view (Session Target: Local).', 'Reload Window');
+    `${message} Reload the window, then pick an HVE agent in a new chat with Session Target: Local.`, 'Reload Window');
   if (reload) {
     vscode.commands.executeCommand('workbench.action.reloadWindow');
   }
 }
 
 /**
- * Register the setup command and re-render the plugin after an extension update.
+ * Register the commands, render the plugin on first install, update or Python change, and show a status item while Python is missing.
  * @param {vscode.ExtensionContext} context
  */
 async function activate(context) {
-  context.subscriptions.push(vscode.commands.registerCommand('frontierHve.setup', () => setUp(context)));
-  const rendered = context.globalState.get('renderedVersion');
-  if (rendered && rendered !== context.extension.packageJSON.version) {
-    await registerPlugin(context);
-    vscode.window.showInformationMessage('Frontier HVE was updated. Reload the window to use the new agents.');
+  context.subscriptions.push(
+    vscode.commands.registerCommand('frontierHve.setup', () => setUp(context)),
+    vscode.commands.registerCommand('frontierHve.researchTelemetry', enableResearchTelemetry));
+  const python = await findPython();
+  if (!python) {
+    const item = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left);
+    item.text = '$(warning) Frontier HVE: guards off (no Python)';
+    item.tooltip = `Install Python ${MIN_PYTHON.join('.')}+, then click to run "Frontier HVE: Set up".`;
+    item.command = 'frontierHve.setup';
+    item.show();
+    context.subscriptions.push(item);
   }
+  const rendered = context.globalState.get('renderedVersion') === context.extension.packageJSON.version
+    && context.globalState.get('renderedPython') === python;
+  if (rendered) {
+    return;
+  }
+  await registerPlugin(context, python);
+  // Not awaited: activation must not wait for the user to dismiss a notification.
+  void (python ? offerReload('Frontier HVE agents are installed.') : warnNoPython());
 }
 
 /** Nothing to clean up: the plugin stays registered until the extension is uninstalled. */

@@ -18,6 +18,7 @@ READ_ONLY_TOOLS = {"read_file", "file_search", "grep_search", "list_dir", "seman
                    "github-pull-request_pullRequestStatusChecks", "github-pull-request_currentActivePullRequest"}
 PR_TOOL = "github-pull-request_create_pull_request"
 PROTECTED = re.compile(r"feature_list\.json|progress\.txt|tracker\.json|\.harness[/\\]", re.I)
+EVALUATION_INPUT = re.compile(r"(^|[/\\])\.hve[/\\]evaluations[/\\]input[/\\][\w.-]+\.(json|md)$", re.I)
 LOOP_SCRIPT = re.compile(r"^\s*python3?\s+\"?[^\"\s]*tools[/\\](loop[/\\](loop|flow)|git[/\\](parallel_options|branch_workflow))\.py\"?"
                          r"(\s+[\w./\\:-]+)*\s*$", re.I)
 HUMAN_ONLY = re.compile(r"loop\.py\s+resume\b|flow\.py\s+resume\b", re.I)
@@ -99,6 +100,8 @@ def pre_tool(session_id: str, tool_name: str, tool_input: Json, tool_use_id: str
             return push_gate(session_id, proj, BRANCH.findall(command), "git push")
         if LOOP_SCRIPT.match(command) or not PROTECTED.search(command):
             return None
+    elif EVALUATION_INPUT.search(str(tool_input.get("filePath", ""))):
+        return None  # reflection inputs cite loop evidence by path; reflection.py validates them
     elif not PROTECTED.search(json.dumps(tool_input)) or (
             not (proj / ".harness" / "state.json").exists() and ".harness" not in json.dumps(tool_input)):
         return None  # before loop init, the agent writes feature_list.json itself

@@ -15,11 +15,11 @@ EMPTY_PROFILE = {"prompt_style": None, "wants_evidence": None, "verbosity": None
                  "depth_evidence": 0, "explanation_depth": None, "bloat_triggers": []}
 
 
-def render(out: Path, version: str = "0.0.0-test") -> list[str]:
-    """Build the extension and render its plugin into out with Node; return the rendered agent file names."""
+def render(out: Path, version: str = "0.0.0-test", python: str | None = "python") -> list[str]:
+    """Build the extension and render its plugin into out with Node for a Python launcher (None: no Python); return the agent file names."""
     subprocess.run([sys.executable, str(EXTENSION / "build.py")], check=True, capture_output=True, text=True)
     script = (f"process.stdout.write(JSON.stringify(require({json.dumps(str(EXTENSION / 'render.js'))})"
-              f".renderPlugin({json.dumps(str(EXTENSION))}, {json.dumps(str(out))}, {json.dumps(version)})))")
+              f".renderPlugin({json.dumps(str(EXTENSION))}, {json.dumps(str(out))}, {json.dumps(version)}, {json.dumps(python)})))")
     result = subprocess.run(["node", "-e", script], capture_output=True, text=True, check=True)
     return json.loads(result.stdout)
 
@@ -52,16 +52,19 @@ def test_extension_js_parses() -> None:
 
 
 def test_rendered_plugin_shape() -> None:
-    """The plugin has its manifest, 12 skills, guardrail scripts and 17 HVE agents with every runtime path filled in."""
+    """The plugin has its manifest, 12 skills, guardrail scripts and 18 HVE agents with every runtime path filled in."""
     with tempfile.TemporaryDirectory() as tmp:
         out = Path(tmp) / "plugin"
         agents = render(out)
-        assert len(agents) == 17, agents
+        assert len(agents) == 18, agents
         assert json.loads((out / "plugin.json").read_text(encoding="utf-8"))["name"] == "frontier-hve"
         assert len(list((out / "skills").glob("*/SKILL.md"))) == 12
         assert (out / "skills" / "deliverable-templates" / "SKILL.md").is_file()
         assert (EXTENSION / "runtime" / "tools" / "templates" / "manage.py").is_file()
         assert (EXTENSION / "runtime" / "templates" / "deliverables" / "prd-v1.md").is_file()
+        assert (EXTENSION / "runtime" / "evaluation" / "frontier.eval.json").is_file()
+        reviewer = (out / "com.github.copilot" / "agents" / "hve-evaluation-reviewer.agent.md").read_text(encoding="utf-8")
+        assert re.search(r"^user-invocable: false", reviewer, re.M) and "edit/" not in reviewer
         assert not (out / "skills" / "ux-flows").exists() and (EXTENSION / "runtime" / "skills" / "admitted" / "ux-flows" / "SKILL.md").is_file()
         assert (out / "scripts" / "guardrail.py").exists()
         for name in agents:
@@ -73,6 +76,30 @@ def test_rendered_plugin_shape() -> None:
                 assert Path(script).is_file(), (name, script)
 
 
+def test_render_for_python_launcher_and_fresh_workspace() -> None:
+    """Without Python, hooked agents lose their hooks and warn; python3 replaces python; hooks run in a workspace that was never set up."""
+    with tempfile.TemporaryDirectory() as tmp:
+        out = Path(tmp) / "plugin"
+        folder = out / "com.github.copilot" / "agents"
+        render(out, python=None)
+        creator = (folder / "hve-creator.agent.md").read_text(encoding="utf-8")
+        assert "hooks:" not in creator and "Python not found" in creator and "description: (Needs Python)" in creator
+        assert "Python not found" not in (folder / "hve-minimal.agent.md").read_text(encoding="utf-8")
+        render(out, python="python3")
+        creator = (folder / "hve-creator.agent.md").read_text(encoding="utf-8")
+        assert 'python "' not in creator and 'python3 "' in creator and "Session Target **Local**" in creator
+        assert "Session Target **Local**" not in (folder / "hve-flow-designer.agent.md").read_text(encoding="utf-8")
+        render(out)
+        creator = (folder / "hve-creator.agent.md").read_text(encoding="utf-8")
+        assert "Python on this machine" not in creator
+        ws = Path(tmp) / "fresh"
+        ws.mkdir()
+        run(hook(creator, "profile_detector.py"), ws, {"hook_event_name": "SessionStart"})
+        run(hook(creator, "skill_loader.py"), ws, {"hook_event_name": "UserPromptSubmit", "prompt": "Build a palette app"},
+            HARNESS_SKILLS_MIN_STATUS="provisional")
+        assert (ws / ".hve" / "user_profile.json").is_file() and (ws / ".hve" / "runs" / "s1.skills.json").is_file()
+
+
 def test_rerender_updates_in_place() -> None:
     """Rendering over an existing plugin (held open by VS Code) updates the version and agents and removes stale files."""
     with tempfile.TemporaryDirectory() as tmp:
@@ -81,7 +108,7 @@ def test_rerender_updates_in_place() -> None:
         stale = out / "com.github.copilot" / "agents" / "old.agent.md"
         stale.write_text("old", encoding="utf-8")
         (out / "skills" / "old-skill").mkdir()
-        assert len(render(out, "0.1.1")) == 17
+        assert len(render(out, "0.1.1")) == 18
         assert json.loads((out / "plugin.json").read_text(encoding="utf-8"))["version"] == "0.1.1"
         assert not stale.exists() and not (out / "skills" / "old-skill").exists()
 
@@ -213,6 +240,7 @@ def test_rendered_flow_and_loop_tools_run() -> None:
 if __name__ == "__main__":
     test_extension_js_parses()
     test_rendered_plugin_shape()
+    test_render_for_python_launcher_and_fresh_workspace()
     test_rerender_updates_in_place()
     test_packaged_template_guard()
     test_product_manager_agent()

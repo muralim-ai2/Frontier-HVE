@@ -87,7 +87,10 @@ CHALLENGES: dict[BloatTrigger, str] = {
 
 
 def load_profile() -> Profile:
-    """Return user_profile.json after checking every field against its allowed values."""
+    """Return user_profile.json after checking every field, creating it with no preferences in a new workspace."""
+    if not PROFILE_FILE.exists():
+        save_profile(Profile(prompt_style=None, wants_evidence=None, verbosity=None, output_format=None, build_preference=None,
+                             depth_evidence=0, explanation_depth=None, bloat_triggers=[]))
     data = json.loads(PROFILE_FILE.read_text(encoding="utf-8"))
     if set(data) != set(ALLOWED) | {"bloat_triggers", "depth_evidence"}:
         raise ValueError(f"{PROFILE_FILE} fields {sorted(data)} differ from {sorted(set(ALLOWED) | {'bloat_triggers', 'depth_evidence'})}")

@@ -25,14 +25,9 @@ The design follows [reference/Enterprise AI Harness Blueprint v3.html](reference
 
 ## Install the Frontier HVE extension
 
-| Step | Action |
-|---|---|
-| 1. Build | `python extension/build.py`, then from `extension/`: `npx --yes @vscode/vsce package --skip-license` (creates `frontier-hve-<version>.vsix`) |
-| 2. Install | `code --install-extension extension/frontier-hve-<version>.vsix` (needs GitHub Copilot Chat and Python 3.11+) |
-| 3. Set up | Open the project folder, run **Frontier HVE: Set up** from the Command Palette, pick how you prefer to build (no code, low code or pro code), and reload the window |
-| 4. Use | In the Chat view (Session Target: Local) pick an **HVE** agent: `HVE creator`, `HVE creator-flow`, `HVE creator-github`, `HVE single`, `HVE minimal` or `HVE product-manager` |
+Install the VSIX and reload; the extension finds Python (3.11+ as `python`, `python3` or `py -3`), renders the HVE agents and skills and registers them. Without Python the agents run without guards and say so. Then pick an **HVE** agent in a new chat with Session Target: Local. Requirements, the optional **Frontier HVE: Set up**, checking an install with the provenance report, updating and building the VSIX: [docs/wiki/Install.md](docs/wiki/Install.md). Agents and their guardrails: [docs/wiki/Agents.md](docs/wiki/Agents.md).
 
-Setup renders the HVE agents and skills as an agent plugin in the extension's storage and registers it in `chat.pluginLocations`. Workspace state goes to `<workspace>/.hve/` (profile, budgets, interventions); setup offers to add `.hve/` to `.gitignore`. The Copilot telemetry export is optional and only needed for research metrics (D-032).
+Workspace state goes to `<workspace>/.hve/` (profile, interventions, loadouts). The Copilot telemetry export is only for research metrics and has its own command (D-032, D-047).
 
 **Configured deliverables.** The authoring agents use bundled PRD, Technical Design Specification and Test Strategy templates. Teams can commit `frontier-hve.templates.json` to select company templates and output locations. The template manager initializes documents without overwriting existing files and validates structure, placeholders and template provenance before handoff. Configuration, commands and enforcement limits: [Templates](docs/wiki/Templates.md).
 
@@ -41,7 +36,7 @@ Setup renders the HVE agents and skills as an agent plugin in the extension's st
 | Step | Command or action |
 |---|---|
 | Check the setup | `bash init.sh` (needs the OTel export pointed at `.hve/runs/copilot-otel.jsonl`, see D-005 and D-032 in the [decision log](research/decisions/decision_log.md)) |
-| Run a benchmark | Set the model picker's reasoning effort to the agent's pin, then `python tools/observe/bench.py <minimal\|single\|creator\|creator-flow>`, open a new **Local** chat with that agent, and paste |
+| Run a benchmark | Set the model picker's reasoning effort to the agent's pin, then `python tools/observe/bench.py <minimal\|single\|creator\|creator-flow>`, open a new **Local** chat with that agent, and paste; the log ends with the run's provenance (which declared harness components left evidence) |
 | Compare runs | `python tools/observe/compare.py` |
 | Inspect one run | `python tools/observe/trajectory.py <session_id>` |
 | Prepare blind scoring | `python tools/observe/blind.py prepare` |

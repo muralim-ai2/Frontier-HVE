@@ -1,6 +1,7 @@
 """End-to-end test of tools/observe/collect.py on synthetic sessions in a temp folder."""
 
 import json
+import re
 import shutil
 import subprocess
 import sys
@@ -102,8 +103,43 @@ def test_rejects_non_benchmark_and_ambiguous_sessions() -> None:
         assert result.returncode != 0 and "more than one uncollected session for mode(s) ['minimal']" in result.stderr, result.stderr
 
 
+def test_provenance_reports_component_evidence() -> None:
+    """A template-built PRD verifies `templates`; a finished loop without evaluation fails `reflection`; a missing loadout fails `skills`."""
+    with tempfile.TemporaryDirectory() as tmp:
+        ws = Path(tmp)
+        agent = ws / "pm.agent.md"
+        agent.write_text('hooks: skill_loader.py template_guard.py\nRun "tools/loop/loop.py" then "tools/evaluation/reflection.py".\n',
+                         encoding="utf-8")
+        (ws / ".hve" / "runs").mkdir(parents=True)
+        (ws / ".hve" / "runs" / "s1.skills.json").write_text("{}", encoding="utf-8")
+        cli = [sys.executable, str(REPO / "tools" / "observe" / "provenance.py"), str(agent), "latest", "--workspace", str(ws)]
+        result = subprocess.run([*cli, "--require", "templates"], capture_output=True, text=True)
+        report = json.loads(result.stdout)
+        assert result.returncode == 1 and report["components"]["templates"]["status"] == "not-exercised", report
+        assert set(report["components"]) == {"skills", "templates", "loop", "reflection"}, report
+        manager = REPO / "tools" / "templates" / "manage.py"
+        subprocess.run([sys.executable, str(manager), "--workspace", str(ws), "init", "prd", "--slug", "leave", "--session", "s1"],
+                       check=True, capture_output=True)
+        prd = ws / "docs" / "product" / "PRD-leave.md"
+        assert json.loads(subprocess.run([*cli, "--require", "templates"], capture_output=True, text=True).stdout)[
+            "components"]["templates"]["status"] == "failed", "placeholders left in the PRD"
+        prd.write_text(re.sub(r"\{\{\s*FILL:[^{}]*\}\}", "Filled.", prd.read_text(encoding="utf-8")), encoding="utf-8")
+        (ws / "feature_list.json").write_text(json.dumps([{"name": "a", "passes": True}]), encoding="utf-8")
+        (ws / ".harness").mkdir()
+        result = subprocess.run([*cli, "--require", "templates"], capture_output=True, text=True)
+        report = json.loads(result.stdout)
+        assert report["components"]["templates"] == {"status": "verified", "detail": "prd/leave from builtin:prd@1"}, report
+        assert report["components"]["reflection"]["status"] == "failed" and result.returncode == 1, report
+        assert (ws / ".hve" / "runs" / "s1.provenance.json").is_file()
+        (ws / ".hve" / "runs" / "s1.skills.json").unlink()
+        (ws / ".hve" / "runs" / "s2.events.jsonl").write_text("", encoding="utf-8")
+        report = json.loads(subprocess.run(cli, capture_output=True, text=True).stdout)
+        assert report["session"] == "s2" and report["components"]["skills"]["status"] == "failed", report
+
+
 if __name__ == "__main__":
     test_collects_minimal_reply_and_single_folder()
     test_rejects_unsafe_path_in_reply()
     test_rejects_non_benchmark_and_ambiguous_sessions()
+    test_provenance_reports_component_evidence()
     print("test_collect: OK")
