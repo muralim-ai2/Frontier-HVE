@@ -273,6 +273,10 @@ def test_loop_guard() -> None:
         state = {"review": "github", "current": "a", "escalated": None, "help": None}
         (proj / ".harness" / "state.json").write_text(json.dumps(state), encoding="utf-8")
         assert pre("create_file", edit)["hookSpecificOutput"]["permissionDecision"] == "deny"  # type: ignore[index]
+        cites = {"content": '{"evidence": [".harness/evidence/a/page.png", "feature_list.json"]}'}
+        assert pre("create_file", {"filePath": str(proj / ".hve" / "evaluations" / "input" / "r-scores.json")} | cites) is None
+        escape = str(proj / ".hve" / "evaluations" / "input" / ".." / ".." / ".." / "feature_list.json")
+        assert pre("create_file", {"filePath": escape} | cites) is not None
         assert pre("read_file", edit) is None
         assert pre("run_in_terminal", {"command": "python ../../../../tools/loop/loop.py verify ."}) is None
         for bad in ("echo x > feature_list.json", "git commit --no-verify -m x", "python ../../../../tools/loop/loop.py resume . ok",
