@@ -1,0 +1,6 @@
+﻿[
+  {"name":"core-color-palette","description":"Implement robust color math, nine five-color harmony generators with lock preservation, export serializers, and resilient localStorage helpers with deterministic unit coverage.","verify":"npm run test:core","passes":false},
+  {"name":"interactive-product","description":"Build the polished responsive generator UI with seed validation, modes, locks, copy feedback, accessibility guidance, exports, save/load/delete, share URLs, trust copy, and keyboard-friendly controls.","verify":"npm run test:product","passes":false},
+  {"name":"production-seo","description":"Complete responsive home content, FAQ JSON-LD, metadata, privacy and terms, sitemap, robots, SVG assets, lint/build verification, and browser-level functional checks.","verify":"npm run verify:production","passes":false},
+  {"name":"output-reflection","description":"Capture genuine desktop and mobile screenshots into .harness/evidence and verify the final evidence-backed product reflection contract after all other checks pass.","verify":"npm run verify:reflection","passes":false}
+]

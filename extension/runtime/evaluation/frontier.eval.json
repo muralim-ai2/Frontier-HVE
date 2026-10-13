@@ -1,0 +1,129 @@
+{
+  "version": 1,
+  "intent": {
+    "workflow": "output-reflection",
+    "description": "Evidence-backed reflection contract for products delivered by Frontier HVE creator modes."
+  },
+  "validation": {
+    "hooks": [
+      {
+        "id": "locked-feature-checks",
+        "type": "feature-checks",
+        "required": true,
+        "trigger": "always",
+        "outputKinds": ["ui", "cli", "api", "library", "document"],
+        "timeoutSeconds": 300
+      },
+      {
+        "id": "visual-evidence",
+        "type": "artifacts",
+        "required": true,
+        "trigger": "below-warning",
+        "outputKinds": ["ui"],
+        "paths": [".harness/evidence/**/*.png"],
+        "timeoutSeconds": 30
+      },
+      {
+        "id": "runtime-logs",
+        "type": "artifacts",
+        "required": false,
+        "trigger": "always",
+        "outputKinds": ["cli", "api"],
+        "paths": [".harness/evidence/**/*.log"],
+        "timeoutSeconds": 30,
+        "recommendation": "Have each CLI or API feature check save its output to .harness/evidence/<feature>/<name>.log; for a remote service, save a pulled log excerpt there."
+      }
+    ]
+  },
+  "rubrics": [
+    {
+      "id": "task-completion",
+      "description": "The delivered product implements the requested user-visible outcomes end to end.",
+      "weight": 0.30,
+      "blocking": 0.60,
+      "warning": 0.80,
+      "criteria": [
+        "Every requested core workflow is usable without placeholder behavior.",
+        "Edge cases named in the request have explicit behavior.",
+        "The output starts and operates in its intended environment."
+      ],
+      "validationHooks": ["locked-feature-checks"]
+    },
+    {
+      "id": "constraint-adherence",
+      "description": "The output follows the stated stack, scope, non-goals, and repository rules.",
+      "weight": 0.20,
+      "blocking": 0.60,
+      "warning": 0.85,
+      "criteria": [
+        "User and repository constraints are satisfied without silent substitutions.",
+        "No unnecessary infrastructure, dependency, or scope expansion was introduced.",
+        "Errors and missing configuration surface clearly."
+      ],
+      "validationHooks": ["locked-feature-checks"]
+    },
+    {
+      "id": "evidence-verification",
+      "description": "Claims about correctness are supported by current deterministic checks and inspectable artifacts.",
+      "weight": 0.20,
+      "blocking": 0.70,
+      "warning": 0.90,
+      "criteria": [
+        "Locked feature checks pass against the delivered output.",
+        "Evidence was produced by tools or hooks rather than model narration.",
+        "Evidence is specific enough to reproduce or inspect."
+      ],
+      "validationHooks": ["locked-feature-checks", "runtime-logs"]
+    },
+    {
+      "id": "usability-accessibility",
+      "description": "The primary workflow is understandable, responsive, keyboard-usable, and visually legible.",
+      "weight": 0.15,
+      "blocking": 0.50,
+      "warning": 0.80,
+      "criteria": [
+        "The main action and system state are clear without documentation.",
+        "Interactive controls have labels, focus behavior, and non-color-only meaning.",
+        "Responsive layouts preserve the workflow at common viewport sizes."
+      ],
+      "validationHooks": ["visual-evidence"]
+    },
+    {
+      "id": "safety-maintainability",
+      "description": "The output avoids unsafe behavior, hidden failure, fragile coupling, and unjustified complexity.",
+      "weight": 0.15,
+      "blocking": 0.60,
+      "warning": 0.80,
+      "criteria": [
+        "Trust boundaries and user-controlled input are handled safely.",
+        "Failures are explicit and do not become success-shaped defaults.",
+        "The implementation remains within repository size and structure constraints."
+      ],
+      "validationHooks": ["locked-feature-checks"]
+    }
+  ],
+  "council": {
+    "roles": [
+      {
+        "id": "critical",
+        "mandate": "Search for concrete misses, regressions, unsafe assumptions, and evidence gaps that should block release.",
+        "modelTier": "high"
+      },
+      {
+        "id": "balanced",
+        "mandate": "Weigh delivered value against the contract and distinguish blocking defects from acceptable trade-offs.",
+        "modelTier": "high"
+      },
+      {
+        "id": "constructive-coach",
+        "mandate": "Identify the smallest high-leverage revision that would make the output clearer, safer, or more complete.",
+        "modelTier": "high"
+      }
+    ]
+  },
+  "decision": {
+    "minimumScore": 0.80,
+    "councilPasses": 2,
+    "maxRevisionPasses": 1
+  }
+}

@@ -1,0 +1,56 @@
+{
+  "session": "fcd288c9-d579-440b-ab0c-cfccee188c2e",
+  "agent": "creator.agent.md",
+  "ok": false,
+  "components": {
+    "skills": {
+      "status": "failed",
+      "detail": ".hve/runs/fcd288c9-d579-440b-ab0c-cfccee188c2e.skills.json missing: the skill_loader.py hook did not run"
+    },
+    "profile": {
+      "status": "verified",
+      "detail": ".hve/user_profile.json"
+    },
+    "metrics": {
+      "status": "verified",
+      "detail": ".hve/runs/fcd288c9-d579-440b-ab0c-cfccee188c2e.events.jsonl"
+    },
+    "loop": {
+      "status": "not-exercised",
+      "detail": "no feature_list.json in C:\\PwC_HarnessEngineering2\\enterprise-harness\\.hve\\outputs\\harness\\fcd288c9-d579-440b-ab0c-cfccee188c2e"
+    },
+    "reflection": {
+      "status": "not-exercised",
+      "detail": "the feature loop did not finish"
+    }
+  },
+  "trace": {
+    "model_calls": {
+      "main": 18,
+      "subagent": 0
+    },
+    "subagents": 0,
+    "models": [
+      "gpt-5.6-sol"
+    ],
+    "prompt_tokens": {
+      "main_first": 27129,
+      "main_peak": 44985,
+      "subagent_peak": 0,
+      "total": 629904
+    },
+    "completion_tokens": 14972,
+    "cache_read_ratio": 0.929,
+    "tool_calls": {
+      "run_in_terminal": 4,
+      "apply_patch": 4,
+      "get_terminal_output": 4,
+      "mcp_graphify_query_graph": 1,
+      "list_dir": 1,
+      "file_search": 1,
+      "create_directory": 1
+    },
+    "failed_tool_calls": 1
+  },
+  "interventions": 0
+}

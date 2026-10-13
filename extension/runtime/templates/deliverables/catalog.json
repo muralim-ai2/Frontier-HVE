@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "enforce": true,
+  "templates": {
+    "prd": {
+      "source": "builtin:prd@1",
+      "output": "docs/product/PRD-{slug}.md"
+    },
+    "technicalDesign": {
+      "source": "builtin:technical-design@1",
+      "output": "docs/design/TDS-{slug}.md"
+    },
+    "testStrategy": {
+      "source": "builtin:test-strategy@1",
+      "output": "docs/testing/TEST-STRATEGY-{slug}.md"
+    }
+  }
+}

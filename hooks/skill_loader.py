@@ -43,6 +43,7 @@ class Loadout(TypedDict):
     notice: str | None
     prompt: str
     announced: bool
+    used: list[str]
 
 
 def state_file(session_id: str) -> Path:
@@ -174,6 +175,7 @@ def add_ticked(loadout: Loadout, tool_input: Json, tool_response: Any) -> list[s
         return []
     ticked = [s for s in loadout["recommended"] if install_name(s) in ticked_names]
     loadout["skills"] += ticked
+    loadout["used"] = sorted({*loadout.get("used", []), *ticked})
     loadout["recommended"] = [s for s in loadout["recommended"] if s not in ticked]
     loadout["announced"] = loadout["announced"] and not ticked
     return ticked
@@ -187,15 +189,21 @@ def apply_choice(loadout: Loadout, tool_input: Json, tool_response: Any) -> list
     loadout["plugins"] = [] if CORE_ONLY in picked else [p for p in loadout["pending"] if p in picked]
     loadout["pending"] = []
     loadout.update(choose(loadout["prompt"], loadout["plugins"]))  # type: ignore[typeddict-item]
+    loadout["used"] = sorted({*loadout["used"], *loadout["skills"]})
     loadout["announced"] = False
     return loadout["skills"]
 
 
-def start(prompt: str, previous: Loadout | None) -> Loadout:
-    """Route the prompt and rank its skills into a new, unannounced loadout, and install the loaded skills."""
-    plugins, pending, pool, notice = route(prompt, previous)
-    loadout = Loadout(plugins=plugins, candidates=pool, pending=pending, notice=notice, prompt=prompt, announced=False,
-                      **choose(prompt, plugins))
+def start(prompt: str, previous: Json | None) -> Loadout:
+    """Route the prompt and rank its skills into a new, unannounced loadout, keep every skill used so far, and install the loaded ones."""
+    # Loadouts written before plugin routing have no candidates; they carry no earlier plugin choice.
+    routed = previous if previous is not None and "candidates" in previous else None
+    plugins, pending, pool, notice = route(prompt, routed)  # type: ignore[arg-type]
+    chosen = choose(prompt, plugins)
+    # Loadouts written before `used` existed carry only their current skills.
+    used = sorted({*(previous.get("used", previous["skills"]) if previous else []), *chosen["skills"]})
+    loadout = Loadout(plugins=plugins, candidates=pool, pending=pending, notice=notice, prompt=prompt, announced=False, used=used,
+                      **chosen)
     install(loadout["skills"])
     return loadout
 
@@ -206,7 +214,7 @@ def main() -> None:
     path = state_file(payload["session_id"])
     event = payload["hook_event_name"]
     if event == "UserPromptSubmit":
-        previous: Loadout | None = json.loads(path.read_text(encoding="utf-8")) if path.exists() else None
+        previous = json.loads(path.read_text(encoding="utf-8")) if path.exists() else None
         path.write_text(json.dumps(start(payload["prompt"], previous)), encoding="utf-8")
         return
     if event not in ("PreToolUse", "PostToolUse"):

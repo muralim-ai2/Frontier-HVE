@@ -1,0 +1,76 @@
+{
+  "session": "7605fd01-2748-42d3-b106-5f566eb355f3",
+  "agent": "creator.agent.md",
+  "ok": false,
+  "summary": {
+    "skills_used": [],
+    "subagents": 9,
+    "tokens": {
+      "prompt": 12837459,
+      "completion": 110855
+    },
+    "cost_aiu": 1146.33
+  },
+  "components": {
+    "skills": {
+      "status": "verified",
+      "detail": "loaded: none matched the prompt"
+    },
+    "profile": {
+      "status": "verified",
+      "detail": ".hve/user_profile.json"
+    },
+    "metrics": {
+      "status": "verified",
+      "detail": ".hve/runs/7605fd01-2748-42d3-b106-5f566eb355f3.events.jsonl"
+    },
+    "loop": {
+      "status": "verified",
+      "detail": "3/3 features pass; progress.txt present"
+    },
+    "reflection": {
+      "status": "failed",
+      "detail": "20261013T153831Z-p0: revise, score 0.743; layers missing []; validation: locked-feature-checks passed (3/3 feature checks passed), visual-evidence FAILED (collected 0 artifact(s)); council: critical=revise (Claude Opus 5.5 (copilot)), balanced=human-review (GPT-6.1 Sol (copilot)), constructive-coach=revise (Gemini 3.8 Flash (copilot)); 9 markers; the decision is revise but no revision pass followed"
+    }
+  },
+  "trace": {
+    "model_calls": {
+      "main": 104,
+      "subagent": 113
+    },
+    "subagents": 9,
+    "models": [
+      "claude-opus-5.5",
+      "gemini-3.8-flash",
+      "gpt-5.6-sol",
+      "gpt-6.1-sol"
+    ],
+    "prompt_tokens": {
+      "main_first": 36211,
+      "main_peak": 186964,
+      "subagent_peak": 61187,
+      "total": 12837459
+    },
+    "completion_tokens": 110855,
+    "cost_aiu": 1146.33,
+    "cache_read_ratio": 0.887,
+    "tool_calls": {
+      "run_in_terminal": 62,
+      "read_file": 46,
+      "create_file": 37,
+      "runSubagent": 13,
+      "grep_search": 12,
+      "list_dir": 10,
+      "get_terminal_output": 9,
+      "apply_patch": 6,
+      "replace_string_in_file": 4,
+      "multi_replace_string_in_file": 4,
+      "file_search": 3,
+      "mcp_graphify_query_graph": 1,
+      "create_directory": 1,
+      "tool_search": 1
+    },
+    "failed_tool_calls": 19
+  },
+  "interventions": 21
+}
