@@ -11,5 +11,6 @@ How-to pages for people and agents. Each page names the files it describes; the 
 | [Templates](Templates.md) | Configure PRD, technical design and test strategy templates; provenance, validation and company overrides | New capability |
 | [Product Manager](Product-Manager.md) | Use `HVE product-manager`: research, model council, PRD in the configured template, backlog in local JSON, Azure DevOps or GitHub | W20 |
 | [Evaluation](Evaluation.md) | Output evaluation after the creator's feature loop or on request: JSON contract, grounded rubrics, hooks by output kind, model council, decision, human verdict | New capability |
+| [Plugins](Plugins.md) | Install and manage plugins; how agents route to them; author, validate, pack and publish a plugin (agents, skills, templates, SDLC flow, rubrics) | New capability |
 
 Other topics in `tracker.json` are not written yet.

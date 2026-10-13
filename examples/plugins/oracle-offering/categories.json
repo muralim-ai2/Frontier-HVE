@@ -1,0 +1,5 @@
+{
+  "categories": {
+    "oracle-migration": {"task_pattern": "\\b(oracle|pl/?sql|exadata|goldengate|awr)\\b"}
+  }
+}

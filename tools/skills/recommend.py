@@ -8,6 +8,9 @@ from pathlib import Path
 from typing import Any, Literal
 
 SKILLS_DIR = Path(__file__).resolve().parents[2] / "skills"
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "plugins"))
+import store  # noqa: E402
+
 USER_REGISTRY = Path.cwd() / ".hve" / "skills-registry.json"
 STATUS_ORDER = {"admitted": 0, "provisional": 1}
 STOP_WORDS = {"the", "and", "for", "then", "with", "from", "that", "this", "our", "your", "into", "each", "before", "after", "are",
@@ -44,24 +47,29 @@ def relevance(prompt: str, entry: Json, categories: list[str], frequency: Counte
     return len(set(entry["task_categories"]) & set(categories)) + sum(1 / frequency[s] for s in shared)
 
 
-def library_entries() -> list[Json]:
-    """Return harness library entries and the workspace's own admitted skills, each with the folder to load it from."""
+def library_entries(plugins: tuple[str, ...] = ()) -> list[Json]:
+    """Return harness library entries, the workspace's own admitted skills and the selected plugins' skills, each with its folder."""
     entries = [e | {"path": f"skills/admitted/{e['name']}"} for e in read("registry.json")["admitted"]]
     if USER_REGISTRY.is_file():
         own = json.loads(USER_REGISTRY.read_text(encoding="utf-8"))["admitted"]
         entries += [e | {"path": (USER_REGISTRY.parent / "skill-library" / e["name"]).as_posix()} for e in own]
+    for name in plugins:
+        entry = store.plugin(name)
+        entries += [s | {"path": (store.folder(entry) / "skills" / s["name"]).as_posix()} for s in entry["manifest"]["skills"]]
     return entries
 
 
-def rank(prompt: str, min_status: MinStatus, required: tuple[str, ...] = ()) -> Json:
-    """Reserve required skills within budget, then rank task-matching skills for loading or recommendation."""
+def rank(prompt: str, min_status: MinStatus, required: tuple[str, ...] = (), plugins: tuple[str, ...] = ()) -> Json:
+    """Reserve required skills within budget, then rank task-matching skills (core and selected plugins) for loading or recommendation."""
     if min_status not in STATUS_ORDER:
         raise ValueError(f"min_status {min_status!r}, expected one of {list(STATUS_ORDER)}")
     config = read("categories.json")
+    for name in plugins:
+        config["categories"] |= store.plugin(name)["manifest"]["categories"]
     budget = config["loadout"]
     categories = task_categories(prompt, config)
     allowed = {s for s, order in STATUS_ORDER.items() if order <= STATUS_ORDER[min_status]}
-    library = library_entries()
+    library = library_entries(plugins)
     reserved: list[Json] = []
     for name in required:
         matches = [e for e in library if e["name"] == name]

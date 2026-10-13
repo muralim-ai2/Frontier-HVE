@@ -1,0 +1,26 @@
+{
+  "id": "oracle-migration",
+  "description": "Assess an Oracle estate, design the target, build the migration, validate it and cut over.",
+  "start": "assess",
+  "lockChecks": true,
+  "stages": {
+    "assess": {"agent": "oracle-offering:oracle-db-architect", "instructions": "flows/assess.md"},
+    "design": {"agent": "oracle-offering:oracle-db-architect", "instructions": "flows/design.md"},
+    "build": {"agent": "core:builder"},
+    "validate": {"agent": "oracle-offering:oracle-engineer", "instructions": "flows/validate.md"}
+  },
+  "edges": {
+    "assessed": {"from": "assess", "to": "design", "evidence": [{"type": "template-valid", "kind": "oracle-offering:assessment"}]},
+    "design-approved": {"from": "design", "to": "build", "evidence": [
+      {"type": "template-valid", "kind": "technicalDesign"},
+      {"type": "json-fields", "file": "design.json", "lists": ["acceptance"], "checks": ["validation_check"]}]},
+    "build-complete": {"from": "build", "to": "validate", "evidence": [{"type": "feature-checks"}, {"type": "structure", "scope": "all"}]},
+    "rework-required": {"from": "validate", "to": "build", "back": true, "cap": 2},
+    "cutover-ready": {"from": "validate", "to": "done", "evidence": [
+      {"type": "feature-checks"},
+      {"type": "check", "file": "design.json", "key": "validation_check"},
+      {"type": "template-valid", "kind": "oracle-offering:migrationRunbook"},
+      {"type": "artifacts", "paths": [".harness/evidence/**/*.log"]}]}
+  },
+  "evaluation": "evaluation/oracle-offering.eval.json"
+}

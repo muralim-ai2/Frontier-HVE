@@ -227,6 +227,10 @@ def library_root(tmp: str) -> Path:
     for hook in ("skill_loader.py", "interventions.py", "hve_paths.py"):
         shutil.copy(REPO / "hooks" / hook, root / "hooks")
     shutil.copy(REPO / "tools" / "skills" / "recommend.py", root / "tools" / "skills")
+    for folder, names in (("plugins", ("store.py", "route.py")), ("templates", ("manage.py",))):
+        (root / "tools" / folder).mkdir(parents=True)
+        for name in names:
+            shutil.copy(REPO / "tools" / folder / name, root / "tools" / folder)
     config = json.loads((REPO / "skills" / "categories.json").read_text(encoding="utf-8")) | {"loadout": {"max_skills": 2, "max_tokens": 1000}}
     (root / "skills" / "admitted").mkdir(parents=True)
     (root / "skills" / "categories.json").write_text(json.dumps(config), encoding="utf-8")

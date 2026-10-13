@@ -1,6 +1,18 @@
 # Plugin Architecture Execution Plan
 
-Status: design proposal, not implemented. Decisions recorded at the end; review findings of 2026-10-13 adopted.
+Status: built (extension 0.9.0, D-048); not verified live (tracker N34).
+Decisions recorded at the end; review findings of 2026-10-13 adopted.
+
+Implementation notes (where the build differs from this plan):
+- Plugin home is `~/.frontier-hve` (or `HVE_PLUGIN_HOME`), not the extension's globalStorage, so hooks, CLI and other clients share it.
+- Rendering runs after the registry commit; `manifest.py` validates every render input first, and activation re-renders.
+- `flow.py init --flow core|<plugin>:<flow>`; `HVE creator-flow` picks the flow from the plugin announcement (no `--flow auto`).
+- `tools/plugins/manifest.py` is the authority; `schemas/hve-plugin.schema.json` is an editor aid kept in sync by a test.
+- Workspace requirements live in `frontier-hve.plugins.json` at the repository root (with a version range), not
+  `.hve/plugins.lock.json`: setup offers to gitignore `.hve/`, so a file there often could not be committed.
+- The author kit is `plugin.py init` (package in `plugin/` plus a release workflow) and `plugin.py test` (routing cases).
+- `plugins/harness-assist` is not converted: it ships Python hook scripts, which the contract forbids, and the extension build
+  already bundles it, so it stays a first-party core component rather than an add-on plugin.
 
 ## Goal
 
@@ -82,10 +94,13 @@ oracle-offering/
   ],
   "skills": "registry.json",
   "templates": {
+    "assessment": { "file": "templates/oracle-assessment-v1.md", "version": 1, "output": "docs/oracle/ASSESSMENT-{slug}.md" },
     "technicalDesign": { "file": "templates/oracle-solution-design-v1.md", "version": 1 },
     "migrationRunbook": { "file": "templates/oracle-migration-runbook-v1.md", "version": 1,
                           "output": "docs/oracle/RUNBOOK-{slug}.md" }
   },
+  "flows": ["flows/oracle-migration.flow.json"],
+  "evaluation": "evaluation/oracle-offering.eval.json",
   "tools": ["read/readFile", "search/textSearch", "edit/editFiles", "agent", "vscode/askQuestions"]
 }
 ```
@@ -96,7 +111,9 @@ Rules:
   second plugin with the same `name` from another publisher fails. `frontier-hve`, `hve` and `core` are reserved.
 - `harness.apiVersion` is the plugin contract version; the core refuses unknown or incompatible versions (fail fast, no
   best-effort load).
-- Every file listed must exist; every `agents/`, `skills/`, `templates/` entry must be listed (no hidden assets).
+- Every file listed must exist; every `agents/`, `skills/`, `templates/`, `flows/`, `evaluation/` entry must be listed
+  (no hidden assets). `flows` and `evaluation` are optional; if declared, they must be valid or the install fails (an
+  absent flow or contract means the core defaults apply; an invalid one is never silently replaced by them).
 - No plugin-authored hooks or executable content in v1: the schema rejects a `hooks` key in `hve-plugin.json` or
   `plugin.json`, a `hooks:` block in any agent frontmatter, a `hooks/` folder, and script files (`*.py`, `*.js`, `*.ps1`,
   `*.sh`, `*.cmd`, `*.exe`). Plugins contain Markdown and JSON only; skills call core tools through `{{RUNTIME}}`.
@@ -134,10 +151,12 @@ Install pipeline (each step fails loudly and leaves nothing installed on failure
    and needs explicit confirmation. A `revoked` entry cannot be installed.
 5. Check identity collisions (section 1 rules).
 6. Show the manifest `tools` for consent; on upgrade, ask again only if the list grew.
-7. Move staging to `plugins/<id>/<version>/`, then replace `plugins.json` atomically (write temp file, rename). The
-   registry is the single commit point: a crash before the rename leaves the previous state; leftover staging folders are
-   deleted on the next activation.
-8. Re-render agents and offer a window reload.
+7. Pre-render the plugin's agents into a staging folder, so a render error fails here.
+8. Move staging to `plugins/<id>/<version>/` and the rendered folder into place, then replace `plugins.json` atomically
+   (write temp file, rename). The registry is the single commit point: a crash before the rename leaves the previous
+   state; leftover staging folders are deleted on the next activation.
+9. Register the rendered folder in `chat.pluginLocations` and offer a window reload. Activation reconciles any registry
+   entry whose rendered folder or `chat.pluginLocations` entry is missing.
 
 Skill content is not re-evaluated or scanned at install: the publishing organization vets and validates it, and the
 index hash ties the installed package to the vetted release. The structural checks above are not a content review.
@@ -150,7 +169,7 @@ index hash ties the installed package to the vetted release. The structural chec
 | `hooks/skill_loader.py` | Also does plugin routing (section 4), so selection and loadout share one session state and one hook order. `library()` includes all installed plugin skill folders, so the deny rule covers unselected plugin skills; `install()` copies to `.hve/skills/<plugin>__<skill>/` |
 | `skills/categories.json` | Plugin `categories.json` merged at runtime under `<plugin>:<category>` |
 | `tools/templates/manage.py` | `KINDS` becomes the core kinds plus the selected plugins' declared kinds. `resolve()` accepts `plugin:<name>/<kind>@<version>`. The workspace policy `frontier-hve.templates.json` may map a core kind to a plugin template; plugin-only kinds use the manifest `output`. Provenance records plugin id, version and template hash |
-| `extension/render.js` | Renders each enabled plugin into `<globalStorage>/rendered/<id>/` (Agent Plugins 1.0 folder), substituting `{{RUNTIME}}`, and adds the core guard hook block (the same block `hve-single` uses) to each plugin agent so core guards apply when it is invoked directly or as a sub-agent. Registers enabled folders in `chat.pluginLocations` and removes disabled ones |
+| `extension/render.js` | Renders each enabled plugin into `<globalStorage>/rendered/<id>/` (Agent Plugins 1.0 folder), substituting `{{RUNTIME}}`, and adds core hooks to each plugin agent: `template_guard.py` (as in `hve-single`) and `skill_loader.py` on `UserPromptSubmit`, `PreToolUse` and `PostToolUse` with `HARNESS_PLUGIN=<name>`, which limits the agent to core skills and its own plugin's skills. This holds whether the agent is invoked directly or as a sub-agent, without relying on the parent's session. Flow stage agents also get `flow_guard.py` on `Stop` (section 8). Registers enabled folders in `chat.pluginLocations` and removes disabled ones |
 | `extension/extension.js` | Commands `Install plugin` / `Manage plugins`, exported API `installPlugin` / `uninstallPlugin`, and an activation reconcile (section 7) |
 | `extension/build.py` | Ships `tools/plugins/plugin.py` and the schema |
 | Core agents (`hve-creator`, `hve-product-manager`, `hve-creator-flow` stages) | Instruction block: when the router context names a plugin agent for the task, delegate the matching sub-task to it with the subagent tool; otherwise proceed with core agents |
@@ -186,18 +205,21 @@ Decision rules:
   ("Plugin `oracle-offering` applies: agents `oracle-db-architect`, `oracle-engineer`; templates `technicalDesign`.").
 - Two or more plugins above threshold, regardless of score gap (for example `oracle-offering` and `postgres-offering`
   both match "migrate Oracle to PostgreSQL"): the agent always asks. Session state is `pending`: the loadout holds core
-  skills only and the deny rule blocks every plugin skill. On the first `PreToolUse` the agent is told to ask with the
+  skills only and the deny rule blocks every plugin skill; the announcement withholds plugin agents and the template
+  manager refuses plugin templates. On the first `PreToolUse` the agent is told to ask with the
   ask-questions tool, header `select-plugin`, multi-select, options = candidate plugins + `Core only`. The `PostToolUse`
   handler records the answer, recomputes and installs the loadout, and the next `PreToolUse` announces it (same pattern
-  as `load-skills`). If the question is cancelled, the session stays core only. A new prompt in the same chat re-routes;
-  a plugin already selected in this chat is kept without asking again. No choice is remembered across chats.
+  as `load-skills`). If the question is cancelled, the session stays core only. A new prompt in the same chat re-routes:
+  if its candidate plugins are the same as before, the earlier answer is kept; if a new plugin matches, the agent asks
+  again. No choice is remembered across chats.
 - Several selected plugins: the announcement lists each plugin's agents with their manifest `capabilities`; the agent
   assigns each sub-task to the matching plugin agent (for example Oracle extraction to `oracle-engineer`, target design to
   the PostgreSQL architect) and says which agent handles what before starting.
 - Explicit mention in the prompt (`@oracle-offering`, `use oracle plugin`, or a namespaced asset name) overrides scoring.
   A mention of a plugin that is not installed or is disabled stops with a message naming the plugin and the install
   command; it does not fall back to core silently.
-- Sub-agents share the parent session's state file, so a delegated plugin agent sees the same selection and loadout.
+- Delegated plugin agents run with their own `HARNESS_PLUGIN` limit (section 3); the orchestrator passes the selected
+  plugins and task in the delegation prompt.
 - Conflicting templates (core `technicalDesign` vs plugin `technicalDesign`): the workspace `catalog.json` decides; if
   the chosen plugin offers a template for a kind the catalog maps to `builtin:`, the agent asks once whether to switch and
   records the answer in the catalog only on the user's choice.
@@ -285,9 +307,149 @@ Core-first, plugin-later behavior:
   before it keep reading their session's copied skills, and new chats use the new version. The previous version folder
   is deleted on the next activation. Explicit rollback with `install <name>@<old>`.
 - Core without plugins behaves exactly as today (router returns core only, no question asked).
-- Required plugins: a repo can commit `.hve/plugins.lock.json` (id, semver range, source). Opening that workspace prompts
+- Required plugins: a repo can commit `frontier-hve.plugins.json` (name, semver range, source). Opening that workspace prompts
   to install a missing plugin globally. If the installed global version is outside the range, the core shows the conflict
   and asks before changing it; it never replaces a global version silently, since other workspaces share it.
+
+### 8. Optional plugin SDLC flow and plugin rubrics
+
+A plugin may ship its own SDLC flow (for example an Oracle migration lifecycle) and its own evaluation rubrics. Both are
+optional. If the selected plugin provides them, the core uses them; otherwise the core uses its default flow
+(`tools/loop/flow.py`) and `evaluation/frontier.eval.json`. Flows run only under `HVE creator-flow`, the existing graph
+workflow entry point. Other agents (`HVE creator`, `HVE product-manager`) use the selected plugin's agents, skills,
+templates and rubrics but keep their own process.
+
+**Approach: one engine, flows as data.** Today the stages, edges and evidence are hard-coded in `flow.py`, and plugins
+may not ship scripts. So `flow.py` keeps its state machine (edges, back-edge caps, escalation, `resume`) but reads the
+graph from a JSON definition. The current graph moves unchanged into `evaluation/flows/core.flow.json`, so the default
+behavior and the benchmark profile stay identical. A plugin flow is another definition validated by the same loader.
+
+Flow definition (`flows/oracle-migration.flow.json` in the plugin, listed in `hve-plugin.json` under `"flows"`):
+
+```json
+{
+  "id": "oracle-migration",
+  "description": "Assess, design, migrate, validate and cut over an Oracle workload.",
+  "start": "assess",
+  "stages": {
+    "assess":   { "agent": "oracle-offering:oracle-db-architect", "instructions": "flows/assess.md" },
+    "design":   { "agent": "oracle-offering:oracle-db-architect", "instructions": "flows/design.md" },
+    "build":    { "agent": "core:builder" },
+    "validate": { "agent": "oracle-offering:oracle-engineer", "instructions": "flows/validate.md" }
+  },
+  "edges": {
+    "assessed":        { "from": "assess",   "to": "design",   "evidence": [{ "type": "template-valid", "kind": "oracle-offering:assessment" }] },
+    "design-approved": { "from": "design",   "to": "build",    "evidence": [{ "type": "template-valid", "kind": "technicalDesign" },
+                                                                         { "type": "json-fields", "file": "design.json", "lists": ["acceptance"], "checks": ["prototype_check", "lint_check"] }] },
+    "build-complete":  { "from": "build",    "to": "validate", "evidence": [{ "type": "feature-checks" }, { "type": "structure" }] },
+    "rework-required": { "from": "validate", "to": "build",    "back": true, "cap": 2 },
+    "cutover-ready":   { "from": "validate", "to": "done",     "evidence": [{ "type": "feature-checks" }, { "type": "check", "file": "design.json", "key": "lint_check" },
+                                                                         { "type": "artifacts", "paths": [".harness/evidence/**/*.log"] }] }
+  },
+  "evaluation": "evaluation/oracle-migration.eval.json"
+}
+```
+
+Evidence is a closed list of core types, each a generalization of an existing `flow.py` check:
+
+| Type | Holds when | Today's equivalent |
+|---|---|---|
+| `json-fields` | the project file exists, the named lists are non-empty, the named command keys are non-trivial | `design()` |
+| `check` | the command stored under `key` in a project file exits 0 | `prototype_check`, `lint_check` |
+| `feature-checks` | the feature loop is initialized and every locked check passes now | `feature_checks_fail()` |
+| `structure` | no file over the size limit and no no-fallback findings | `structure_problems()` |
+| `no-code-growth` | source lines did not grow since a named edge | sweeper rule |
+| `linked-list` | every entry of a list file links to a feature | `roadmap-aligned` |
+| `template-valid` | the deliverable of that kind validates through `manage.py` | (new; uses the plugin template kinds) |
+| `artifacts` | at least one file matches each glob | evaluation `artifacts` hook |
+
+Commands always come from project files that the agent writes and the user can see (as `design.json` works today),
+never from the plugin, so a flow stays Markdown and JSON only. When a `json-fields` edge passes, `flow.py` records the
+hash of each named command; a later `check` on a changed command fails with a message, so a check cannot be weakened
+after approval. `artifacts` evidence counts only files written after the flow started.
+
+Flow validation (install time and `flow.py init`, fail fast): `start` exists; every stage is reachable and can reach
+`done`; `done` has no outgoing edges; every edge names known stages; the edges without `back` form no cycle, so only
+capped back-edges can loop; every forward edge has at least one evidence entry; every back-edge has a `cap` from 1 to 3;
+every stage agent is `core:builder` or an agent of the same plugin; instruction files exist; evidence types are from the
+list above; the `evaluation` file, if given, is a valid plugin contract.
+
+**Selecting the flow.** `HVE creator-flow` stays the entry point. At start it runs
+`flow.py init . --profile product --flow auto`:
+- No selected plugin has a flow: the core flow, exactly as today.
+- One selected plugin has exactly one flow: that flow, announced to the user ("Using `oracle-offering:oracle-migration`;
+  say 'core flow' to use the default instead").
+- More than one candidate flow (several plugins, or one plugin with several flows): the agent asks with header
+  `select-flow`, options = the candidate flows + `Core flow` (same always-ask rule as plugins).
+- `--profile benchmark` always uses the core flow, so research runs stay comparable.
+
+`init` snapshots the definition into `.harness/flow-definition.json` with plugin id, version and hash, and the engine
+reads the graph only from the snapshot. Instructions, agents, templates and the contract still come from the installed
+plugin, so if the installed version differs from the snapshot, `status` and `transition` stop with a message to finish
+on the old version (reinstall it) or restart the flow with `flow.py init --restart`. No silent mid-flow upgrade.
+
+**Running a plugin flow.** `flow.py status` also returns the current stage's agent and instructions path. The
+orchestrator delegates to that agent with the instructions; `core:builder` keeps the existing feature-loop behavior
+run by the orchestrator. `HVE creator-flow` lists its allowed sub-agents in frontmatter, so `render.js` appends the
+stage agents of enabled plugin flows to that list when it renders.
+
+When a plugin flow reaches `done`, the orchestrator runs the output reflection (the same steps as `HVE creator`) with
+the resolved contract, and reports the flow complete only on `pass` or `human-review`; on `revise` it fixes the markers
+and re-evaluates within the revision limit. The core flow is unchanged.
+
+**Plugin rubrics.** A plugin may ship evaluation contracts in the existing `frontier.eval.json` format: one at plugin
+level (`"evaluation"` in `hve-plugin.json`, used for any output when the plugin is selected) and one per flow.
+
+Contract resolution for `reflection.py prepare --contract`: the running flow's contract, else the selected plugin's
+contract, else `frontier.eval.json`. If several selected plugins each have a contract and no flow decides, the agent
+asks (header `select-rubrics`). The resolved path, plugin id and version go into the evaluation snapshot, which
+`prepare` already takes.
+
+A plugin contract is validated by `contract.py` plus these plugin rules:
+- No `command` validation hooks (no executable content); `feature-checks` and `artifacts` only.
+- Plugin rubric and hook ids must not reuse core ids. Plugin rubrics may reference core hooks (for example
+  `locked-feature-checks`), which keep their core definition.
+- A required top-level `coreShare` between 0.2 and 0.5: the share of the final score that the selected core rubrics
+  carry. (`contract.py` ignores unknown keys today; the plugin validator reads it.)
+- `decision.minimumScore` and `decision.councilPasses` are at least the core contract's values: a plugin can add
+  stricter or domain-specific rubrics but cannot lower the bar. Council roles and `maxRevisionPasses` always come from
+  the core contract.
+
+**Combining plugin and core rubrics.** The plugin's rubrics always apply. The agent also selects which core rubrics
+apply to this output, so the score covers the domain (for example data integrity, rollback readiness, performance
+parity) and the general quality bar.
+
+Before `prepare`, the agent writes `.hve/evaluations/input/<run>-rubric-selection.json`:
+
+```json
+{
+  "include": ["evidence-verification", "safety-maintainability", "constraint-adherence"],
+  "exclude": {
+    "task-completion": "covered-by:migration-completeness",
+    "usability-accessibility": "not-applicable-output-kind"
+  },
+  "reasons": {
+    "task-completion": "migration-completeness scores every requested object and workflow moved end to end."
+  }
+}
+```
+
+`prepare --rubric-selection <file>` checks the selection before any scoring, so the agent cannot drop a rubric after
+seeing how it scores. Revision passes reuse the pass-0 selection; a new selection needs a new evaluation. Checks:
+- Every core rubric is listed exactly once, in `include` or `exclude`.
+- `evidence-verification` and `safety-maintainability` are always included: they keep the score tied to deterministic
+  checks and to safe, explicit failure handling.
+- `not-applicable-output-kind` is rejected when one of the rubric's validation hooks covers the run's `--output-kind`
+  (for example `usability-accessibility` uses `visual-evidence`, which covers `ui` only). This is a sanity check, not
+  proof of applicability.
+- `covered-by:<id>` must name a rubric in the plugin contract; the agent states the overlap in one sentence in the
+  selection file (`"reasons"` map). Whether the overlap is real is the agent's judgment, reviewed by the council.
+
+`prepare` then builds one combined contract and snapshots it: plugin rubrics scaled to `1 - coreShare`, included core
+rubrics scaled to `coreShare` in proportion to their core weights, each rubric keeping its own blocking and warning
+thresholds, validation hooks = plugin hooks plus the core hooks used by included or referenced rubrics, decision
+thresholds as above. The final summary lists the excluded core rubrics with their reasons. With no plugin contract,
+nothing changes: the core contract runs alone and no selection file is needed.
 
 ## Milestones
 
@@ -303,16 +465,24 @@ Core-first, plugin-later behavior:
 6. Adapters and governance: `export.py` support, org index with hashes, provenance in deliverables and metrics.
 7. Separate release: `init`/`pack`/`test` author kit, deterministic `.hveplugin` artifact, plugin template repo with CI,
    core API `installPlugin`/`uninstallPlugin` for wrapper VSIXs, re-render and compatibility check on core upgrade,
-   `plugins.lock.json`. Proven by publishing the sample Oracle plugin from its own repo and installing it into an
+   `frontier-hve.plugins.json`. Proven by publishing the sample Oracle plugin from its own repo and installing it into an
    already-installed core.
+8. Plugin flows and rubrics: move the core graph to `core.flow.json` with no behavior change (existing flow tests stay
+   green), generic evidence types, flow validation, `--flow auto` selection and `select-flow`, definition snapshot,
+   stage agent in `status`, render of `creator-flow` sub-agents, contract resolution, plugin contract rules, rubric
+   selection file and combined contract in `prepare`, agent instructions for selecting core rubrics. The
+   sample Oracle plugin gains a migration flow and its own contract.
 
 ## Verification (authored during implementation; execution offered separately)
 
 - `tests/test_plugins.py`: schema accept/reject cases, version range, id collision, reserved names, path traversal,
   links, case collisions, hash mismatch, revoked entry, hooks in manifest or agent frontmatter rejected, scripts rejected,
-  agent tools outside manifest rejected, interrupted install leaves the previous registry.
+  agent tools outside manifest rejected, interrupted install leaves the previous registry, render failure installs
+  nothing, declared but invalid flow or contract rejected.
 - Routing cases: one match, no match, two or more matches always trigger `select-plugin` with plugin skills denied until
-  answered, multi-select, cancel stays core only, explicit mention, mention of a missing plugin fails, new chat asks again.
+  answered, multi-select, cancel stays core only, explicit mention, mention of a missing plugin fails, new chat asks again,
+  same chat keeps the answer for the same candidates and asks again when a new plugin matches, a plugin agent cannot
+  read another plugin's skills.
 - Skill loader: plugin skill normalized (tokens computed, lift null) and loaded within budget regardless of
   `HARNESS_SKILLS_MIN_STATUS`; plugin skill outside loadout denied.
 - Templates: `plugin:` source resolves for a core kind and for a plugin-declared kind with its output; provenance
@@ -323,6 +493,20 @@ Core-first, plugin-later behavior:
   disables the plugin with a message; plugin upgrade and rollback; `pack` is reproducible (same hash twice); wrapper VSIX
   install goes through the core pipeline and its removal is reconciled on the next activation; lock file prompts for
   missing plugins and reports a version-range conflict without changing the global install.
+- Flows: the core flow from `core.flow.json` passes the existing `tests/test_flow_plugin.py` and loop tests unchanged;
+  invalid plugin flows are rejected (unreachable stage, no path to `done`, forward edge without evidence, back-edge
+  without cap or cap over 3, forward-edge cycle, outgoing edge from `done`, foreign agent, unknown evidence type,
+  missing instructions); `--flow auto` picks core with
+  no plugin flow, the plugin flow with one, and asks with several; benchmark profile always uses core; a plugin version
+  change mid-flow stops `status` and `transition`; a changed check command fails; stale artifacts do not count; a
+  plugin flow at `done` runs the reflection; every evidence type blocks a transition when it does not hold.
+- Rubrics: contract resolution order; plugin contract with a `command` hook, a lower `minimumScore` or
+  `councilPasses`, a missing or out-of-range `coreShare`, or a reused core rubric or hook id is rejected. Selection: missing or
+  duplicate core rubric, excluded `evidence-verification` or `safety-maintainability`, `not-applicable-output-kind` for
+  a rubric whose hooks cover the output kind, and `covered-by` naming an unknown plugin rubric are rejected. Combined
+  weights sum to 1 with the declared split; hooks and decision thresholds are merged as specified; no plugin contract
+  means the core contract runs unchanged; a revision pass reuses the pass-0 selection; the snapshot records the plugin
+  id, version and the selection.
 
 ## Out of Scope (initial release)
 
@@ -339,3 +523,7 @@ Core-first, plugin-later behavior:
 3. Install scope: global, like the core.
 4. Skill quality: plugin skills are vetted and validated by the publishing organization; the core trusts them as admitted.
 5. Multiple matching plugins: the agent always asks.
+6. Plugin SDLC flow: when exactly one selected plugin offers one flow, it starts automatically and is announced; with
+   several candidates the agent asks; otherwise the core flow runs.
+7. Rubrics: plugin rubrics always apply, combined with the core rubrics the agent selects as applicable, under the
+   deterministic selection rules in section 8.
