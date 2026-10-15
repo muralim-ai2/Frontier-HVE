@@ -11,14 +11,19 @@ from typing import Any
 
 from interventions import record
 from hve_paths import RUNS_DIR
+from module_guard import edited_paths
 
 READ_ONLY_TOOLS = {"read_file", "file_search", "grep_search", "list_dir", "semantic_search", "get_errors", "get_terminal_output",
                    "terminal_last_command", "manage_todo_list", "view_image", "vscode_askQuestions", "mcp_graphify_query_graph",
                    "mcp_graphify_get_node", "mcp_graphify_get_neighbors", "mcp_graphify_shortest_path",
                    "github-pull-request_pullRequestStatusChecks", "github-pull-request_currentActivePullRequest"}
 PR_TOOL = "github-pull-request_create_pull_request"
-PROTECTED = re.compile(r"feature_list\.json|progress\.txt|tracker\.json|\.harness[/\\]", re.I)
-EVALUATION_INPUT = re.compile(r"(^|[/\\])\.hve[/\\]evaluations[/\\]input[/\\][\w.-]+\.(json|md)$", re.I)
+LOOP_FILES = {"feature_list.json", "progress.txt", "tracker.json"}
+LOOP_FILE_NAMES = re.compile(r"feature_list\.json|progress\.txt|tracker\.json", re.I)
+LOOP_STATE = re.compile(r"\.harness[/\\]", re.I)
+SHELL_WRITE = re.compile(r"(?<![\d&])>|\b(Set-Content|Add-Content|Out-File|Remove-Item|Move-Item|Copy-Item|Rename-Item|New-Item|rm|mv|cp|del|"
+                         r"erase|ren|move|copy|tee|truncate|touch)\b|\bsed\s+-i|\bgit\s+(checkout|restore|rm|mv)\b|\bpython3?\s+-c|\bnode\s+-e",
+                         re.I)
 LOOP_SCRIPT = re.compile(r"^\s*python3?\s+\"?[^\"\s]*tools[/\\](loop[/\\](loop|flow)|git[/\\](parallel_options|branch_workflow))\.py\"?"
                          r"(\s+[\w./\\:-]+)*\s*$", re.I)
 HUMAN_ONLY = re.compile(r"loop\.py\s+resume\b|flow\.py\s+resume\b", re.I)
@@ -47,6 +52,26 @@ def escalation(proj: Path) -> str | None:
         if state and state["escalated"]:
             return state["help"]["question"]
     return None
+
+
+def loop_running(proj: Path) -> bool:
+    """Return True while an initialized loop still has failing features or a flow has not reached done."""
+    flow = read(proj / ".harness" / "flow.json")
+    if flow is not None and flow["stage"] != "done":
+        return True
+    if not (proj / ".harness" / "state.json").exists():
+        return False
+    features = json.loads((proj / "feature_list.json").read_text(encoding="utf-8"))
+    return any(not f["passes"] for f in features)
+
+
+def protected_target(raw: str, proj: Path, running: bool) -> bool:
+    """Return True for a path inside the project's .harness/, or its loop files while the loop runs."""
+    path, root = (Path.cwd() / raw).resolve(), proj.resolve()
+    if not path.is_relative_to(root):
+        return False
+    rel = path.relative_to(root)
+    return rel.parts[:1] == (".harness",) or (running and rel.as_posix() in LOOP_FILES)
 
 
 def deny(session_id: str, kind: str, reason: str, blindspot: str | None = None, stop: bool = False) -> Json:
@@ -98,15 +123,16 @@ def pre_tool(session_id: str, tool_name: str, tool_input: Json, tool_use_id: str
             if FORCE.search(command):
                 return deny(session_id, "push_blocked", "Force pushes are not allowed.")
             return push_gate(session_id, proj, BRANCH.findall(command), "git push")
-        if LOOP_SCRIPT.match(command) or not PROTECTED.search(command):
+        if LOOP_SCRIPT.match(command) or not SHELL_WRITE.search(command):
             return None
-    elif EVALUATION_INPUT.search(str(tool_input.get("filePath", ""))):
-        return None  # reflection inputs cite loop evidence by path; reflection.py validates them
-    elif not PROTECTED.search(json.dumps(tool_input)) or (
-            not (proj / ".harness" / "state.json").exists() and ".harness" not in json.dumps(tool_input)):
-        return None  # before loop init, the agent writes feature_list.json itself
-    return deny(session_id, "anti_gaming", "feature_list.json, progress.txt and .harness/ change only through the loop scripts. "
-                "Do not edit them.", "B5")
+        if not LOOP_STATE.search(command) and not (LOOP_FILE_NAMES.search(command) and loop_running(proj)):
+            return None
+    else:
+        running = loop_running(proj)
+        if not any(protected_target(p, proj, running) for p in edited_paths(tool_input)):
+            return None
+    return deny(session_id, "anti_gaming", ".harness/ always, and feature_list.json, progress.txt and tracker.json while the loop runs, "
+                "change only through the loop scripts. Do not edit them.", "B5")
 
 
 def stop(session_id: str, now_ms: float, stop_hook_active: bool) -> Json | None:
