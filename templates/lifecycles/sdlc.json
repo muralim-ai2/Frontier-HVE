@@ -1,0 +1,23 @@
+{
+  "name": "sdlc",
+  "title": "Software delivery lifecycle",
+  "summary": "Requirements, design, build, test and release with a gate after each stage; fits a defined product or service build.",
+  "fits": ["build", "application", "app", "service", "api", "product", "software", "system", "platform", "website", "tool", "deploy"],
+  "stages": [
+    {"name": "requirements", "goal": "Agree the problem, users and checkable acceptance criteria.", "agent": "HVE product-manager",
+     "skills": ["prd"], "plugin_skills": ["delivery-coach"], "templates": ["prd"],
+     "exit": "The user approves the acceptance criteria.", "skip_when": "The request already states users and acceptance criteria."},
+    {"name": "design", "goal": "Choose the architecture and interfaces against the criteria.", "agent": "self",
+     "skills": ["architecture-options", "api-design"], "plugin_skills": ["prototype-guardrail"], "templates": ["technicalDesign"],
+     "exit": "The user picks one option; dependencies are pinned.", "skip_when": "A single obvious stack with no external interfaces."},
+    {"name": "build", "goal": "Build verified features through the feature loop.", "agent": "HVE engineer",
+     "skills": ["build-approach"], "plugin_skills": ["feature-checklist"], "templates": [],
+     "exit": "loop.py next prints done.", "skip_when": "Never: this is the delivery."},
+    {"name": "test", "goal": "Plan and run tests beyond the feature checks.", "agent": "self",
+     "skills": ["systematic-debugging"], "plugin_skills": ["run-tests"], "templates": ["testStrategy"],
+     "exit": "Every feature check passes again as a regression run.", "skip_when": "The feature checks already cover the test strategy."},
+    {"name": "release", "goal": "Document, reflect on the output and hand over.", "agent": "self",
+     "skills": ["documentation"], "plugin_skills": ["explain-walkthrough"], "templates": [],
+     "exit": "Output reflection decides pass or human-review.", "skip_when": "Throwaway work with no handover."}
+  ]
+}

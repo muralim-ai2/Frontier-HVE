@@ -96,6 +96,11 @@
       "id": "N33",
       "issue": "Built (D-047), extension 0.8.0: install without setup (render on activation, Python launcher detection, hookless agents with a warning and a status bar item without Python, state created by hooks, OTel as a research command, Local-target check) and tools/observe/provenance.py. Unit-tested; not verified live.",
       "action": "User: in a clean VS Code profile (`code --profile hve-test`) install the 0.8.0 VSIX, open a folder, accept the reload, pick HVE product-manager in a Local chat and ask 'Create a PRD for an employee leave portal'; then run `python <extension>/runtime/tools/observe/provenance.py <plugin>/com.github.copilot/agents/hve-product-manager.agent.md latest --require skills templates` and check exit 0. Repeat on a machine or profile without Python on PATH: agents show '(Needs Python)', the status bar warns, and nothing crashes."
+    },
+    {
+      "id": "N34",
+      "issue": "Built (D-048, D-049), extension 0.10.0: path-based loop guard released after the loop finishes; lifecycles (sdlc, agile-scrum, consulting-delivery) with plugin and workspace overrides; ask contracts; loop.py amend; agents HVE e2e, HVE agile, HVE prototype and hidden HVE engineer; guard waivers after 3 trips (strict during output evaluation); plan.md check before loop and stage runs; provenance contract component and guard summary. Unit-tested; not verified live. Deferred by the user: loop files and evidence under .hve/asks/<slug>/.",
+      "action": "User: install 0.10.0, then in Local chats ask HVE prototype for a leave-portal clickthrough, HVE e2e and HVE agile for a small leave portal; check the lifecycle choice and skip question, .hve/asks/<slug>/plan.md and contract.json, gates or sprint reviews, that editing plan.md mid-run makes the agent reconcile, that a third guard trip brings the waiver question, and .hve/asks/<slug>/provenance.md. Then decide when to move the loop files under .hve."
     }
   ],
   "wiki_topics": {

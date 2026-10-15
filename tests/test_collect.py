@@ -139,9 +139,55 @@ def test_provenance_reports_component_evidence() -> None:
         assert report["session"] == "s2" and report["components"]["skills"]["status"] == "failed", report
 
 
+def test_contract_plan_check_and_provenance() -> None:
+    """A lifecycle contract reports expected vs used per done stage; an unsynced plan.md adds context, holds loop runs and fails provenance."""
+    with tempfile.TemporaryDirectory() as tmp:
+        ws = Path(tmp)
+        (ws / ".hve" / "runs").mkdir(parents=True)
+
+        def lifecycle(*args: str) -> str:
+            """Run lifecycle.py in the workspace and return its output."""
+            done = subprocess.run([sys.executable, str(REPO / "tools" / "loop" / "lifecycle.py"), *args], cwd=ws, capture_output=True, text=True,
+                                  encoding="utf-8")
+            assert done.returncode == 0, done.stderr
+            return done.stdout
+
+        def hook(payload: dict[str, object]) -> str:
+            """Run plan_check.py in the workspace and return its output."""
+            return subprocess.run([sys.executable, str(REPO / "hooks" / "plan_check.py")], input=json.dumps({"session_id": "s1", **payload}),
+                                  cwd=ws, capture_output=True, text=True, check=True).stdout
+
+        (ws / "req.md").write_text("Build a leave portal in sprints", encoding="utf-8")
+        lifecycle("contract", "agile-scrum", "leave", "HVE agile", "req.md", "sprint-design=No UI change")
+        nxt = {"hook_event_name": "PreToolUse", "tool_name": "run_in_terminal", "tool_input": {"command": 'python "x/tools/loop/loop.py" next .'}}
+        assert hook(nxt) == ""
+        plan = ws / ".hve" / "asks" / "leave" / "plan.md"
+        plan.write_text("# Plan\n- Sprint 1: request leave\n", encoding="utf-8")
+        assert "plan-sync" in hook({"hook_event_name": "UserPromptSubmit", "prompt": "go"})
+        assert json.loads(hook(nxt))["hookSpecificOutput"]["permissionDecision"] == "deny"
+        lifecycle("plan-sync", "first plan")
+        assert hook(nxt) == ""
+        lifecycle("stage", "backlog", "active", "PM writes the PRD")
+        lifecycle("stage", "backlog", "done", "PRD and backlog agreed")
+        (ws / ".hve" / "runs" / "s1.skills.json").write_text(json.dumps({"skills": [], "used": ["skills/admitted/prd", "skills/admitted/scrub"]}),
+                                                             encoding="utf-8")
+        agent = ws / "agile.agent.md"
+        agent.write_text('Run "tools/loop/lifecycle.py".\n', encoding="utf-8")
+        cli = [sys.executable, str(REPO / "tools" / "observe" / "provenance.py"), str(agent), "s1", "--workspace", str(ws)]
+        report = json.loads(subprocess.run(cli, capture_output=True, text=True).stdout)
+        contract = report["contract"]
+        assert contract["gaps"] == ["backlog: templates prd expected but not authored"] and contract["outside_contract"] == ["scrub"], contract
+        assert report["components"]["contract"]["status"] == "failed" and report["guards"]["trips"] == {"plan_check/plan_changed": 1}, report
+        plan.write_text("# Plan\n- Sprint 1: request and approve leave\n", encoding="utf-8")
+        report = json.loads(subprocess.run(cli, capture_output=True, text=True).stdout)
+        assert "changed since its last sync" in report["components"]["contract"]["detail"], report
+        assert "| backlog | done | HVE product-manager | prd ✓ | prd ✗ |" in lifecycle("report", "s1")
+
+
 if __name__ == "__main__":
     test_collects_minimal_reply_and_single_folder()
     test_rejects_unsafe_path_in_reply()
     test_rejects_non_benchmark_and_ambiguous_sessions()
     test_provenance_reports_component_evidence()
+    test_contract_plan_check_and_provenance()
     print("test_collect: OK")

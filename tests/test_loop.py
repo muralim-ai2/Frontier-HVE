@@ -105,6 +105,24 @@ def test_tracker_reports_status_evidence_and_manual_check() -> None:
         assert a["evidence"] == [".harness/evidence/a/page.png"] and a["manual_check"] == "looks right", a
 
 
+def test_amend_appends_without_changing_locked_features() -> None:
+    """Amend appends new features to the lock between features, refuses renames and in-progress work, and deletes the add file."""
+    with tempfile.TemporaryDirectory() as tmp:
+        project = three(tmp)
+        add = project / "feature_list.add.json"
+        add.write_text(json.dumps([feature("d", "d.txt")]), encoding="utf-8")
+        loop.next_feature(project)
+        assert "in progress" in raises(RuntimeError, loop.amend, project)
+        (project / "a.txt").write_text("a\n", encoding="utf-8")
+        loop.verify(project)
+        add.write_text(json.dumps([feature("a", "x.txt")]), encoding="utf-8")
+        assert "already locked" in raises(ValueError, loop.amend, project)
+        add.write_text(json.dumps([feature("d", "d.txt")]), encoding="utf-8")
+        assert loop.amend(project) == {"amended": ["d"], "total": 4}
+        assert not add.exists() and [f["name"] for f in read_json(project / "feature_list.json")] == ["a", "b", "c", "d"]
+        assert loop.load(project)[0]["order"][-1] == "d"
+
+
 def test_loop_commits_flips_and_queues() -> None:
     """Verify fails until the work exists, B1 code is rejected at commit, PR records stack, and a passing baseline escalates."""
     with tempfile.TemporaryDirectory() as tmp:
@@ -238,7 +256,7 @@ def make_root(tmp: str) -> Path:
     """Return a temp workspace with the guard hooks, .hve/runs, a 20-minute budget at 08:00 UTC, and a project folder."""
     root = Path(tmp)
     (root / "hooks").mkdir()
-    for hook in ("loop_guard.py", "module_guard.py", "flow_guard.py", "interventions.py", "hve_paths.py"):
+    for hook in ("loop_guard.py", "module_guard.py", "flow_guard.py", "interventions.py", "hve_paths.py", "guard_policy.py"):
         shutil.copy(REPO / "hooks" / hook, root / "hooks")
     (root / ".hve" / "runs").mkdir(parents=True)
     (root / ".hve" / "runs" / "s1.budget.json").write_text(json.dumps({"start_ms": START_MS, "budget_ms": 1_200_000.0, "denied": []}),
@@ -273,6 +291,11 @@ def test_loop_guard() -> None:
         state = {"review": "github", "current": "a", "escalated": None, "help": None}
         (proj / ".harness" / "state.json").write_text(json.dumps(state), encoding="utf-8")
         assert pre("create_file", edit)["hookSpecificOutput"]["permissionDecision"] == "deny"  # type: ignore[index]
+        mentions = {"content": "Loop files: feature_list.json, progress.txt, tracker.json, .harness/state.json"}
+        assert pre("create_file", {"filePath": str(proj / "README.md")} | mentions) is None
+        assert pre("create_file", {"filePath": str(root / "tracker.json")}) is None
+        assert pre("runSubagent", {"prompt": "Do not edit feature_list.json or .harness/"}) is None
+        assert pre("run_in_terminal", {"command": "Get-Content feature_list.json 2>&1"}) is None
         cites = {"content": '{"evidence": [".harness/evidence/a/page.png", "feature_list.json"]}'}
         assert pre("create_file", {"filePath": str(proj / ".hve" / "evaluations" / "input" / "r-scores.json")} | cites) is None
         escape = str(proj / ".hve" / "evaluations" / "input" / ".." / ".." / ".." / "feature_list.json")
@@ -303,7 +326,44 @@ def test_loop_guard() -> None:
         stopped = pre("read_file", edit)
         assert stopped["continue"] is False and "Which check?" in stopped["stopReason"], stopped  # type: ignore[index]
         kinds = [json.loads(line)["kind"] for line in (root / ".hve" / "runs" / "s1.interventions.jsonl").read_text().splitlines()]
-        assert {"anti_gaming", "hook_bypass", "human_only", "push_blocked", "victory_check", "escalated"} <= set(kinds), kinds
+        assert {"loop_files", "hook_bypass", "human_only", "push_blocked", "victory_check", "escalated"} <= set(kinds), kinds
+        state |= {"escalated": None, "help": None, "current": None}
+        (proj / ".harness" / "state.json").write_text(json.dumps(state), encoding="utf-8")
+        (proj / "feature_list.json").write_text(json.dumps([{"name": "a", "passes": True}]), encoding="utf-8")
+        assert pre("replace_string_in_file", edit) is None
+        assert pre("run_in_terminal", {"command": "echo x > progress.txt"}) is None
+        assert pre("create_file", {"filePath": str(proj / ".harness" / "state.json")}) is not None
+        assert pre("run_in_terminal", {"command": "rm .harness/state.json"}) is not None
+
+
+def test_guard_waiver() -> None:
+    """After 3 trips the deny asks for a waiver; laid down it allows loop files but never .harness/; an open evaluation makes it strict."""
+    with tempfile.TemporaryDirectory() as tmp:
+        root = make_root(tmp)
+        proj = root / "proj"
+        env = {"HARNESS_PROJECT": "proj", "HARNESS_STOP_POLICY": "once"}
+        (proj / "feature_list.json").write_text(json.dumps([{"name": "a", "passes": False}]), encoding="utf-8")
+        (proj / ".harness" / "state.json").write_text(json.dumps({"review": "local", "current": None, "escalated": None}), encoding="utf-8")
+
+        def pre(path: Path) -> dict[str, Any] | None:
+            """Fire PreToolUse for an edit of path."""
+            return fire(root, "loop_guard.py", {"hook_event_name": "PreToolUse", "tool_name": "create_file", "tool_input": {"filePath": str(path)},
+                                                "tool_use_id": "t1"}, **env)
+
+        reasons = [pre(proj / "progress.txt")["hookSpecificOutput"]["permissionDecisionReason"] for _ in range(3)]  # type: ignore[index]
+        assert "guard-waiver:loop_guard" not in reasons[1] and "guard-waiver:loop_guard" in reasons[2], reasons
+        ask = {"questions": [{"header": "guard-waiver:loop_guard", "question": "Keep the loop guard?"}]}
+        fire(root, "loop_guard.py", {"hook_event_name": "PostToolUse", "tool_name": "vscode_askQuestions", "tool_input": ask, "tool_use_id": "t2",
+                                     "tool_response": json.dumps({"answers": {"guard-waiver:loop_guard": {"selected": ["Lay down for this session"]}}})},
+             **env)
+        assert pre(proj / "progress.txt") is None
+        assert pre(proj / ".harness" / "state.json") is not None
+        (root / ".hve" / "evaluations" / "r1").mkdir(parents=True)
+        (root / ".hve" / "evaluations" / "r1" / "contract.json").write_text("{}", encoding="utf-8")
+        strict = pre(proj / "progress.txt")
+        assert strict and "strict" in strict["hookSpecificOutput"]["permissionDecisionReason"], strict
+        kinds = [json.loads(line)["kind"] for line in (root / ".hve" / "runs" / "s1.interventions.jsonl").read_text().splitlines()]
+        assert kinds.count("waived") == 1 and "waiver_answer" in kinds, kinds
 
 
 def test_module_guard() -> None:
@@ -324,6 +384,7 @@ if __name__ == "__main__":
     test_init_rejects_bad_feature_lists()
     test_init_in_existing_repo()
     test_tracker_reports_status_evidence_and_manual_check()
+    test_amend_appends_without_changing_locked_features()
     test_loop_commits_flips_and_queues()
     test_rules_stuck_then_spec()
     test_rules_circular_and_cap()
@@ -332,5 +393,6 @@ if __name__ == "__main__":
     test_parallel_options_same_failure_escalates()
     test_no_fallback_patterns()
     test_loop_guard()
+    test_guard_waiver()
     test_module_guard()
     print("test_loop: OK")
