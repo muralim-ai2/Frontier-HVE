@@ -225,7 +225,7 @@ def library_root(tmp: str) -> Path:
     (root / "tools" / "skills").mkdir(parents=True)
     (root / "tools" / "loop").mkdir()
     (root / ".hve" / "runs").mkdir(parents=True)
-    for hook in ("skill_loader.py", "interventions.py", "hve_paths.py"):
+    for hook in ("skill_loader.py", "interventions.py", "hve_paths.py", "guard_policy.py"):
         shutil.copy(REPO / "hooks" / hook, root / "hooks")
     shutil.copy(REPO / "tools" / "skills" / "recommend.py", root / "tools" / "skills")
     shutil.copy(REPO / "tools" / "loop" / "lifecycle.py", root / "tools" / "loop")

@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Any
 
 from interventions import record
+from guard_policy import check, record_answers
 from hve_paths import RUNS_DIR
 from module_guard import edited_paths
 
@@ -18,6 +19,7 @@ READ_ONLY_TOOLS = {"read_file", "file_search", "grep_search", "list_dir", "seman
                    "mcp_graphify_get_node", "mcp_graphify_get_neighbors", "mcp_graphify_shortest_path",
                    "github-pull-request_pullRequestStatusChecks", "github-pull-request_currentActivePullRequest"}
 PR_TOOL = "github-pull-request_create_pull_request"
+ASK_TOOL = "vscode_askQuestions"
 LOOP_FILES = {"feature_list.json", "progress.txt", "tracker.json"}
 LOOP_FILE_NAMES = re.compile(r"feature_list\.json|progress\.txt|tracker\.json", re.I)
 LOOP_STATE = re.compile(r"\.harness[/\\]", re.I)
@@ -65,20 +67,24 @@ def loop_running(proj: Path) -> bool:
     return any(not f["passes"] for f in features)
 
 
-def protected_target(raw: str, proj: Path, running: bool) -> bool:
-    """Return True for a path inside the project's .harness/, or its loop files while the loop runs."""
+def protected_target(raw: str, proj: Path, running: bool) -> str | None:
+    """Return 'state' for a path inside the project's .harness/, 'files' for its loop files while the loop runs, else None."""
     path, root = (Path.cwd() / raw).resolve(), proj.resolve()
     if not path.is_relative_to(root):
-        return False
+        return None
     rel = path.relative_to(root)
-    return rel.parts[:1] == (".harness",) or (running and rel.as_posix() in LOOP_FILES)
+    if rel.parts[:1] == (".harness",):
+        return "state"
+    return "files" if running and rel.as_posix() in LOOP_FILES else None
 
 
-def deny(session_id: str, kind: str, reason: str, blindspot: str | None = None, stop: bool = False) -> Json:
-    """Record the intervention and return a PreToolUse deny, optionally stopping the agent."""
-    record(session_id, "loop_guard", kind, reason, blindspot)
-    out: Json = {"hookSpecificOutput": {"hookEventName": "PreToolUse", "permissionDecision": "deny", "permissionDecisionReason": reason}}
-    return out | ({"continue": False, "stopReason": reason} if stop else {})
+def deny(session_id: str, kind: str, reason: str, blindspot: str | None = None, stop: bool = False) -> Json | None:
+    """Record the intervention and return a PreToolUse deny (optionally stopping the agent), or None when the user waived the guard."""
+    checked = check(session_id, "loop_guard", kind, reason, blindspot)
+    if checked is None:
+        return None
+    out: Json = {"hookSpecificOutput": {"hookEventName": "PreToolUse", "permissionDecision": "deny", "permissionDecisionReason": checked}}
+    return out | ({"continue": False, "stopReason": checked} if stop else {})
 
 
 def log_tool(proj: Path, entry: Json) -> None:
@@ -125,14 +131,16 @@ def pre_tool(session_id: str, tool_name: str, tool_input: Json, tool_use_id: str
             return push_gate(session_id, proj, BRANCH.findall(command), "git push")
         if LOOP_SCRIPT.match(command) or not SHELL_WRITE.search(command):
             return None
-        if not LOOP_STATE.search(command) and not (LOOP_FILE_NAMES.search(command) and loop_running(proj)):
-            return None
+        hits = {"state"} if LOOP_STATE.search(command) else {"files"} if LOOP_FILE_NAMES.search(command) and loop_running(proj) else set()
     else:
         running = loop_running(proj)
-        if not any(protected_target(p, proj, running) for p in edited_paths(tool_input)):
-            return None
-    return deny(session_id, "anti_gaming", ".harness/ always, and feature_list.json, progress.txt and tracker.json while the loop runs, "
-                "change only through the loop scripts. Do not edit them.", "B5")
+        hits = {protected_target(p, proj, running) for p in edited_paths(tool_input)}
+    if "state" in hits:
+        return deny(session_id, "anti_gaming", ".harness/ changes only through the loop scripts. Do not edit it.", "B5")
+    if "files" in hits:
+        return deny(session_id, "loop_files", "While features still fail, feature_list.json, progress.txt and tracker.json change only "
+                    "through the loop scripts; add features with feature_list.add.json and `loop.py amend`.", "B5")
+    return None
 
 
 def stop(session_id: str, now_ms: float, stop_hook_active: bool) -> Json | None:
@@ -167,6 +175,8 @@ def main() -> None:
         output = pre_tool(session_id, payload["tool_name"], payload["tool_input"], payload["tool_use_id"])
     elif event == "PostToolUse":
         response = payload["tool_response"]
+        if payload["tool_name"] == ASK_TOOL:
+            record_answers(session_id, payload["tool_input"], response)
         log_tool(project(), {"phase": "post", "tool": payload["tool_name"], "id": payload["tool_use_id"],
                              "response": (response if isinstance(response, str) else json.dumps(response))[:500]})
     elif event == "Stop":
