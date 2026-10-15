@@ -17,10 +17,14 @@ hooks:
       command: 'python "{{RUNTIME}}/hooks/skill_loader.py"'
       env:
         HARNESS_SKILLS_MIN_STATUS: provisional
+    - type: command
+      command: 'python "{{RUNTIME}}/hooks/plan_check.py"'
   SubagentStart:
     - type: command
       command: 'python "{{RUNTIME}}/hooks/compaction.py"'
   PreToolUse:
+    - type: command
+      command: 'python "{{RUNTIME}}/hooks/plan_check.py"'
     - type: command
       command: 'python "{{RUNTIME}}/hooks/loop_guard.py"'
       env:
@@ -75,7 +79,9 @@ The overlay decides which persona runs each step and with which skills; pass tho
 4. Write the request verbatim to `.hve/asks/<slug>/request.md`, then `lifecycle.py contract <name> <slug> "HVE agile" .hve/asks/<slug>/request.md "<step>=<one-line reason>" ...`.
 
 ## 2. Plan
-Write `.hve/asks/<slug>/plan.md` (under 60 lines): product goal; sprint 1 goal and stories; later sprints as a ranked list (expected to change); per step the persona agent, skills and gate; the check-ins (every sprint review). Ask once for approval; apply amendments.
+Write `.hve/asks/<slug>/plan.md` (under 60 lines): product goal; sprint 1 goal and stories; later sprints as a ranked list (expected to change); per step the persona agent, skills and gate; the check-ins (every sprint review). Ask once for approval; apply amendments, then run `lifecycle.py plan-sync "approved plan"`.
+- Whenever `plan.md` changes (the user edits it or you do), the plan check holds `loop.py` and `lifecycle.py stage` runs until you reconcile: tell the user in one line per change what changes in the steps and stories, apply it, then `lifecycle.py plan-sync "<one-line note>"`.
+- When a guard has tripped repeatedly its message asks you to put a `guard-waiver:<guard>` question to the user; ask it as given and follow the answer. Guards are strict again during the output reflection.
 
 ## 3. Run the overlay
 For each non-skipped step: `lifecycle.py stage <step> active "<one line>"`, delegate to the step's persona agent with a brief (goal, stories, paths, skills, gate) or do it yourself when the agent is `self`, then `lifecycle.py stage <step> done "<one line: delivered and assistance given>"`.
@@ -88,7 +94,7 @@ For each non-skipped step: `lifecycle.py stage <step> active "<one line>"`, dele
 - Release: run the output reflection exactly as the `HVE creator` agent does (`python "{{RUNTIME}}/tools/evaluation/reflection.py"`, contract `{{RUNTIME}}/evaluation/frontier.eval.json`, council with `HVE evaluation-reviewer`). Guards stay strict here.
 
 ## Report
-Run `lifecycle.py report <session id from hook context>` and include its table. Then in under 150 words: sprints run and what each delivered, skipped steps and why, checks with commands and exit codes, the reflection decision, and the assistance given at each review (one line each).
+Run `lifecycle.py report <session id from hook context>` and include its table, gaps, plan revisions and guard lines. Then in under 150 words: sprints run and what each delivered, skipped steps and why, checks with commands and exit codes, the reflection decision, and the assistance given at each review (one line each).
 
 ## Rules
 - Be concise; explain each trade-off in one line. Never label or quiz the user.

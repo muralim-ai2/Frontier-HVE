@@ -1,5 +1,6 @@
 """Find, pick and contract delivery lifecycles (built-in, plugin or workspace overlays) and report expected against actual per stage."""
 
+import hashlib
 import json
 import re
 import sys
@@ -58,10 +59,13 @@ def ask_dir(slug: str) -> Path:
     return ASKS / slug
 
 
-def active() -> tuple[Path, Json]:
+def active(workspace: Path = WORKSPACE) -> tuple[Path, Json]:
     """Return the active ask's contract path and contract."""
-    slug = json.loads((ASKS / "active.json").read_text(encoding="utf-8"))["active"]
-    path = ask_dir(slug) / "contract.json"
+    asks = workspace / ".hve" / "asks"
+    slug = json.loads((asks / "active.json").read_text(encoding="utf-8"))["active"]
+    if not SLUG.match(slug):
+        raise ValueError(f"slug {slug!r} must match {SLUG.pattern}")
+    path = asks / slug / "contract.json"
     return path, json.loads(path.read_text(encoding="utf-8"))
 
 
@@ -78,7 +82,8 @@ def contract(name: str, slug: str, agent: str, request: str, skips: dict[str, st
     stages = [{k: s[k] for k in ("name", "goal", "agent", "skills", "plugin_skills", "templates", "exit")}
               | {"status": "skipped" if s["name"] in skips else "planned", "note": skips.get(s["name"], "")} for s in lifecycle["stages"]]
     data = {"ask": slug, "request": request, "lifecycle": name, "source": lifecycle["source"], "agent": agent, "created": now,
-            "current": None, "stages": stages, "decisions": [{"ts": now, "stage": s, "choice": "skipped", "why": why} for s, why in skips.items()]}
+            "current": None, "stages": stages, "plan": {"sha256": None, "revisions": []},
+            "decisions": [{"ts": now, "stage": s, "choice": "skipped", "why": why} for s, why in skips.items()]}
     folder = ask_dir(slug)
     folder.mkdir(parents=True, exist_ok=True)
     (folder / "contract.json").write_text(json.dumps(data, indent=2), encoding="utf-8")
@@ -108,30 +113,101 @@ def current_skills() -> list[str]:
     return next((s["skills"] for s in data["stages"] if s["name"] == data["current"]), [])
 
 
-def report(session: str) -> str:
-    """Write <ask>/provenance.md comparing each stage's expected skills and templates with what the session loaded; return it."""
+def plan_hash(contract_path: Path) -> str | None:
+    """Return the SHA-256 of the ask's plan.md, or None before the plan is written."""
+    plan = contract_path.parent / "plan.md"
+    return hashlib.sha256(plan.read_bytes()).hexdigest() if plan.is_file() else None
+
+
+def plan_sync(note: str) -> Json:
+    """Record the current plan.md as a new plan revision with a one-line note of what changed."""
     path, data = active()
-    runs = WORKSPACE / ".hve" / "runs"
+    digest = plan_hash(path)
+    if digest is None:
+        raise FileNotFoundError(f"{path.parent / 'plan.md'} does not exist: write the plan first")
+    data["plan"]["sha256"] = digest
+    data["plan"]["revisions"].append({"ts": datetime.now(timezone.utc).isoformat(timespec="seconds"), "sha256": digest, "note": note})
+    path.write_text(json.dumps(data, indent=2), encoding="utf-8")
+    return {"revision": len(data["plan"]["revisions"]), "note": note}
+
+
+def plan_status(workspace: Path = WORKSPACE) -> Json | None:
+    """Return whether the active ask's plan.md changed since its last sync, or None when there is no active ask or plan."""
+    if not (workspace / ".hve" / "asks" / "active.json").is_file():
+        return None
+    path, data = active(workspace)
+    digest = plan_hash(path)
+    if digest is None:
+        return None
+    return {"plan": (path.parent / "plan.md").relative_to(workspace).as_posix(), "changed": digest != data["plan"]["sha256"],
+            "revisions": len(data["plan"]["revisions"])}
+
+
+def guard_summary(workspace: Path, session: str) -> Json:
+    """Return the session's guard trips per hook and kind, waiver answers, and guards laid down, from the intervention and waiver logs."""
+    runs = workspace / ".hve" / "runs"
+    log = runs / f"{session}.interventions.jsonl"
+    entries = [json.loads(line) for line in log.read_text(encoding="utf-8").splitlines()] if log.is_file() else []
+    trips: dict[str, int] = {}
+    for e in entries:
+        if e["kind"] not in ("waived", "waiver_answer"):
+            trips[f"{e['hook']}/{e['kind']}"] = trips.get(f"{e['hook']}/{e['kind']}", 0) + 1
+    waivers = runs / f"{session}.waivers.json"
+    return {"trips": trips, "waiver_answers": [f"{e['hook']}: {e['detail']}" for e in entries if e["kind"] == "waiver_answer"],
+            "waived_calls": sum(e["kind"] == "waived" for e in entries),
+            "laid_down": sorted(h for h, v in json.loads(waivers.read_text(encoding="utf-8")).items() if v) if waivers.is_file() else []}
+
+
+def facts(workspace: Path, session: str) -> Json:
+    """Return the active contract against the session's facts: skills used, templates authored, gaps of done stages, plan sync and guards."""
+    path, data = active(workspace)
+    runs = workspace / ".hve" / "runs"
     loadout = runs / f"{session}.skills.json"
-    used = {Path(s).name for s in json.loads(loadout.read_text(encoding="utf-8"))["used"]} if loadout.exists() else set()
-    deliverables = WORKSPACE / ".hve" / "deliverables" / f"{session}.json"
-    authored = {d["kind"] for d in json.loads(deliverables.read_text(encoding="utf-8"))["documents"]} if deliverables.exists() else set()
+    used = {Path(s).name for s in json.loads(loadout.read_text(encoding="utf-8"))["used"]} if loadout.is_file() else set()
+    deliverables = workspace / ".hve" / "deliverables" / f"{session}.json"
+    authored = {d["kind"] for d in json.loads(deliverables.read_text(encoding="utf-8"))["documents"]} if deliverables.is_file() else set()
+    stages = [{"name": s["name"], "status": s["status"], "agent": s["agent"], "note": s["note"],
+               "skills": {k: k in used for k in s["skills"]}, "templates": {t: t in authored for t in s["templates"]}} for s in data["stages"]]
+    gaps = [f"{s['name']}: {kind} {item} expected but not {verb}" for s in stages if s["status"] == "done"
+            for kind, verb in (("skills", "used"), ("templates", "authored")) for item, ok in s[kind].items() if not ok]
+    status = plan_status(workspace)
+    return {"ask": data["ask"], "lifecycle": data["lifecycle"], "source": data["source"], "agent": data["agent"], "session": session,
+            "evidence": [p.relative_to(workspace).as_posix() for p in (path, loadout, deliverables) if p.is_file()],
+            "plan": status, "stages": stages, "gaps": gaps,
+            "outside_contract": sorted(used - {k for s in data["stages"] for k in s["skills"]}),
+            "decisions": data["decisions"], "guards": guard_summary(workspace, session)}
+
+
+def report(session: str) -> str:
+    """Write <ask>/provenance.md: each stage's expected against used skills and authored templates, plan sync, decisions and guards."""
+    path = active()[0]
+    f = facts(WORKSPACE, session)
+    mark = {True: "✓", False: "✗"}
     rows = ["| Stage | Status | Agent | Skills expected → used | Templates expected → authored | Note |", "|---|---|---|---|---|---|"]
-    for s in data["stages"]:
-        skills = ", ".join(f"{k} {'✓' if k in used else '✗'}" for k in s["skills"]) or "-"
-        templates = ", ".join(f"{t} {'✓' if t in authored else '✗'}" for t in s["templates"]) or "-"
+    for s in f["stages"]:
+        skills = ", ".join(f"{k} {mark[v]}" for k, v in s["skills"].items()) or "-"
+        templates = ", ".join(f"{t} {mark[v]}" for t, v in s["templates"].items()) or "-"
         rows.append(f"| {s['name']} | {s['status']} | {s['agent']} | {skills} | {templates} | {s['note']} |")
-    extra = sorted(used - {k for s in data["stages"] for k in s["skills"]})
-    text = (f"# Provenance: {data['ask']}\n\nLifecycle `{data['lifecycle']}` ({data['source']}), agent {data['agent']}, session {session}.\n"
-            f"Facts from `{loadout.as_posix()}` and `{deliverables.as_posix()}`.\n\n" + "\n".join(rows)
-            + f"\n\nSkills used outside the contract: {', '.join(extra) or 'none'}.\n")
+    plan = f["plan"]
+    plan_line = "no plan.md" if plan is None else f"{plan['revisions']} revision(s), {'CHANGED since last sync' if plan['changed'] else 'in sync'}"
+    guards = f["guards"]
+    trips = ", ".join(f"{k} ×{n}" for k, n in guards["trips"].items()) or "none"
+    text = (f"# Provenance: {f['ask']}\n\nLifecycle `{f['lifecycle']}` ({f['source']}), agent {f['agent']}, session {session}.\n"
+            f"Facts from: {', '.join(f['evidence'])}.\n\n" + "\n".join(rows)
+            + f"\n\n- Gaps in done stages: {'; '.join(f['gaps']) or 'none'}.\n"
+            f"- Skills used outside the contract: {', '.join(f['outside_contract']) or 'none'}.\n"
+            f"- Plan: {plan_line}.\n"
+            f"- Guards: trips {trips}; laid down {', '.join(guards['laid_down']) or 'none'} ({guards['waived_calls']} call(s) let through); "
+            f"answers {'; '.join(guards['waiver_answers']) or 'none'}.\n"
+            "\n## Decisions\n\n" + "\n".join(f"- {d['ts']} {d['stage']}: {d['choice']} — {d['why']}" for d in f["decisions"]) + "\n")
     (path.parent / "provenance.md").write_text(text, encoding="utf-8")
     return text
 
 
 def main() -> None:
-    """CLI: list | pick <request> | show <name> | contract <name> <slug> <agent> <request-file> [stage=why ...] | stage <name> <status> <note> | report <session>."""
+    """CLI: list | pick <request> | show <name> | contract <name> <slug> <agent> <request-file> [stage=why ...] | stage <name> <status> <note> | plan-sync <note> | plan-status | report <session>."""
     args = sys.argv[1:]
+    sys.stdout.reconfigure(encoding="utf-8")  # type: ignore[union-attr]  # Windows pipes default to cp1252
     if args[:1] == ["list"]:
         out: Any = [{k: c[k] for k in ("name", "title", "summary", "source")} for c in catalog().values()]
     elif args[:1] == ["pick"] and len(args) == 2:
@@ -143,6 +219,10 @@ def main() -> None:
         out = contract(args[1], args[2], args[3], Path(args[4]).read_text(encoding="utf-8").strip(), skips)
     elif args[:1] == ["stage"] and len(args) == 4 and args[2] in ("planned", "active", "done", "skipped"):
         out = set_stage(args[1], args[2], args[3])  # type: ignore[arg-type]
+    elif args[:1] == ["plan-sync"] and len(args) == 2:
+        out = plan_sync(args[1])
+    elif args[:1] == ["plan-status"] and len(args) == 1:
+        out = plan_status()
     elif args[:1] == ["report"] and len(args) == 2:
         print(report(args[1]))
         return

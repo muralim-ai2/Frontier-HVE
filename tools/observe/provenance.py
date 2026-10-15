@@ -3,16 +3,19 @@
 import argparse
 import json
 import sys
+from collections import Counter
 from pathlib import Path
 from typing import Any, Literal, TypedDict
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "tools" / "templates"))
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "tools" / "loop"))
 from manage import check_session, resolve  # noqa: E402
+from lifecycle import facts, guard_summary  # noqa: E402
 
 Status = Literal["verified", "not-exercised", "failed"]
 Json = dict[str, Any]
 COMPONENTS = {"skills": "skill_loader.py", "profile": "profile_detector.py", "templates": "template_guard.py", "metrics": "metrics.py",
-              "loop": "loop/loop.py", "reflection": "evaluation/reflection.py"}
+              "loop": "loop/loop.py", "reflection": "evaluation/reflection.py", "contract": "loop/lifecycle.py"}
 LAYERS = {"1 contract": "contract.json", "2 rubrics": "rubric-results.json", "3 validation": "validation-results.json",
           "4 council": "council/*.json", "5 decision": "report.json"}
 
@@ -75,6 +78,18 @@ def _reflection(project: Path, finished: bool) -> Finding:
             "detail": "every feature passes but no output evaluation ran" if finished else "the feature loop did not finish"}
 
 
+def _contract(workspace: Path, session: str) -> tuple[Finding, Json | None]:
+    """Return whether the active ask's done stages used their expected skills and templates and its plan is in sync, with the facts."""
+    if not (workspace / ".hve" / "asks" / "active.json").is_file():
+        return {"status": "not-exercised", "detail": "no lifecycle contract in this workspace"}, None
+    found = facts(workspace, session)
+    stale = [f"{found['plan']['plan']} changed since its last sync"] if found["plan"] and found["plan"]["changed"] else []
+    counts = ", ".join(f"{n} {s}" for s, n in sorted(Counter(s["status"] for s in found["stages"]).items()))
+    detail = (f"{found['ask']} ({found['lifecycle']}): {counts}; gaps: {'; '.join(found['gaps']) or 'none'}; outside contract: "
+              f"{', '.join(found['outside_contract']) or 'none'}" + "".join(f"; {s}" for s in stale))
+    return {"status": "failed" if found["gaps"] or stale else "verified", "detail": detail}, found
+
+
 def _trace(runs: Path, session: str) -> Json | None:
     """Return model calls, tokens, tools and sub-agents from the session's metrics rows, or None when metrics were not collected."""
     path = runs / f"{session}.jsonl"
@@ -120,6 +135,7 @@ def provenance(agent_file: Path, workspace: Path, project: Path, session: str, r
         found["skills"]["detail"] = "loaded: " + (", ".join(skills_used) or "none matched the prompt")
     found["loop"], finished = _loop(project)
     found["reflection"] = _reflection(project, finished)
+    found["contract"], contract = _contract(workspace, session)
     declared = {name: found[name] for name, marker in COMPONENTS.items() if marker in agent}
     unknown = [name for name in required if name not in declared]
     if unknown:
@@ -132,7 +148,8 @@ def provenance(agent_file: Path, workspace: Path, project: Path, session: str, r
         "tokens": {"prompt": trace["prompt_tokens"]["total"], "completion": trace["completion_tokens"]},
         "cost_aiu": trace["cost_aiu"]}
     report = {"session": session, "agent": agent_file.name, "ok": ok, "summary": summary, "components": declared, "trace": trace,
-              "interventions": len(interventions.read_text(encoding="utf-8").splitlines()) if interventions.is_file() else 0}
+              "interventions": len(interventions.read_text(encoding="utf-8").splitlines()) if interventions.is_file() else 0,
+              "guards": guard_summary(workspace, session), "contract": contract}
     (runs / f"{session}.provenance.json").write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
     return report
 

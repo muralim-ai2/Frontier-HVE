@@ -99,8 +99,8 @@
     },
     {
       "id": "N34",
-      "issue": "Built (D-048), extension 0.9.0: path-based loop guard released after the loop finishes; lifecycles (sdlc, agile-scrum, consulting-delivery) with plugin and workspace overrides; ask contracts and provenance.md; loop.py amend; agents HVE e2e, HVE agile, HVE prototype and hidden HVE engineer. Unit-tested; not verified live. Open from the 2026-10-15 issue list: loop files and evidence under .hve/asks/<slug>/, guard waivers after N trips (strict during final validation), plan.md drift check before each run, provenance.py contract component.",
-      "action": "User: install 0.9.0, then in Local chats ask HVE prototype for a leave-portal clickthrough, HVE e2e and HVE agile for a small leave portal; check the lifecycle choice and skip question, .hve/asks/<slug>/plan.md and contract.json, gates or sprint reviews, and .hve/asks/<slug>/provenance.md. Then decide the order of the open items."
+      "issue": "Built (D-048, D-049), extension 0.10.0: path-based loop guard released after the loop finishes; lifecycles (sdlc, agile-scrum, consulting-delivery) with plugin and workspace overrides; ask contracts; loop.py amend; agents HVE e2e, HVE agile, HVE prototype and hidden HVE engineer; guard waivers after 3 trips (strict during output evaluation); plan.md check before loop and stage runs; provenance contract component and guard summary. Unit-tested; not verified live. Deferred by the user: loop files and evidence under .hve/asks/<slug>/.",
+      "action": "User: install 0.10.0, then in Local chats ask HVE prototype for a leave-portal clickthrough, HVE e2e and HVE agile for a small leave portal; check the lifecycle choice and skip question, .hve/asks/<slug>/plan.md and contract.json, gates or sprint reviews, that editing plan.md mid-run makes the agent reconcile, that a third guard trip brings the waiver question, and .hve/asks/<slug>/provenance.md. Then decide when to move the loop files under .hve."
     }
   ],
   "wiki_topics": {

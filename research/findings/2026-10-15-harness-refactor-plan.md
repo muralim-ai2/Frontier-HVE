@@ -78,3 +78,7 @@ Lifecycles live in `templates/lifecycles/*.json` (built-in), `plugins/<name>/lif
 | `loop.py amend` | Later milestones or sprints add features; locked ones never change |
 
 Open after this delivery: loop files under `.hve/asks/<slug>/` (deferred by the user), guard waivers, `plan.md` drift check, provenance contract component.
+
+## Follow-up (D-049, extension 0.10.0)
+
+The user deferred the folder move and asked for the other three. Built: guard waivers after 3 trips with a `guard-waiver:<guard>` question (strict during output evaluation; `.harness/`, escalation, bypass, pushes never waivable); `lifecycle.py plan-sync` and `hooks/plan_check.py` (reconcile context on each prompt, loop and stage runs held while `plan.md` is out of sync); provenance `contract` component and `guards` summary from logged facts.

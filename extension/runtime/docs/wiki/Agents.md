@@ -30,7 +30,7 @@ Hidden helpers are called by the agents above, not by you: `HVE council` and `HV
 | Plugin | `plugins/<name>/lifecycles/` | built-in |
 | Workspace | `.hve/lifecycles/` | built-in and plugin |
 
-`lifecycle.py contract` writes `.hve/asks/<slug>/contract.json` (expected agent, skills and templates per stage; it fails if a stage's skills exceed the loadout budget); `stage` records each stage's status with a one-line note; the skill loader loads and allows the current stage's skills; `report <session>` writes `.hve/asks/<slug>/provenance.md` with expected against used skills and authored templates.
+`lifecycle.py contract` writes `.hve/asks/<slug>/contract.json` (expected agent, skills and templates per stage; it fails if a stage's skills exceed the loadout budget); `stage` records each stage's status with a one-line note; the skill loader loads and allows the current stage's skills; `lifecycle.py report <session>` writes `.hve/asks/<slug>/provenance.md` with expected against used skills and authored templates, gaps in done stages, plan revisions and sync state, guard trips and waivers, and every decision. `tools/observe/provenance.py` adds the same facts as its `contract` component (failed on gaps or an unsynced plan) and a `guards` summary for every agent.
 
 The repository's `.github/agents/` holds the research arms (`minimal`, `single`, `creator`, `creator-flow`, `creator-github`): pinned model, time budget, metrics and Graphify, working in `.hve/outputs/<mode>/current/`. They exist for `tools/observe/bench.py` and differ from the product agents on purpose.
 
@@ -47,9 +47,12 @@ The repository's `.github/agents/` holds the research arms (`minimal`, `single`,
 | compaction | `hooks/compaction.py` | sub-agent start | Sub-agents return short summaries, not raw tool output |
 | choice | `scripts/choice_recorder.py` | after ask-questions | Records your ticks (options, manual checks, PRs to push) |
 | stage | `hooks/flow_guard.py` | stage agent stop | A flow stage may not finish without moving the flow along an edge |
+| plan check | `hooks/plan_check.py` | prompt, before tools (`HVE e2e`, `HVE agile`) | When the ask's `plan.md` changed since `lifecycle.py plan-sync`, adds a reconcile instruction to each prompt and holds `loop.py init/next/amend` and `lifecycle.py stage` until the agent reconciles and syncs |
 | no fallback | `hooks/no_fallback.py` | git pre-commit (set by `loop.py init`) | Rejects swallowed errors and TODOs in committed code |
 
 Every deny, block or stop is logged to `.hve/runs/<session>.interventions.jsonl`.
+
+**Waivers** (`hooks/guard_policy.py`): after 3 trips in a session of the loop-file, skill or module guard, its message asks the agent to put a `guard-waiver:<guard>` question to you: keep it on, or lay it down for this session (saved in `.hve/runs/<session>.waivers.json`). `.harness/` state, escalation, hook bypass, pushes and the plan check are never waivable, and waivers are ignored while an output evaluation run is open. `provenance.py` and `lifecycle.py report` list trips, your answers and the calls let through.
 
 ## Onboard an agent
 

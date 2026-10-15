@@ -301,3 +301,10 @@
 - `loop.py amend` appends features from `feature_list.add.json` between features; locked features never change. `HVE engineer` is the hidden feature worker; the UI/UX persona is `HVE prototype`.
 - Deferred: moving the loop files and `.harness/` under `.hve/asks/<slug>/`, guard waivers after N trips, plan.md drift check (`N34`).
 - Verified by `tests/test_loop.py`, `tests/test_skills.py`, `tests/test_extension.py` (22 agents). Not verified live. Extension 0.9.0.
+
+## D-049 — Guard waivers, plan check, contract provenance
+- User decisions (2026-10-15): defer moving loop files under `.hve/asks/<slug>/`; build guard waivers, plan checks and the provenance report next. Plan and delivery notes: [2026-10-15-harness-refactor-plan.md](../findings/2026-10-15-harness-refactor-plan.md).
+- Waivers: `hooks/guard_policy.py` records every trip; from the 3rd trip of a waivable kind (`loop_guard/loop_files`, `skill_loader/skill_denied`, `module_guard/oversized_file`) the reason asks the agent to put a `guard-waiver:<guard>` question to the user. Only the PostToolUse answer of the ask-questions tool (from the user, not the agent) writes `.hve/runs/<session>.waivers.json`; a skipped or free-text answer keeps the guard on. `.harness/` state (now its own kind `anti_gaming`), escalation, bypass, pushes and the plan check are never waivable; an open evaluation run (contract.json without report.json) makes all guards strict.
+- Plan check: `lifecycle.py plan-sync` stores the hash of `plan.md` as a revision with a one-line note; `hooks/plan_check.py` adds reconcile context on each prompt and denies `loop.py init/next/amend` and `lifecycle.py stage` while the hash differs, for edits by the user or the agent.
+- Provenance: `lifecycle.facts` compares the contract with the session's facts (skills used, templates authored, plan sync, decisions, guard trips and waivers); `provenance.py` reports it as the `contract` component (failed on gaps in done stages or an unsynced plan) plus a `guards` summary for every agent.
+- Verified by `tests/test_loop.py`, `tests/test_collect.py`, `tests/test_skills.py`, `tests/test_extension.py`. Not verified live. Extension 0.10.0.

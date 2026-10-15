@@ -8,7 +8,7 @@ import sys
 from pathlib import Path
 from typing import Any, TypedDict
 
-from interventions import record
+from guard_policy import check, record_answers
 from hve_paths import RUNS_DIR, STATE_DIR
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -90,9 +90,11 @@ def pre_tool_output(session_id: str, loadout: Loadout, tool_input: Json) -> Json
     loadout["used"] = sorted({*loadout["used"], *(f"skills/admitted/{m}" for m in reads & stage)})
     blocked = sorted({m for m in reads if m in library() and m not in allowed})
     if blocked:
-        reason = f"Skill(s) {blocked} are not loaded for this task. Use only: {sorted(allowed) or 'none'}."
-        record(session_id, "skill_loader", "skill_denied", reason)
-        return {"hookSpecificOutput": {"hookEventName": "PreToolUse", "permissionDecision": "deny", "permissionDecisionReason": reason}}
+        reason = check(session_id, "skill_loader", "skill_denied",
+                       f"Skill(s) {blocked} are not loaded for this task. Use only: {sorted(allowed) or 'none'}.")
+        if reason is not None:
+            return {"hookSpecificOutput": {"hookEventName": "PreToolUse", "permissionDecision": "deny", "permissionDecisionReason": reason}}
+        loadout["used"] = sorted({*loadout["used"], *(f"skills/admitted/{m}" for m in blocked)})
     if loadout["announced"] or not (loadout["skills"] or loadout["recommended"]):
         return None
     loadout["announced"] = True
@@ -135,6 +137,7 @@ def main() -> None:
     if event == "PreToolUse":
         output = pre_tool_output(payload["session_id"], loadout, payload["tool_input"])
     elif payload["tool_name"] == ASK_TOOL:
+        record_answers(payload["session_id"], payload["tool_input"], payload["tool_response"])
         install(add_ticked(loadout, payload["tool_input"], payload["tool_response"]))
     path.write_text(json.dumps(loadout), encoding="utf-8")
     if output:
