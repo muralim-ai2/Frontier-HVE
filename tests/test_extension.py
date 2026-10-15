@@ -52,11 +52,11 @@ def test_extension_js_parses() -> None:
 
 
 def test_rendered_plugin_shape() -> None:
-    """The plugin has its manifest, 12 skills, guardrail scripts and 18 HVE agents with every runtime path filled in."""
+    """The plugin has its manifest, 12 skills, guardrail scripts and 22 HVE agents with every runtime path filled in."""
     with tempfile.TemporaryDirectory() as tmp:
         out = Path(tmp) / "plugin"
         agents = render(out)
-        assert len(agents) == 18, agents
+        assert len(agents) == 22, agents
         assert json.loads((out / "plugin.json").read_text(encoding="utf-8"))["name"] == "frontier-hve"
         assert len(list((out / "skills").glob("*/SKILL.md"))) == 12
         assert (out / "skills" / "deliverable-templates" / "SKILL.md").is_file()
@@ -108,7 +108,7 @@ def test_rerender_updates_in_place() -> None:
         stale = out / "com.github.copilot" / "agents" / "old.agent.md"
         stale.write_text("old", encoding="utf-8")
         (out / "skills" / "old-skill").mkdir()
-        assert len(render(out, "0.1.1")) == 18
+        assert len(render(out, "0.1.1")) == 22
         assert json.loads((out / "plugin.json").read_text(encoding="utf-8"))["version"] == "0.1.1"
         assert not stale.exists() and not (out / "skills" / "old-skill").exists()
 
@@ -237,6 +237,26 @@ def test_rendered_flow_and_loop_tools_run() -> None:
         assert json.loads(nxt.stdout)["name"] == "a", nxt.stdout
 
 
+def test_delivery_agents_and_lifecycles() -> None:
+    """Prototype keeps only the safety guard, engineer is a hidden persona, and e2e/agile contract a packaged lifecycle."""
+    with tempfile.TemporaryDirectory() as tmp:
+        out = Path(tmp) / "plugin"
+        render(out)
+        folder = out / "com.github.copilot" / "agents"
+        prototype = (folder / "hve-prototype.agent.md").read_text(encoding="utf-8")
+        assert set(re.findall(r"/hooks/(\w+\.py)", prototype)) == {"loop_guard.py"}, prototype
+        assert re.search(r"^user-invocable: false", (folder / "hve-engineer.agent.md").read_text(encoding="utf-8"), re.M)
+        ws = workspace(tmp)
+        for name, overlay in (("e2e", "sdlc"), ("agile", "agile-scrum")):
+            text = (folder / f"hve-{name}.agent.md").read_text(encoding="utf-8")
+            lifecycle_py = re.search(r'python "([^"]+/tools/loop/lifecycle\.py)"', text)[1]  # type: ignore[index]
+            (ws / "req.md").write_text("Build a leave portal", encoding="utf-8")
+            made = subprocess.run([sys.executable, lifecycle_py, "contract", overlay, f"ask-{name}", f"HVE {name}", "req.md"],
+                                  cwd=ws, capture_output=True, text=True)
+            assert made.returncode == 0, made.stderr
+            assert json.loads((ws / ".hve" / "asks" / "active.json").read_text(encoding="utf-8")) == {"active": f"ask-{name}"}
+
+
 if __name__ == "__main__":
     test_extension_js_parses()
     test_rendered_plugin_shape()
@@ -246,4 +266,5 @@ if __name__ == "__main__":
     test_product_manager_agent()
     test_rendered_hooks_run_in_a_workspace()
     test_rendered_flow_and_loop_tools_run()
+    test_delivery_agents_and_lifecycles()
     print("test_extension: OK")
