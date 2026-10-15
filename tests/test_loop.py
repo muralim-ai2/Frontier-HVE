@@ -273,6 +273,11 @@ def test_loop_guard() -> None:
         state = {"review": "github", "current": "a", "escalated": None, "help": None}
         (proj / ".harness" / "state.json").write_text(json.dumps(state), encoding="utf-8")
         assert pre("create_file", edit)["hookSpecificOutput"]["permissionDecision"] == "deny"  # type: ignore[index]
+        mentions = {"content": "Loop files: feature_list.json, progress.txt, tracker.json, .harness/state.json"}
+        assert pre("create_file", {"filePath": str(proj / "README.md")} | mentions) is None
+        assert pre("create_file", {"filePath": str(root / "tracker.json")}) is None
+        assert pre("runSubagent", {"prompt": "Do not edit feature_list.json or .harness/"}) is None
+        assert pre("run_in_terminal", {"command": "Get-Content feature_list.json 2>&1"}) is None
         cites = {"content": '{"evidence": [".harness/evidence/a/page.png", "feature_list.json"]}'}
         assert pre("create_file", {"filePath": str(proj / ".hve" / "evaluations" / "input" / "r-scores.json")} | cites) is None
         escape = str(proj / ".hve" / "evaluations" / "input" / ".." / ".." / ".." / "feature_list.json")
@@ -304,6 +309,13 @@ def test_loop_guard() -> None:
         assert stopped["continue"] is False and "Which check?" in stopped["stopReason"], stopped  # type: ignore[index]
         kinds = [json.loads(line)["kind"] for line in (root / ".hve" / "runs" / "s1.interventions.jsonl").read_text().splitlines()]
         assert {"anti_gaming", "hook_bypass", "human_only", "push_blocked", "victory_check", "escalated"} <= set(kinds), kinds
+        state |= {"escalated": None, "help": None, "current": None}
+        (proj / ".harness" / "state.json").write_text(json.dumps(state), encoding="utf-8")
+        (proj / "feature_list.json").write_text(json.dumps([{"name": "a", "passes": True}]), encoding="utf-8")
+        assert pre("replace_string_in_file", edit) is None
+        assert pre("run_in_terminal", {"command": "echo x > progress.txt"}) is None
+        assert pre("create_file", {"filePath": str(proj / ".harness" / "state.json")}) is not None
+        assert pre("run_in_terminal", {"command": "rm .harness/state.json"}) is not None
 
 
 def test_module_guard() -> None:
