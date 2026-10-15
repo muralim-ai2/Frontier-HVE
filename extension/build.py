@@ -20,7 +20,7 @@ FILES = {
     "tools/evaluation": ["contract.py", "workflow.py", "reflection.py"],
     "tools/observe": ["provenance.py"],
     "evaluation": ["frontier.eval.json"],
-    "tools/loop": ["loop.py", "diagnose.py", "flow.py"],
+    "tools/loop": ["loop.py", "diagnose.py", "flow.py", "lifecycle.py"],
     "tools/git": ["branch_workflow.py", "parallel_options.py"],
     "tools/skills": ["recommend.py", "scan.py", "triage.py", "onboard.py", "micro_eval.py", "evaluate.py", "context_load.py"],
     "skills": ["registry.json", "categories.json"],
@@ -49,6 +49,7 @@ def build() -> list[str]:
         shutil.copy2(REPO / "skills" / "imported" / "agentx" / name, RUNTIME / "skills" / "licenses" / "agentx" / name)
     shutil.copytree(REPO / "docs" / "wiki", RUNTIME / "docs" / "wiki")
     shutil.copytree(REPO / "templates" / "deliverables", RUNTIME / "templates" / "deliverables")
+    shutil.copytree(REPO / "templates" / "lifecycles", RUNTIME / "templates" / "lifecycles")
     for path in RUNTIME.rglob("*.py"):
         if RUNTIME / "skills" not in path.parents:
             py_compile.compile(str(path), doraise=True)

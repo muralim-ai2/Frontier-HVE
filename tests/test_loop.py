@@ -105,6 +105,24 @@ def test_tracker_reports_status_evidence_and_manual_check() -> None:
         assert a["evidence"] == [".harness/evidence/a/page.png"] and a["manual_check"] == "looks right", a
 
 
+def test_amend_appends_without_changing_locked_features() -> None:
+    """Amend appends new features to the lock between features, refuses renames and in-progress work, and deletes the add file."""
+    with tempfile.TemporaryDirectory() as tmp:
+        project = three(tmp)
+        add = project / "feature_list.add.json"
+        add.write_text(json.dumps([feature("d", "d.txt")]), encoding="utf-8")
+        loop.next_feature(project)
+        assert "in progress" in raises(RuntimeError, loop.amend, project)
+        (project / "a.txt").write_text("a\n", encoding="utf-8")
+        loop.verify(project)
+        add.write_text(json.dumps([feature("a", "x.txt")]), encoding="utf-8")
+        assert "already locked" in raises(ValueError, loop.amend, project)
+        add.write_text(json.dumps([feature("d", "d.txt")]), encoding="utf-8")
+        assert loop.amend(project) == {"amended": ["d"], "total": 4}
+        assert not add.exists() and [f["name"] for f in read_json(project / "feature_list.json")] == ["a", "b", "c", "d"]
+        assert loop.load(project)[0]["order"][-1] == "d"
+
+
 def test_loop_commits_flips_and_queues() -> None:
     """Verify fails until the work exists, B1 code is rejected at commit, PR records stack, and a passing baseline escalates."""
     with tempfile.TemporaryDirectory() as tmp:
@@ -336,6 +354,7 @@ if __name__ == "__main__":
     test_init_rejects_bad_feature_lists()
     test_init_in_existing_repo()
     test_tracker_reports_status_evidence_and_manual_check()
+    test_amend_appends_without_changing_locked_features()
     test_loop_commits_flips_and_queues()
     test_rules_stuck_then_spec()
     test_rules_circular_and_cap()

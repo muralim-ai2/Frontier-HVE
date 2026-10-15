@@ -19,7 +19,9 @@ SKILL_REF = re.compile(r"([^\s\"'/\\]+)[/\\]+SKILL\.md", re.I)
 ASK_TOOL = "vscode_askQuestions"
 LOAD_HEADER = "load-skills"
 sys.path.insert(0, str(ROOT / "tools" / "skills"))
+sys.path.insert(0, str(ROOT / "tools" / "loop"))
 from recommend import rank  # noqa: E402
+from lifecycle import current_skills  # noqa: E402
 
 Json = dict[str, Any]
 
@@ -54,12 +56,13 @@ def install(sources: list[str]) -> None:
 
 
 def choose(prompt: str) -> Loadout:
-    """Return the eval override's skills if present, else the ranked skills that fit the loadout budget and the ranked rest."""
+    """Return the eval override's skills if present, else the required and active lifecycle stage's skills plus the ranked skills that fit the budget, and the ranked rest."""
     if OVERRIDE_FILE.exists():
         skills = json.loads(OVERRIDE_FILE.read_text(encoding="utf-8"))["skills"]
         return Loadout(categories=[], skills=skills, recommended=[], announced=False, used=list(skills))
     value = os.environ.get("HARNESS_REQUIRED_SKILLS")
     required = tuple(name.strip() for name in value.split(",")) if value is not None else ()
+    required += tuple(s for s in current_skills() if s not in required)
     ranked = rank(prompt, os.environ["HARNESS_SKILLS_MIN_STATUS"], required)  # type: ignore[arg-type]
     skills = [r["path"] for r in ranked["load"]]
     return Loadout(categories=ranked["categories"], skills=skills,
@@ -80,9 +83,12 @@ def announcement(loadout: Loadout) -> str:
 
 
 def pre_tool_output(session_id: str, loadout: Loadout, tool_input: Json) -> Json | None:
-    """Return a deny for reading a library SKILL.md outside the loadout, the one-time loadout announcement, or nothing."""
-    allowed = {Path(s).name for s in loadout["skills"]}
-    blocked = sorted({m for m in SKILL_REF.findall(json.dumps(tool_input)) if m in library() and m not in allowed})
+    """Return a deny for reading a library SKILL.md outside the loadout and the active lifecycle stage, the one-time announcement, or nothing."""
+    stage = set(current_skills())
+    allowed = {Path(s).name for s in loadout["skills"]} | stage
+    reads = set(SKILL_REF.findall(json.dumps(tool_input)))
+    loadout["used"] = sorted({*loadout["used"], *(f"skills/admitted/{m}" for m in reads & stage)})
+    blocked = sorted({m for m in reads if m in library() and m not in allowed})
     if blocked:
         reason = f"Skill(s) {blocked} are not loaded for this task. Use only: {sorted(allowed) or 'none'}."
         record(session_id, "skill_loader", "skill_denied", reason)
