@@ -9,13 +9,28 @@ Pick these in a new chat with Session Target **Local**. They run on the model yo
 | `HVE creator` | Build software: verified feature loop, then output evaluation ([Evaluation](Evaluation.md)) | loop, module, prototype, template, skill, profile, compaction, choice | Yes |
 | `HVE creator-flow` | Build through the graph workflow (Designer → ... → Maintainer) | as creator; stage agents add the stage guard | Yes |
 | `HVE creator-github` | Product work on GitHub: stacked branches, options you pick, PRs pushed only when you tick them | as creator | Yes |
+| `HVE e2e` | End-to-end delivery along a lifecycle (SDLC, consulting or a plugin/workspace one) with a gate per stage | as creator | Yes |
+| `HVE agile` | Sprints along an agile overlay with product manager, UI/UX (prototype) and engineer personas and a review per sprint | as creator | Yes |
+| `HVE prototype` | Fast UI/UX clickthrough (HTML or TypeScript) in `.hve/asks/<slug>/prototype/`; no loop or evaluation | loop (safety only) | Yes |
 | `HVE product-manager` | Research, PRD in the configured template, backlog ([Product Manager](Product-Manager.md)) | template (PRD only), skill (`prd` always loaded), profile, compaction | Yes |
 | `HVE single` | One agent with file, search and terminal tools | template | Yes |
 | `HVE minimal` | Baseline answer, no tools | none | No |
 | `HVE skill-evaluator` | Onboard a skill with evidence ([Skills](Skills.md)) | none | Yes (tools) |
 | `HVE azure-devops` | Azure DevOps work items, PRs and builds ([Adapters](Adapters.md)) | none | Yes (MCP setup command) |
 
-Hidden helpers are called by the agents above, not by you: `HVE council` and `HVE evaluation-reviewer` (read-only reviewers), `HVE flow-*` (stages), `HVE skill-worker` and `HVE skill-judge`.
+Hidden helpers are called by the agents above, not by you: `HVE council` and `HVE evaluation-reviewer` (read-only reviewers), `HVE flow-*` (stages), `HVE engineer` (one feature to its check), `HVE skill-worker` and `HVE skill-judge`.
+
+## Lifecycles
+
+`HVE e2e` and `HVE agile` start with `tools/loop/lifecycle.py pick "<request>"`, show the stages and ask which to skip; the practitioner's call wins. Lifecycles are JSON files with stages (goal, agent, library skills, plugin skills, templates, exit gate, when to skip):
+
+| Source | Folder | Wins over |
+|---|---|---|
+| Built-in | `templates/lifecycles/` (`sdlc`, `agile-scrum`, `consulting-delivery`) | - |
+| Plugin | `plugins/<name>/lifecycles/` | built-in |
+| Workspace | `.hve/lifecycles/` | built-in and plugin |
+
+`lifecycle.py contract` writes `.hve/asks/<slug>/contract.json` (expected agent, skills and templates per stage; it fails if a stage's skills exceed the loadout budget); `stage` records each stage's status with a one-line note; the skill loader loads and allows the current stage's skills; `report <session>` writes `.hve/asks/<slug>/provenance.md` with expected against used skills and authored templates.
 
 The repository's `.github/agents/` holds the research arms (`minimal`, `single`, `creator`, `creator-flow`, `creator-github`): pinned model, time budget, metrics and Graphify, working in `.hve/outputs/<mode>/current/`. They exist for `tools/observe/bench.py` and differ from the product agents on purpose.
 
@@ -23,7 +38,7 @@ The repository's `.github/agents/` holds the research arms (`minimal`, `single`,
 
 | Guard | File | When | Enforces |
 |---|---|---|---|
-| loop | `hooks/loop_guard.py` | before/after tools, stop | `feature_list.json`, `progress.txt` and `.harness/` change only through `loop.py`; pushes only for ticked PRs; stop on escalation; a victory check before stopping |
+| loop | `hooks/loop_guard.py` | before/after tools, stop | `.harness/` always, and the project's `feature_list.json`, `progress.txt` and `tracker.json` while features still fail, change only through `loop.py` (edit targets are matched by path, shell commands only when they write); new features go through `feature_list.add.json` and `loop.py amend`; pushes only for ticked PRs; stop on escalation; a victory check before stopping |
 | module | `hooks/module_guard.py` | after edits | No file over 500 lines; the agent proposes a split |
 | prototype | `scripts/guardrail.py` | after tools | Flags code over 5,000 lines, files over 20 MB, non-enterprise components and self-built infrastructure, and names the experts to involve |
 | template | `hooks/template_guard.py` | session start, prompt, stop | Requested PRDs, technical designs and test strategies come from the configured template and validate before the agent may finish |
