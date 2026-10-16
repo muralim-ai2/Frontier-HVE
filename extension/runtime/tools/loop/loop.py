@@ -27,10 +27,10 @@ Review = Literal["local", "github"]
 Json = dict[str, Any]
 
 
-def validate(features: Any) -> None:
-    """Raise unless features is a list of at least 3 unique, unpassed features with a non-trivial verify command."""
-    if not isinstance(features, list) or len(features) < MIN_FEATURES:
-        raise ValueError(f"feature_list.json must be a list of at least {MIN_FEATURES} features")
+def validate(features: Any, minimum: int = MIN_FEATURES) -> None:
+    """Raise unless features is a list of at least minimum unique, unpassed features with a non-trivial verify command."""
+    if not isinstance(features, list) or len(features) < minimum:
+        raise ValueError(f"the feature list must be a list of at least {minimum} features")
     for f in features:
         if not isinstance(f, dict) or set(f) != FIELDS:
             raise ValueError(f"each feature needs exactly the fields {sorted(FIELDS)}: {f}")
@@ -196,6 +196,29 @@ def tracker(project: Path) -> Json:
     return data
 
 
+def amend(project: Path) -> Json:
+    """Append and lock the features of feature_list.add.json (locked features never change), delete that file and commit."""
+    state, features = load(project)
+    if state["current"] is not None:
+        raise RuntimeError(f"feature {state['current']!r} is in progress: verify it before amending")
+    add_file = project / "feature_list.add.json"
+    added = read_json(add_file)
+    validate(added, minimum=1)
+    clash = sorted({f["name"] for f in added} & set(state["order"]))
+    if clash:
+        raise ValueError(f"features {clash} are already locked; new features need new names")
+    names = [f["name"] for f in added]
+    state["order"] += names
+    state["lock"] |= {f["name"]: {"description": f["description"], "verify": f["verify"]} for f in added}
+    state["attempts"] |= {name: 0 for name in names}
+    write_json(project / "feature_list.json", features + added)
+    write_json(project / ".harness" / "state.json", state)
+    add_file.unlink()
+    git(project, "add", "-A")
+    git(project, "commit", "-m", f"[amend] add {', '.join(names)}")
+    return {"amended": names, "total": len(features) + len(added)}
+
+
 def resume(project: Path, note: str) -> Json:
     """Human-only: record the human's answer, clear the escalation, and give the feature a fresh attempt budget."""
     state = read_json(project / ".harness" / "state.json")
@@ -212,16 +235,16 @@ if __name__ == "__main__":
     args = sys.argv[1:]
     if len(args) == 4 and args[0] == "init" and args[2] == "--review" and args[3] in ("local", "github"):
         result = init(Path(args[1]).resolve(), args[3])  # type: ignore[arg-type]
-    elif len(args) == 2 and args[0] in ("next", "verify"):
-        result = {"next": next_feature, "verify": verify}[args[0]](Path(args[1]).resolve())
+    elif len(args) == 2 and args[0] in ("next", "verify", "amend"):
+        result = {"next": next_feature, "verify": verify, "amend": amend}[args[0]](Path(args[1]).resolve())
     elif len(args) >= 3 and args[0] == "resume":
         result = resume(Path(args[1]).resolve(), " ".join(args[2:]))
     elif len(args) == 2 and args[0] == "status":
         result = tracker(Path(args[1]).resolve())
     else:
-        raise SystemExit("usage: loop.py init <project> --review {local|github} | next <project> | verify <project> | resume <project> <note> "
-                         "| status <project>")
-    if args[0] in ("next", "verify", "resume"):
+        raise SystemExit("usage: loop.py init <project> --review {local|github} | next <project> | verify <project> | amend <project> "
+                         "| resume <project> <note> | status <project>")
+    if args[0] in ("next", "verify", "resume", "amend"):
         tracker(Path(args[1]).resolve())
     print(json.dumps(result, indent=2))
     sys.exit(1 if result.get("passes") is False or result.get("escalated") else 0)

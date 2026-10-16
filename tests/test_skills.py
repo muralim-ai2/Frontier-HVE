@@ -223,14 +223,16 @@ def library_root(tmp: str) -> Path:
     root = Path(tmp)
     (root / "hooks").mkdir()
     (root / "tools" / "skills").mkdir(parents=True)
+    (root / "tools" / "loop").mkdir()
     (root / ".hve" / "runs").mkdir(parents=True)
-    for hook in ("skill_loader.py", "interventions.py", "hve_paths.py"):
+    for hook in ("skill_loader.py", "interventions.py", "hve_paths.py", "guard_policy.py"):
         shutil.copy(REPO / "hooks" / hook, root / "hooks")
     shutil.copy(REPO / "tools" / "skills" / "recommend.py", root / "tools" / "skills")
     for folder, names in (("plugins", ("store.py", "route.py")), ("templates", ("manage.py",))):
         (root / "tools" / folder).mkdir(parents=True)
         for name in names:
             shutil.copy(REPO / "tools" / folder / name, root / "tools" / folder)
+    shutil.copy(REPO / "tools" / "loop" / "lifecycle.py", root / "tools" / "loop")
     config = json.loads((REPO / "skills" / "categories.json").read_text(encoding="utf-8")) | {"loadout": {"max_skills": 2, "max_tokens": 1000}}
     (root / "skills" / "admitted").mkdir(parents=True)
     (root / "skills" / "categories.json").write_text(json.dumps(config), encoding="utf-8")
@@ -277,6 +279,27 @@ def test_skill_loader_budget_offer_and_scoped_deny() -> None:
         (root / "skills" / "eval_override.json").write_text(json.dumps({"skills": []}), encoding="utf-8")
         fire(root, {"session_id": "s3", "hook_event_name": "UserPromptSubmit", "prompt": "Build a color palette page."})
         assert fire(root, {"session_id": "s3", "hook_event_name": "PreToolUse", "tool_input": {"filePath": "x.ts"}}) == ""
+
+
+def test_lifecycle_stage_skills_load_and_are_allowed() -> None:
+    """The active ask's current stage skills load as required, may be read from the library, and count as used."""
+    with tempfile.TemporaryDirectory() as tmp:
+        root = library_root(tmp)
+        (root / ".hve" / "asks" / "x").mkdir(parents=True)
+        (root / ".hve" / "asks" / "active.json").write_text(json.dumps({"active": "x"}), encoding="utf-8")
+        stages = [{"name": "design", "skills": ["layout"]}, {"name": "build", "skills": ["research"]}]
+        (root / ".hve" / "asks" / "x" / "contract.json").write_text(json.dumps({"current": "design", "stages": stages}), encoding="utf-8")
+        base = {"session_id": "l1"}
+        fire(root, base | {"hook_event_name": "UserPromptSubmit", "prompt": "Write sourced research."},
+             HARNESS_SKILLS_MIN_STATUS="provisional")
+        path = root / ".hve" / "runs" / "l1.skills.json"
+        assert json.loads(path.read_text(encoding="utf-8"))["skills"][0] == "skills/admitted/layout"
+        loadout = json.loads(path.read_text(encoding="utf-8")) | {"skills": [], "used": []}
+        path.write_text(json.dumps(loadout), encoding="utf-8")
+        read = fire(root, base | {"hook_event_name": "PreToolUse", "tool_input": {"filePath": "runtime/skills/admitted/layout/SKILL.md"}})
+        assert "deny" not in read and json.loads(path.read_text(encoding="utf-8"))["used"] == ["skills/admitted/layout"], read
+        other = fire(root, base | {"hook_event_name": "PreToolUse", "tool_input": {"filePath": ".hve/skills/forms/SKILL.md"}})
+        assert "deny" in other, other
 
 
 def test_required_skills_reserve_budget_and_load_outside_categories() -> None:
@@ -347,6 +370,7 @@ if __name__ == "__main__":
     test_context_load_counts_always_on_and_warns_on_growth()
     test_workspace_skill_evaluator_flow()
     test_skill_loader_budget_offer_and_scoped_deny()
+    test_lifecycle_stage_skills_load_and_are_allowed()
     test_required_skills_reserve_budget_and_load_outside_categories()
     test_prd_skill_is_template_and_tracker_neutral()
     print("test_skills: OK")

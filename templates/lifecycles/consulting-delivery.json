@@ -1,0 +1,23 @@
+{
+  "name": "consulting-delivery",
+  "title": "Consulting delivery",
+  "summary": "Discover, synthesise, design, (optionally) build and hand over; fits advisory asks, assessments and recommendations.",
+  "fits": ["consulting", "client", "assessment", "recommendation", "strategy", "advisory", "research", "synthesis", "options", "proposal", "report", "insights"],
+  "stages": [
+    {"name": "discover", "goal": "Gather sourced evidence on the problem and context.", "agent": "self",
+     "skills": ["web-research"], "plugin_skills": [], "templates": [],
+     "exit": "The user confirms the evidence covers the question.", "skip_when": "The user supplies the evidence base."},
+    {"name": "synthesis", "goal": "Turn evidence into findings and an options matrix.", "agent": "self",
+     "skills": ["analyst", "prose-anti-slop"], "plugin_skills": [], "templates": [],
+     "exit": "The user agrees the findings and options.", "skip_when": "The design stage already covers the synthesis (practitioner call)."},
+    {"name": "design", "goal": "Shape the recommended solution and its trade-offs.", "agent": "self",
+     "skills": ["architecture-options"], "plugin_skills": [], "templates": ["technicalDesign"],
+     "exit": "The user picks the recommended option.", "skip_when": "Advice only, no solution shape."},
+    {"name": "build", "goal": "Build a working proof of the recommendation.", "agent": "HVE prototype",
+     "skills": ["prototype-craft"], "plugin_skills": [], "templates": [],
+     "exit": "The user clicks through the proof.", "skip_when": "The client asked for a report only."},
+    {"name": "handover", "goal": "Write the deliverable and the walkthrough.", "agent": "self",
+     "skills": ["documentation", "prose-anti-slop"], "plugin_skills": ["explain-walkthrough"], "templates": [],
+     "exit": "The user accepts the deliverable.", "skip_when": "Never: this is the deliverable."}
+  ]
+}

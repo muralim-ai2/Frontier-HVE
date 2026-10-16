@@ -6,7 +6,7 @@ import sys
 from pathlib import Path
 from typing import Any
 
-from interventions import record
+from guard_policy import check
 
 MAX_LINES = 500
 EDIT_TOOLS = {"create_file", "replace_string_in_file", "multi_replace_string_in_file", "insert_edit_into_file", "apply_patch"}
@@ -47,10 +47,11 @@ def main() -> None:
     if not found:
         return
     files = ", ".join(f"{p} ({n} lines)" for p, n in found)
-    reason = (f"Module size limit is {MAX_LINES} lines; target 200-300: {files}. Split it now into modules of about 250 lines "
-              "with one responsibility each, and list the split in your final summary for the human to review.")
-    record(payload["session_id"], "module_guard", "oversized_file", files)
-    print(json.dumps({"decision": "block", "reason": reason}))
+    reason = check(payload["session_id"], "module_guard", "oversized_file",
+                   f"Module size limit is {MAX_LINES} lines; target 200-300: {files}. Split it now into modules of about 250 lines "
+                   "with one responsibility each, and list the split in your final summary for the human to review.")
+    if reason is not None:
+        print(json.dumps({"decision": "block", "reason": reason}))
 
 
 if __name__ == "__main__":

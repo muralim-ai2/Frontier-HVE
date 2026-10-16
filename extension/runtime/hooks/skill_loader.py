@@ -9,7 +9,7 @@ import sys
 from pathlib import Path
 from typing import Any, TypedDict
 
-from interventions import record
+from guard_policy import check, record_answers
 from hve_paths import RUNS_DIR, STATE_DIR
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -19,13 +19,10 @@ SESSION_ID = re.compile(r"^[\w-]+$")
 SKILL_REF = re.compile(r"([^\s\"'/\\]+)[/\\]+SKILL\.md", re.I)
 ASK_TOOL = "vscode_askQuestions"
 LOAD_HEADER = "load-skills"
-SELECT_HEADER = "select-plugin"
-CORE_ONLY = "Core only"
-sys.path[:0] = [str(ROOT / "tools" / "skills"), str(ROOT / "tools" / "plugins"), str(ROOT / "tools" / "templates")]
-import store  # noqa: E402
-from manage import KINDS  # noqa: E402
+sys.path.insert(0, str(ROOT / "tools" / "skills"))
+sys.path.insert(0, str(ROOT / "tools" / "loop"))
 from recommend import rank  # noqa: E402
-from route import candidates  # noqa: E402
+from lifecycle import current_skills  # noqa: E402
 
 Json = dict[str, Any]
 
@@ -71,56 +68,17 @@ def install_name(source: str) -> str:
     return path.name
 
 
-def install(sources: list[str]) -> None:
-    """Copy library skills into <workspace>/.hve/skills/<folder>/ so the agent reads them inside the workspace."""
-    for source in sources:
-        shutil.copytree(ROOT / source, STATE_DIR / "skills" / install_name(source), dirs_exist_ok=True)
-
-
-def route(prompt: str, previous: Loadout | None) -> tuple[list[str], list[str], list[str], str | None]:
-    """Return selected plugins, plugins awaiting the user's choice, the candidate set, and a notice for a named missing plugin."""
-    fixed = os.environ.get("HARNESS_PLUGIN")
-    if fixed is not None:
-        store.plugin(fixed)
-        return [fixed], [], [fixed], None
-    found = candidates(prompt, Path.cwd())
-    if found["missing"]:
-        return [], [], [], (f"The user named plugin(s) {found['missing']}, which are not installed or are disabled. Stop and tell the "
-                            "user to install or enable them (command Frontier HVE: Install plugin); do not continue with the core "
-                            "harness instead.")
-    if found["explicit"]:
-        return found["explicit"], [], found["explicit"], None
-    if previous is not None and not set(found["matched"]) - set(previous["candidates"]):
-        return previous["plugins"], previous["pending"], previous["candidates"], None
-    pool = sorted(set(found["matched"]) | set(previous["plugins"] if previous else []))
-    return (pool, [], pool, None) if len(pool) <= 1 else ([], pool, pool, None)
-
-
-def choose(prompt: str, plugins: list[str]) -> Json:
-    """Return the eval override's skills if present, else the ranked core and plugin skills that fit the budget and the ranked rest."""
+def choose(prompt: str) -> Loadout:
+    """Return the eval override's skills if present, else the required and active lifecycle stage's skills plus the ranked skills that fit the budget, and the ranked rest."""
     if OVERRIDE_FILE.exists():
         return {"categories": [], "skills": json.loads(OVERRIDE_FILE.read_text(encoding="utf-8"))["skills"], "recommended": []}
     value = os.environ.get("HARNESS_REQUIRED_SKILLS")
     required = tuple(name.strip() for name in value.split(",")) if value is not None else ()
-    ranked = rank(prompt, os.environ["HARNESS_SKILLS_MIN_STATUS"], required, tuple(plugins))  # type: ignore[arg-type]
-    return {"categories": ranked["categories"], "skills": [r["path"] for r in ranked["load"]],
-            "recommended": [r["path"] for r in ranked["recommend"]]}
-
-
-def plugin_context(plugins: list[str]) -> str:
-    """Return what the selected plugins offer: agents with capabilities, template kinds, flows and rubric contracts."""
-    lines = []
-    for name in plugins:
-        entry = store.plugin(name)
-        data, base = entry["manifest"], store.folder(entry)
-        agents = ", ".join(f"{name}:{a['name']} ({', '.join(a['capabilities'])})" for a in data["agents"])
-        kinds = ", ".join(f"{k} (as workspace source plugin:{name}/{k}@{spec['version']})" if k in KINDS else f"{name}:{k}"
-                          for k, spec in data["templates"].items())
-        flows = ", ".join(f"{name}:{f}" for f in data["flows"]) or "none"
-        rubrics = (base / data["evaluation"]).as_posix() if data["evaluation"] else "none"
-        lines.append(f"Plugin {name} {entry['version']}: agents {agents}; templates {kinds or 'none'}; flows {flows}; "
-                     f"rubric contract {rubrics}.")
-    return " ".join(lines)
+    required += tuple(s for s in current_skills() if s not in required)
+    ranked = rank(prompt, os.environ["HARNESS_SKILLS_MIN_STATUS"], required)  # type: ignore[arg-type]
+    skills = [r["path"] for r in ranked["load"]]
+    return Loadout(categories=ranked["categories"], skills=skills,
+                   recommended=[r["path"] for r in ranked["recommend"]], announced=False, used=list(skills))
 
 
 def announcement(loadout: Loadout) -> str:
@@ -146,14 +104,19 @@ def announcement(loadout: Loadout) -> str:
 
 
 def pre_tool_output(session_id: str, loadout: Loadout, tool_input: Json) -> Json | None:
-    """Return a deny for reading a library SKILL.md outside the loadout, the one-time announcement, or nothing."""
-    allowed = {install_name(s) for s in loadout["skills"]} | {Path(s).name for s in loadout["skills"]}
-    blocked = sorted({m for m in SKILL_REF.findall(json.dumps(tool_input)) if m in library() and m not in allowed})
+    """Return a deny for reading a library SKILL.md outside the loadout and the active lifecycle stage, the one-time announcement, or nothing."""
+    stage = set(current_skills())
+    allowed = {Path(s).name for s in loadout["skills"]} | stage
+    reads = set(SKILL_REF.findall(json.dumps(tool_input)))
+    loadout["used"] = sorted({*loadout["used"], *(f"skills/admitted/{m}" for m in reads & stage)})
+    blocked = sorted({m for m in reads if m in library() and m not in allowed})
     if blocked:
-        reason = f"Skill(s) {blocked} are not loaded for this task. Use only: {sorted(allowed) or 'none'}."
-        record(session_id, "skill_loader", "skill_denied", reason)
-        return {"hookSpecificOutput": {"hookEventName": "PreToolUse", "permissionDecision": "deny", "permissionDecisionReason": reason}}
-    if loadout["announced"]:
+        reason = check(session_id, "skill_loader", "skill_denied",
+                       f"Skill(s) {blocked} are not loaded for this task. Use only: {sorted(allowed) or 'none'}.")
+        if reason is not None:
+            return {"hookSpecificOutput": {"hookEventName": "PreToolUse", "permissionDecision": "deny", "permissionDecisionReason": reason}}
+        loadout["used"] = sorted({*loadout["used"], *(f"skills/admitted/{m}" for m in blocked)})
+    if loadout["announced"] or not (loadout["skills"] or loadout["recommended"]):
         return None
     text = announcement(loadout)
     loadout["announced"] = True
@@ -230,7 +193,7 @@ def main() -> None:
     if event == "PreToolUse":
         output = pre_tool_output(payload["session_id"], loadout, payload["tool_input"])
     elif payload["tool_name"] == ASK_TOOL:
-        install(apply_choice(loadout, payload["tool_input"], payload["tool_response"]))
+        record_answers(payload["session_id"], payload["tool_input"], payload["tool_response"])
         install(add_ticked(loadout, payload["tool_input"], payload["tool_response"]))
     path.write_text(json.dumps(loadout), encoding="utf-8")
     if output:
