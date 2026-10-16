@@ -9,6 +9,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from compose import combine, plugin_contract, selection
 from contract import OUTPUT_KINDS, EvaluationContract, ValidationHook, items, load_contract, mapping, text, validate_contract
 
 Json = dict[str, Any]
@@ -91,18 +92,45 @@ def latest_report(project: Path) -> Json | None:
     return mapping(_read_json(reports[-1]), "latest evaluation report") if reports else None
 
 
-def prepare(project: Path, contract_path: Path, request_path: Path, output_kind: str, revision_pass: int) -> Json:
-    """Create an immutable contract snapshot, the original request and a grounded rubric-scoring prompt."""
+def _plugin_run(project: Path, core: EvaluationContract, plugin_path: Path | None, selection_path: Path | None, output_kind: str,
+                revision_pass: int, last: Json | None) -> tuple[EvaluationContract, Json | None, str | None]:
+    """Return the run contract, the core-rubric selection and the plugin contract hash; revision passes reuse pass 0's choices."""
+    previous = _read_json(_run_folder(project, last["runId"]) / "manifest.json") if revision_pass else None
+    if plugin_path is None:
+        if selection_path is not None:
+            raise ValueError("--rubric-selection needs --plugin-contract")
+        if previous is not None and previous["pluginContractSha256"] is not None:
+            raise ValueError("this evaluation used a plugin contract; revision passes must pass the same --plugin-contract")
+        return core, None, None
+    digest = hashlib.sha256(plugin_path.read_bytes()).hexdigest()
+    plugin = plugin_contract(json.loads(plugin_path.read_text(encoding="utf-8")), core)
+    if previous is None:
+        if selection_path is None:
+            raise ValueError("a plugin contract needs --rubric-selection: list every core rubric in include or exclude")
+        chosen = selection(_read_json(selection_path), core, plugin, output_kind)
+    else:
+        if selection_path is not None:
+            raise ValueError("revision passes reuse the pass 0 rubric selection; do not pass --rubric-selection")
+        if previous["pluginContractSha256"] != digest:
+            raise ValueError("revision passes must use the same plugin contract as pass 0")
+        chosen = previous["rubricSelection"]
+    return combine(core, plugin, chosen), chosen, digest
+
+
+def prepare(project: Path, contract_path: Path, request_path: Path, output_kind: str, revision_pass: int,
+            plugin_path: Path | None = None, selection_path: Path | None = None) -> Json:
+    """Create an immutable contract snapshot (core, or plugin rubrics plus selected core rubrics), the request and the scoring prompt."""
     project = _project(project)
-    contract = load_contract(contract_path.resolve())
+    core = load_contract(contract_path.resolve())
     if output_kind not in OUTPUT_KINDS:
         raise ValueError(f"output kind must be one of {list(OUTPUT_KINDS)}; got {output_kind!r}")
-    limit = contract["decision"]["maxRevisionPasses"]
+    limit = core["decision"]["maxRevisionPasses"]
     if not 0 <= revision_pass <= limit:
         raise ValueError(f"revision pass must be between 0 and {limit}")
     last = latest_report(project)
     if revision_pass and (not last or last["decision"] != "revise" or last["revisionPass"] != revision_pass - 1):
         raise ValueError(f"revision pass {revision_pass} needs a completed pass {revision_pass - 1} whose decision is revise")
+    contract, chosen, plugin_digest = _plugin_run(project, core, plugin_path, selection_path, output_kind, revision_pass, last)
     inventory = _inventory(project)
     fingerprint = _fingerprint(project, inventory)
     if last and last["fingerprint"] == fingerprint:
@@ -130,7 +158,8 @@ def prepare(project: Path, contract_path: Path, request_path: Path, output_kind:
         "runId": run_id, "revisionPass": revision_pass, "outputKind": output_kind, "fingerprint": fingerprint,
         "status": "awaiting-rubric-scores",
         "created": datetime.now(timezone.utc).isoformat(timespec="seconds"),
-        "contractSha256": hashlib.sha256(contract_path.read_bytes()).hexdigest()})
+        "contractSha256": hashlib.sha256(contract_path.read_bytes()).hexdigest(),
+        "pluginContractSha256": plugin_digest, "rubricSelection": chosen})
     return {"runId": run_id, "folder": folder.relative_to(project).as_posix(), "status": "awaiting-rubric-scores",
             "next": "score rubric-prompt.json with a fresh sub-agent, then record-scores"}
 
@@ -237,14 +266,16 @@ def validate_run(project: Path, run_id: str) -> Json:
 
 def council_prompts(project: Path, run_id: str) -> Json:
     """Write one evidence-bounded prompt for each high-tier council role."""
-    project, folder, contract, _ = _open_run(project, run_id, "awaiting-council")
+    project, folder, contract, manifest = _open_run(project, run_id, "awaiting-council")
     hook_ids = [h["id"] for h in contract["validation"]["hooks"]]
+    excluded = ["Core rubrics the agent excluded, with its reasons (judge whether each exclusion is sound; an unsound one is a "
+                f"miss on the covering rubric): {json.dumps(manifest['rubricSelection'])}"] if manifest["rubricSelection"] else []
     shared = {
         "request": (folder / "request.md").read_text(encoding="utf-8"),
         "rubrics": contract["rubrics"],
         "rubricResults": _read_json(folder / "rubric-results.json")["rubrics"],
         "validationResults": _read_json(folder / "validation-results.json"),
-        "rules": [
+        "rules": excluded + [
             "Judge the rubric scores and validation evidence above. You may read project files to confirm or refute them; edit nothing.",
             "Mark risks, misses and questionable designs; do not invent proof.",
             f"Each marker's rubric is one of {[r['id'] for r in contract['rubrics']]}.",
@@ -356,6 +387,9 @@ def finalize(project: Path, run_id: str) -> Json:
                                                                        for h in validation["hooks"]]},
               "council": [{k: v[k] for k in ("role", "requestedModel", "recommendation", "summary")} for v in verdicts],
               "markers": markers,
+              "excludedCoreRubrics": ([{"id": k, "reason": v, "detail": manifest["rubricSelection"]["reasons"].get(k)}
+                                       for k, v in manifest["rubricSelection"]["exclude"].items()]
+                                      if manifest["rubricSelection"] else []),
               "recommendations": [f"{h['id']}: {h['detail']}. {specs[h['id']]['recommendation']}"
                                   for h in validation["hooks"] if not h["required"] and not h["passed"]]}
     _write_json(folder / "report.json", report)

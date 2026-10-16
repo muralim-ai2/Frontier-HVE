@@ -1,0 +1,36 @@
+{
+  "id": "core",
+  "description": "Frontier HVE default SDLC: designer, prototyper, builder, architect, sweeper, grower and maintainer.",
+  "start": "designer",
+  "lockChecks": false,
+  "stages": {
+    "designer": {"agent": "HVE flow-designer"},
+    "prototyper": {"agent": "HVE flow-prototyper"},
+    "builder": {"agent": "core:builder"},
+    "architect": {"agent": "HVE flow-architect"},
+    "sweeper": {"agent": "HVE flow-sweeper"},
+    "grower": {"agent": "HVE flow-grower"},
+    "maintainer": {"agent": "HVE flow-maintainer"}
+  },
+  "edges": {
+    "shape-defined": {"from": "designer", "to": "prototyper", "evidence": [
+      {"type": "json-fields", "file": "design.json", "lists": ["screens", "acceptance"], "checks": ["prototype_check", "lint_check"]}]},
+    "direction-invalidated": {"from": "prototyper", "to": "designer", "back": true, "cap": 2},
+    "concept-validated": {"from": "prototyper", "to": "builder", "evidence": [
+      {"type": "check", "file": "design.json", "key": "prototype_check"}]},
+    "build-complete": {"from": "builder", "to": "architect", "evidence": [{"type": "feature-checks"}]},
+    "rework-required": {"from": "architect", "to": "builder", "back": true, "cap": 2},
+    "structurally-sound": {"from": "architect", "to": "sweeper", "evidence": [{"type": "structure", "scope": "all"}]},
+    "cleaned-and-optimized": {"from": "sweeper", "to": "grower", "evidence": [
+      {"type": "check", "file": "design.json", "key": "lint_check"},
+      {"type": "no-code-growth", "since": "structurally-sound"},
+      {"type": "feature-checks"}]},
+    "roadmap-aligned": {"from": "grower", "to": "maintainer", "evidence": [
+      {"type": "linked-list", "file": "roadmap.json", "key": "feature"}]},
+    "new-opportunity-found": {"from": "maintainer", "to": "grower", "back": true, "cap": 2},
+    "healthy-at-rest": {"from": "maintainer", "to": "done", "evidence": [
+      {"type": "check", "file": "design.json", "key": "lint_check"},
+      {"type": "feature-checks"},
+      {"type": "structure", "scope": "size"}]}
+  }
+}

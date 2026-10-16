@@ -1,0 +1,6 @@
+{
+  "skills": [
+    {"name": "oracle-schema-design", "description": "Oracle schema design: tablespaces, partitioning, constraints, indexes and PL/SQL package boundaries, with a migration-safe DDL order.", "task_categories": ["architecture", "oracle-migration"]},
+    {"name": "oracle-performance-tuning", "description": "Oracle performance tuning from AWR and execution plans: top SQL, wait events, index and statistics fixes, verified before and after.", "task_categories": ["oracle-migration"]}
+  ]
+}

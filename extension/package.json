@@ -25,7 +25,25 @@
       {
         "command": "frontierHve.researchTelemetry",
         "title": "Frontier HVE: Turn on research telemetry (benchmarks only)"
+      },
+      {
+        "command": "frontierHve.installPlugin",
+        "title": "Frontier HVE: Install plugin"
+      },
+      {
+        "command": "frontierHve.managePlugins",
+        "title": "Frontier HVE: Manage plugins"
       }
-    ]
+    ],
+    "configuration": {
+      "title": "Frontier HVE",
+      "properties": {
+        "frontierHve.pluginIndex": {
+          "type": "string",
+          "default": "",
+          "description": "Organization plugin index (path or https URL) that lists approved plugins, versions, hashes and revocations."
+        }
+      }
+    }
   }
 }

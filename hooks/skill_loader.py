@@ -1,4 +1,5 @@
-"""Task-use gate hook: load the best library skills for the prompt within the loadout budget, offer the rest, and block other library skills."""
+"""Task-use gate hook: route the prompt to installed plugins, load the best library skills within the loadout budget, offer the rest,
+and block other library and plugin skills."""
 
 import json
 import os
@@ -27,11 +28,17 @@ Json = dict[str, Any]
 
 
 class Loadout(TypedDict):
-    """Skills chosen for one session, ranked skills over budget that the user may add, and whether the loadout was announced."""
+    """One session's skills and plugin routing: loaded skills, ranked skills over budget, selected plugins, candidates, a pending
+    choice between several plugins, a one-time notice, the last prompt, and whether the loadout was announced."""
 
     categories: list[str]
     skills: list[str]
     recommended: list[str]
+    plugins: list[str]
+    candidates: list[str]
+    pending: list[str]
+    notice: str | None
+    prompt: str
     announced: bool
     used: list[str]
 
@@ -44,22 +51,27 @@ def state_file(session_id: str) -> Path:
 
 
 def library() -> set[str]:
-    """Return the names of all admitted and candidate library skills, including the workspace's own library."""
+    """Return the folder names of all library skills: admitted, candidate, the workspace's own, and installed plugin skills."""
     folders = [SKILLS_DIR / "admitted", SKILLS_DIR / "candidates", STATE_DIR / "skill-library"]
-    return {p.name for folder in folders if folder.is_dir() for p in folder.iterdir() if p.is_dir()}
+    names = {p.name for folder in folders if folder.is_dir() for p in folder.iterdir() if p.is_dir()}
+    for name, entry in store.enabled().items():
+        names |= {n for s in entry["manifest"]["skills"] for n in (s["name"], f"{name}__{s['name']}")}
+    return names
 
 
-def install(sources: list[str]) -> None:
-    """Copy library skills into <workspace>/.hve/skills/<name>/ so the agent reads them inside the workspace."""
-    for source in sources:
-        shutil.copytree(ROOT / source, STATE_DIR / "skills" / Path(source).name, dirs_exist_ok=True)
+def install_name(source: str) -> str:
+    """Return the folder a skill is copied to under .hve/skills: '<plugin>__<skill>' for plugin skills, else the skill name."""
+    path = Path(source)
+    if path.is_absolute() and path.is_relative_to(store.home() / "plugins"):
+        plugin_id = path.relative_to(store.home() / "plugins").parts[0]
+        return f"{plugin_id.split('.', 1)[1]}__{path.name}"
+    return path.name
 
 
 def choose(prompt: str) -> Loadout:
     """Return the eval override's skills if present, else the required and active lifecycle stage's skills plus the ranked skills that fit the budget, and the ranked rest."""
     if OVERRIDE_FILE.exists():
-        skills = json.loads(OVERRIDE_FILE.read_text(encoding="utf-8"))["skills"]
-        return Loadout(categories=[], skills=skills, recommended=[], announced=False, used=list(skills))
+        return {"categories": [], "skills": json.loads(OVERRIDE_FILE.read_text(encoding="utf-8"))["skills"], "recommended": []}
     value = os.environ.get("HARNESS_REQUIRED_SKILLS")
     required = tuple(name.strip() for name in value.split(",")) if value is not None else ()
     required += tuple(s for s in current_skills() if s not in required)
@@ -70,13 +82,22 @@ def choose(prompt: str) -> Loadout:
 
 
 def announcement(loadout: Loadout) -> str:
-    """Return the instruction naming the loaded skills and, if any, the ranked skills over budget to offer the user."""
+    """Return the one-time instruction: a missing-plugin stop, the plugin question, the plugin context, loaded and offered skills."""
+    if loadout["notice"]:
+        return loadout["notice"]
     text = ""
+    if loadout["pending"]:
+        text = (f"Several plugins match this task: {loadout['pending']}. Before using any plugin agent, skill or template, ask the user "
+                f"with the ask-questions tool (header `{SELECT_HEADER}`, multi-select, labels = {loadout['pending'] + [CORE_ONLY]}) "
+                "which to use; until then work with the core harness only. ")
+    elif loadout["plugins"]:
+        text = (plugin_context(loadout["plugins"]) + " Delegate matching sub-tasks to these agents and say which agent handles what "
+                "before starting. ")
     if loadout["skills"]:
-        paths = ", ".join(f".hve/skills/{Path(s).name}/SKILL.md" for s in loadout["skills"])
-        text = f"Skills loaded for this task: read and follow {paths} before continuing. Do not use other library skills."
+        paths = ", ".join(f".hve/skills/{install_name(s)}/SKILL.md" for s in loadout["skills"])
+        text += f"Skills loaded for this task: read and follow {paths} before continuing. Do not use other library skills."
     if loadout["recommended"]:
-        names = ", ".join(Path(s).name for s in loadout["recommended"])
+        names = ", ".join(install_name(s) for s in loadout["recommended"])
         text += (f" Also relevant but over the loadout budget (ranked): {names}. Tell the user and ask with the ask-questions tool "
                  f"(header `{LOAD_HEADER}`, multi-select, labels = skill names) which to add; only ticked skills load.")
     return text.strip()
@@ -97,16 +118,25 @@ def pre_tool_output(session_id: str, loadout: Loadout, tool_input: Json) -> Json
         loadout["used"] = sorted({*loadout["used"], *(f"skills/admitted/{m}" for m in blocked)})
     if loadout["announced"] or not (loadout["skills"] or loadout["recommended"]):
         return None
+    text = announcement(loadout)
     loadout["announced"] = True
-    return {"hookSpecificOutput": {"hookEventName": "PreToolUse", "additionalContext": announcement(loadout)}}
+    return {"hookSpecificOutput": {"hookEventName": "PreToolUse", "additionalContext": text}} if text else None
+
+
+def answered(tool_input: Json, tool_response: Any, header: str) -> list[str] | None:
+    """Return the labels ticked under a question header, or None when the call did not ask it."""
+    if not any(q["header"] == header for q in tool_input["questions"]):
+        return None
+    answer = (json.loads(tool_response) if isinstance(tool_response, str) else tool_response)["answers"][header]
+    return list(answer.get("selected") or [])
 
 
 def add_ticked(loadout: Loadout, tool_input: Json, tool_response: Any) -> list[str]:
     """Move the skills the user ticked under the load-skills question from recommended into the loadout; return them."""
-    if not any(q["header"] == LOAD_HEADER for q in tool_input["questions"]):
+    ticked_names = answered(tool_input, tool_response, LOAD_HEADER)
+    if ticked_names is None:
         return []
-    answer = (json.loads(tool_response) if isinstance(tool_response, str) else tool_response)["answers"][LOAD_HEADER]
-    ticked = [s for s in loadout["recommended"] if Path(s).name in (answer.get("selected") or [])]
+    ticked = [s for s in loadout["recommended"] if install_name(s) in ticked_names]
     loadout["skills"] += ticked
     loadout["used"] = sorted({*loadout.get("used", []), *ticked})
     loadout["recommended"] = [s for s in loadout["recommended"] if s not in ticked]
@@ -114,24 +144,50 @@ def add_ticked(loadout: Loadout, tool_input: Json, tool_response: Any) -> list[s
     return ticked
 
 
+def apply_choice(loadout: Loadout, tool_input: Json, tool_response: Any) -> list[str]:
+    """Record the plugins the user picked under select-plugin, recompute the loadout for them, and return the skills to install."""
+    picked = answered(tool_input, tool_response, SELECT_HEADER)
+    if picked is None or not loadout["pending"]:
+        return []
+    loadout["plugins"] = [] if CORE_ONLY in picked else [p for p in loadout["pending"] if p in picked]
+    loadout["pending"] = []
+    loadout.update(choose(loadout["prompt"], loadout["plugins"]))  # type: ignore[typeddict-item]
+    loadout["used"] = sorted({*loadout["used"], *loadout["skills"]})
+    loadout["announced"] = False
+    return loadout["skills"]
+
+
+def start(prompt: str, previous: Json | None) -> Loadout:
+    """Route the prompt and rank its skills into a new, unannounced loadout, keep every skill used so far, and install the loaded ones."""
+    # Loadouts written before plugin routing have no candidates; they carry no earlier plugin choice.
+    routed = previous if previous is not None and "candidates" in previous else None
+    plugins, pending, pool, notice = route(prompt, routed)  # type: ignore[arg-type]
+    chosen = choose(prompt, plugins)
+    # Loadouts written before `used` existed carry only their current skills.
+    used = sorted({*(previous.get("used", previous["skills"]) if previous else []), *chosen["skills"]})
+    loadout = Loadout(plugins=plugins, candidates=pool, pending=pending, notice=notice, prompt=prompt, announced=False, used=used,
+                      **chosen)
+    install(loadout["skills"])
+    return loadout
+
+
 def main() -> None:
-    """Choose and install the loadout on UserPromptSubmit; enforce and announce it on PreToolUse; add ticked skills on PostToolUse."""
+    """Route and install the loadout on UserPromptSubmit; enforce and announce it on PreToolUse; apply answers on PostToolUse."""
     payload = json.load(sys.stdin)
     path = state_file(payload["session_id"])
     event = payload["hook_event_name"]
     if event == "UserPromptSubmit":
-        loadout = choose(payload["prompt"])
-        if path.exists():
-            previous = json.loads(path.read_text(encoding="utf-8"))
-            # Loadouts written before `used` existed carry only their current skills.
-            loadout["used"] = sorted({*previous.get("used", previous["skills"]), *loadout["used"]})
-        install(loadout["skills"])
-        path.write_text(json.dumps(loadout), encoding="utf-8")
+        previous = json.loads(path.read_text(encoding="utf-8")) if path.exists() else None
+        path.write_text(json.dumps(start(payload["prompt"], previous)), encoding="utf-8")
         return
     if event not in ("PreToolUse", "PostToolUse"):
         raise ValueError(f"skill_loader.py does not handle hook event {event!r}")
+    plugin_agent = os.environ.get("HARNESS_PLUGIN")
     if not path.exists():
-        raise FileNotFoundError(f"{path} missing: the UserPromptSubmit skill_loader hook did not run for this session")
+        if plugin_agent is None:
+            raise FileNotFoundError(f"{path} missing: the UserPromptSubmit skill_loader hook did not run for this session")
+        # A plugin agent started as a sub-agent gets no prompt hook; its plugin's description stands in for the prompt.
+        path.write_text(json.dumps(start(store.plugin(plugin_agent)["manifest"]["description"], None)), encoding="utf-8")
     loadout = json.loads(path.read_text(encoding="utf-8"))
     output = None
     if event == "PreToolUse":

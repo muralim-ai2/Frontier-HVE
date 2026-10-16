@@ -5,12 +5,17 @@ import json
 import os
 import re
 import shutil
+import sys
 from pathlib import Path
 from typing import Any, TypedDict
 
 ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(ROOT / "tools" / "plugins"))
+import store  # noqa: E402
+
 EXTENSION = ROOT.parent
 RUNTIME_PATH = ".hve/runtime"
+PLUGIN_RECORD = ".hve/exported-plugins.json"
 COMPAT = f"{RUNTIME_PATH}/hooks/agent_compat.py"
 AGENTS = {"hve-creator": "hve-creator.agent.md", "hve-single": "hve-single.agent.md", "hve-azure-devops": "hve-azure-devops.agent.md"}
 SKIP_SKILLS = {"pr-push", "export-harness"}
@@ -30,15 +35,19 @@ INVOKE = {
 }
 GAPS = {
     "claude": ["pr-push is not exported (it needs the VS Code GitHub Pull Requests extension)",
-               "AskUserQuestion answers are mapped from question text to header; labels containing commas split wrongly"],
+               "AskUserQuestion answers are mapped from question text to header; labels containing commas split wrongly",
+               "plugin agents are exported as <plugin>-<agent>; re-export after installing, upgrading or removing a plugin"],
     "cursor": ["hooks in .cursor/hooks.json apply to every agent in this project, not only hve-creator",
                "Cursor has no context channel on prompt submit or before a tool: the skill loadout notice and harness challenges do not "
                "reach the model; guards (deny), module-size feedback, victory check and session profile do",
+               "so the plugin announcement and the select-plugin question do not reach the model either: name the plugin in the prompt "
+               "(\"use the <name> plugin\") and invoke its exported <plugin>-<agent> skill",
                "the sub-agent context hook (SubagentStart) is not exported: Cursor's subagentStart only allows or denies",
                "pr-push is not exported"],
     "codex": ["hooks in .codex/hooks.json apply to every session in this project, not only $hve-creator",
               "Codex runs project hooks only after /hooks trust, and with the session directory as working directory",
-              "Codex cannot stop the agent from PreToolUse: escalation stops are sent as denies", "pr-push is not exported"],
+              "Codex cannot stop the agent from PreToolUse: escalation stops are sent as denies", "pr-push is not exported",
+              "plugin agents are exported as $<plugin>-<agent> skills; re-export after installing, upgrading or removing a plugin"],
     "vscode": [],
 }
 
@@ -176,8 +185,36 @@ def copy_runtime(workspace: Path) -> None:
         profile.write_text(json.dumps(EMPTY_PROFILE, indent=2) + "\n", encoding="utf-8")
 
 
+def plugin_agents() -> dict[str, Agent]:
+    """Return the enabled plugins' agents named '<plugin>-<agent>', with the template guard and the skill loader limited to their plugin."""
+    agents: dict[str, Agent] = {}
+    for name, entry in store.enabled().items():
+        guard = Hook(script="hooks/template_guard.py", args=[], env={}, timeout=None)
+        loader = Hook(script="hooks/skill_loader.py", args=[], env={"HARNESS_SKILLS_MIN_STATUS": "provisional", "HARNESS_PLUGIN": name},
+                      timeout=None)
+        for agent in entry["manifest"]["agents"]:
+            body = (store.folder(entry) / agent["file"]).read_text(encoding="utf-8").replace("\r\n", "\n").split("---\n", 2)[2]
+            agents[f"{name}-{agent['name']}"] = Agent(description=agent["description"], body=body.replace("{{RUNTIME}}", RUNTIME_PATH),
+                                                      hooks={"SessionStart": [guard], "UserPromptSubmit": [guard, loader],
+                                                             "PreToolUse": [loader], "PostToolUse": [loader], "Stop": [guard]})
+    return agents
+
+
+def remove_stale_plugins(workspace: Path, client: str, current: list[str]) -> None:
+    """Delete plugin agents an earlier export wrote for this client that are no longer enabled, and record the current ones."""
+    record = workspace / PLUGIN_RECORD
+    exported = json.loads(record.read_text(encoding="utf-8")) if record.exists() else {}
+    for stale in set(exported.get(client, [])) - set(current):
+        path = workspace / stale
+        if path.is_dir():
+            shutil.rmtree(path)
+        elif path.exists():
+            path.unlink()
+    record.write_text(json.dumps(exported | {client: sorted(current)}, indent=2) + "\n", encoding="utf-8")
+
+
 def export_client(workspace: Path, client: str) -> list[Path]:
-    """Write the runtime, skills, agents and hooks for Claude Code, Cursor or Codex; return the files and folders written."""
+    """Write the runtime, skills, core and plugin agents and hooks for Claude Code, Cursor or Codex; return the files and folders written."""
     copy_runtime(workspace)
     skills = workspace / SKILL_DIRS[client]
     written = [workspace / RUNTIME_PATH]
@@ -186,7 +223,9 @@ def export_client(workspace: Path, client: str) -> list[Path]:
             shutil.copytree(source, skills / source.name, dirs_exist_ok=True)
             written.append(skills / source.name)
     agents = {name: parse_agent(EXTENSION / "agents" / file) for name, file in AGENTS.items()}
-    for name, agent in agents.items():
+    plugins = plugin_agents()
+    plugin_paths = []
+    for name, agent in (agents | plugins).items():
         if client == "claude":
             path = workspace / ".claude" / "agents" / f"{name}.md"
             path.parent.mkdir(parents=True, exist_ok=True)
@@ -200,6 +239,9 @@ def export_client(workspace: Path, client: str) -> list[Path]:
                 (skills / name / "agents").mkdir(exist_ok=True)
                 (skills / name / "agents" / "openai.yaml").write_text("policy:\n  allow_implicit_invocation: false\n", encoding="utf-8")
         written.append(path)
+        if name in plugins:
+            plugin_paths.append((path if client == "claude" else path.parent).relative_to(workspace).as_posix())
+    remove_stale_plugins(workspace, client, plugin_paths)
     if client != "claude":
         path = workspace / (".cursor/hooks.json" if client == "cursor" else ".codex/hooks.json")
         write_owned(path, json.dumps(hooks_file(client, agents["hve-creator"]), indent=2) + "\n")

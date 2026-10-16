@@ -6,13 +6,18 @@ import json
 import os
 import re
 import stat
+import sys
 from pathlib import Path
 from typing import TypedDict
 
 ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(ROOT / "tools" / "plugins"))
+import store  # noqa: E402
+
 BUNDLED = ROOT / "templates" / "deliverables"
 CONFIG_NAME = "frontier-hve.templates.json"
 KINDS = ("prd", "technicalDesign", "testStrategy")
+PLUGIN_SOURCE = re.compile(r"plugin:([a-z0-9-]+)/([A-Za-z0-9]+)@([1-9]\d*)\Z")
 SLUG = re.compile(r"[a-z0-9]+(?:-[a-z0-9]+)*\Z")
 SESSION = re.compile(r"[A-Za-z0-9_-]{1,128}\Z")
 IDENTITY = re.compile(r"^<!-- hve-template: ([\w-]+)@([1-9]\d*) -->$", re.M)
@@ -98,22 +103,59 @@ def configuration(workspace: Path) -> Config:
     return data
 
 
+def plugin_kinds() -> dict[str, Entry]:
+    """Return the plugin-only template kinds of enabled plugins as '<plugin>:<kind>' with their source and output."""
+    return {f"{name}:{kind}": Entry(source=f"plugin:{name}/{kind}@{spec['version']}", output=spec["output"])
+            for name, entry in store.enabled().items() for kind, spec in entry["manifest"]["templates"].items() if kind not in KINDS}
+
+
+def known_kinds() -> list[str]:
+    """Return the core kinds followed by the enabled plugins' own kinds."""
+    return list(KINDS) + sorted(plugin_kinds())
+
+
+def entry_for(workspace: Path, kind: str) -> Entry:
+    """Return the configured entry of a core kind, or the manifest entry of a plugin kind."""
+    if kind in KINDS:
+        return configuration(workspace)["templates"][kind]
+    kinds = plugin_kinds()
+    if kind not in kinds:
+        raise ValueError(f"unknown deliverable type: {kind}; known types are {known_kinds()}")
+    safe_path(workspace, kinds[kind]["output"].replace("{slug}", "example"))
+    return kinds[kind]
+
+
+def plugin_template(source: str) -> Path:
+    """Return the installed template file of a 'plugin:<name>/<kind>@<version>' source."""
+    match = PLUGIN_SOURCE.fullmatch(source)
+    if not match:
+        raise ValueError(f"invalid plugin template source {source!r}; expected plugin:<name>/<kind>@<version>")
+    name, kind, version = match[1], match[2], int(match[3])
+    entry = store.plugin(name)
+    spec = entry["manifest"]["templates"].get(kind)
+    if spec is None or spec["version"] != version:
+        raise ValueError(f"plugin {name} {entry['version']} has no template {kind}@{version}")
+    return store.folder(entry) / spec["file"]
+
+
 def resolve(workspace: Path, kind: str) -> tuple[Entry, str, str]:
     """Return the entry, template text and exact-byte SHA-256 digest."""
-    entry = configuration(workspace)["templates"][kind]
+    entry = entry_for(workspace, kind)
     source = entry["source"]
-    builtin = {"prd": "prd", "technicalDesign": "technical-design", "testStrategy": "test-strategy"}[kind]
     if source.startswith("builtin:"):
+        builtin = {"prd": "prd", "technicalDesign": "technical-design", "testStrategy": "test-strategy"}[kind]
         if source != f"builtin:{builtin}@1":
             raise ValueError(f"unknown bundled template: {source}")
         template = BUNDLED / f"{builtin}-v1.md"
+    elif source.startswith("plugin:"):
+        template = plugin_template(source)
     else:
         template = safe_path(workspace, source)
     raw = template.read_bytes()
     text = raw.decode("utf-8").replace("\r\n", "\n")
     identities = IDENTITY.findall(text)
     sections = SECTION.findall(text)
-    if (len(identities) != 1 or identities[0][0] != kind or not sections
+    if (len(identities) != 1 or identities[0][0] != kind.rpartition(":")[2] or not sections
             or len(set(sections)) != len(sections) or METADATA.search(text)):
         raise ValueError(f"invalid template identity or section markers: {template}")
     return entry, text, hashlib.sha256(raw).hexdigest()
@@ -124,6 +166,13 @@ def output_path(workspace: Path, entry: Entry, slug: str) -> Path:
     if not SLUG.fullmatch(slug) or len(slug) > 80:
         raise ValueError("slug must be 1-80 lowercase letters/digits separated by hyphens")
     return safe_path(workspace, entry["output"].replace("{slug}", slug))
+
+
+def slugs(workspace: Path, kind: str) -> list[str]:
+    """Return the slugs of the existing documents of a kind, found from its output pattern."""
+    prefix, suffix = entry_for(workspace, kind)["output"].split("{slug}")
+    found = [p.relative_to(workspace).as_posix() for p in workspace.glob(prefix + "*" + suffix) if p.is_file()]
+    return sorted(s for s in (name[len(prefix):len(name) - len(suffix)] for name in found) if SLUG.fullmatch(s))
 
 
 def state_path(workspace: Path, session: str) -> Path:
@@ -144,12 +193,13 @@ def load_state(workspace: Path, session: str) -> State:
     if not path.exists():
         return State(requested=[], documents=[])
     data = json.loads(path.read_text(encoding="utf-8"))
+    kinds = known_kinds()
     if (not isinstance(data, dict) or set(data) != {"requested", "documents"}
             or not isinstance(data["requested"], list)
-            or any(kind not in KINDS for kind in data["requested"])
+            or any(kind not in kinds for kind in data["requested"])
             or not isinstance(data["documents"], list)
             or any(not isinstance(doc, dict) or set(doc) != {"kind", "slug"}
-                   or doc["kind"] not in KINDS or not isinstance(doc["slug"], str)
+                   or doc["kind"] not in kinds or not isinstance(doc["slug"], str)
                    for doc in data["documents"])):
         raise ValueError(f"invalid session registry: {path}")
     return data
@@ -184,10 +234,12 @@ def update_state(workspace: Path, session: str, kinds: list[str], document: Docu
 
 
 def request(workspace: Path, session: str, kinds: list[str]) -> State:
-    """Register required types after validating their configured templates."""
+    """Register required types after validating their configured templates; a plugin type needs its plugin selected in the session."""
+    chosen = store.selected(workspace, session)
     for kind in kinds:
-        if kind not in KINDS:
-            raise ValueError(f"unknown deliverable type: {kind}")
+        if kind not in KINDS and kind.partition(":")[0] not in chosen:
+            raise ValueError(f"deliverable type {kind} belongs to plugin {kind.partition(':')[0]!r}, which is not selected in this "
+                             f"session (selected: {chosen or 'none'}); answer the select-plugin question first")
         resolve(workspace, kind)
     return update_state(workspace, session, kinds)
 
@@ -212,7 +264,7 @@ def register(workspace: Path, kind: str, slug: str, session: str) -> Path:
         raise ValueError("; ".join(errors))
     request(workspace, session, [kind])
     update_state(workspace, session, [kind], Document(kind=kind, slug=slug))
-    return output_path(workspace, configuration(workspace)["templates"][kind], slug)
+    return output_path(workspace, entry_for(workspace, kind), slug)
 
 
 def validate(workspace: Path, kind: str, slug: str) -> list[str]:
@@ -262,18 +314,21 @@ def main() -> None:
     commands.add_parser("configure")
     for command in ("resolve", "init", "register", "validate"):
         sub = commands.add_parser(command)
-        sub.add_argument("kind", choices=KINDS)
+        sub.add_argument("kind", help="prd, technicalDesign, testStrategy or <plugin>:<kind>")
         if command != "resolve":
             sub.add_argument("--slug", required=True)
         if command in ("init", "register"):
             sub.add_argument("--session", required=True)
     sub = commands.add_parser("request")
-    sub.add_argument("kinds", nargs="+", choices=KINDS)
+    sub.add_argument("kinds", nargs="+")
     sub.add_argument("--session", required=True)
     sub = commands.add_parser("check")
     sub.add_argument("--session", required=True)
     args = parser.parse_args()
     workspace = args.workspace.resolve(strict=True)
+    unknown = [k for k in getattr(args, "kinds", [getattr(args, "kind", None)]) if k is not None and k not in known_kinds()]
+    if unknown:
+        raise SystemExit(f"unknown deliverable types {unknown}; known types are {known_kinds()}")
     errors: list[str] = []
     if args.command == "configure":
         path = safe_path(workspace, CONFIG_NAME)

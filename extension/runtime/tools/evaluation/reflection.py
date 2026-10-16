@@ -19,6 +19,8 @@ def parser() -> argparse.ArgumentParser:
     prepare.add_argument("--request", type=Path, required=True, help="file holding the user's original request verbatim")
     prepare.add_argument("--output-kind", required=True, choices=workflow.OUTPUT_KINDS)
     prepare.add_argument("--revision-pass", type=int, default=0)
+    prepare.add_argument("--plugin-contract", type=Path, help="plugin rubrics to combine with the selected core rubrics")
+    prepare.add_argument("--rubric-selection", type=Path, help="pass 0 only: the core rubrics to include or exclude, with reasons")
     for name, extra in (("record-scores", ["input"]), ("validate", []), ("council-prompts", []), ("complete", []),
                         ("record-human", ["input"])):
         command = commands.add_parser(name)
@@ -40,7 +42,8 @@ def main() -> None:
     """Run one reflection-loop command and print its JSON result."""
     args = parser().parse_args()
     if args.command == "prepare":
-        result = workflow.prepare(args.project, args.contract, args.request, args.output_kind, args.revision_pass)
+        result = workflow.prepare(args.project, args.contract, args.request, args.output_kind, args.revision_pass,
+                                  args.plugin_contract, args.rubric_selection)
     elif args.command == "record-scores":
         result = workflow.record_scores(args.project, args.run, args.input)
     elif args.command == "validate":
