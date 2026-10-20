@@ -14,15 +14,20 @@ from guard_policy import check, record_answers
 from hve_paths import RUNS_DIR
 from module_guard import edited_paths
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "tools" / "loop"))
+from loop_paths import LOOP_FILES, loop_dir, state_dir  # noqa: E402
+
 READ_ONLY_TOOLS = {"read_file", "file_search", "grep_search", "list_dir", "semantic_search", "get_errors", "get_terminal_output",
                    "terminal_last_command", "manage_todo_list", "view_image", "vscode_askQuestions", "mcp_graphify_query_graph",
                    "mcp_graphify_get_node", "mcp_graphify_get_neighbors", "mcp_graphify_shortest_path",
                    "github-pull-request_pullRequestStatusChecks", "github-pull-request_currentActivePullRequest"}
 PR_TOOL = "github-pull-request_create_pull_request"
 ASK_TOOL = "vscode_askQuestions"
-LOOP_FILES = {"feature_list.json", "progress.txt", "tracker.json"}
+LOCKED_FILES = {"feature_list.json", "progress.txt", "tracker.json"}
 LOOP_FILE_NAMES = re.compile(r"feature_list\.json|progress\.txt|tracker\.json", re.I)
-LOOP_STATE = re.compile(r"\.harness[/\\]", re.I)
+# Loop state: .harness/, or anything in an ask's loop/ folder other than the loop files themselves.
+LOOP_STATE = re.compile(r"\.harness[/\\]|\.hve[/\\]asks[/\\][^/\\\s\"']+[/\\]loop[/\\](?!(feature_list(\.add)?\.json|progress\.txt|tracker\.json)\b)",
+                        re.I)
 SHELL_WRITE = re.compile(r"(?<![\d&])>|\b(Set-Content|Add-Content|Out-File|Remove-Item|Move-Item|Copy-Item|Rename-Item|New-Item|rm|mv|cp|del|"
                          r"erase|ren|move|copy|tee|truncate|touch)\b|\bsed\s+-i|\bgit\s+(checkout|restore|rm|mv)\b|\bpython3?\s+-c|\bnode\s+-e",
                          re.I)
@@ -50,7 +55,7 @@ def read(path: Path) -> Any:
 def escalation(proj: Path) -> str | None:
     """Return the human question of an escalated loop or flow, if any."""
     for name in ("state.json", "flow.json"):
-        state = read(proj / ".harness" / name)
+        state = read(state_dir(proj) / name)
         if state and state["escalated"]:
             return state["help"]["question"]
     return None
@@ -58,24 +63,22 @@ def escalation(proj: Path) -> str | None:
 
 def loop_running(proj: Path) -> bool:
     """Return True while an initialized loop still has failing features or a flow has not reached done."""
-    flow = read(proj / ".harness" / "flow.json")
+    flow = read(state_dir(proj) / "flow.json")
     if flow is not None and flow["stage"] != "done":
         return True
-    if not (proj / ".harness" / "state.json").exists():
+    if not (state_dir(proj) / "state.json").exists():
         return False
-    features = json.loads((proj / "feature_list.json").read_text(encoding="utf-8"))
+    features = json.loads((loop_dir(proj) / "feature_list.json").read_text(encoding="utf-8"))
     return any(not f["passes"] for f in features)
 
 
 def protected_target(raw: str, proj: Path, running: bool) -> str | None:
-    """Return 'state' for a path inside the project's .harness/, 'files' for its loop files while the loop runs, else None."""
-    path, root = (Path.cwd() / raw).resolve(), proj.resolve()
-    if not path.is_relative_to(root):
-        return None
-    rel = path.relative_to(root)
-    if rel.parts[:1] == (".harness",):
-        return "state"
-    return "files" if running and rel.as_posix() in LOOP_FILES else None
+    """Return 'state' for a path in the loop state folder, 'files' for the locked loop files while the loop runs, else None."""
+    path = (Path.cwd() / raw).resolve()
+    files, state = loop_dir(proj).resolve(), state_dir(proj).resolve()
+    if path.parent == files and path.name in LOOP_FILES:
+        return "files" if running and path.name in LOCKED_FILES else None
+    return "state" if path.is_relative_to(state) else None
 
 
 def deny(session_id: str, kind: str, reason: str, blindspot: str | None = None, stop: bool = False) -> Json | None:
@@ -89,16 +92,16 @@ def deny(session_id: str, kind: str, reason: str, blindspot: str | None = None, 
 
 def log_tool(proj: Path, entry: Json) -> None:
     """Append a tool event to the project's tool log while a feature is being built (input to diagnose.py)."""
-    state = read(proj / ".harness" / "state.json")
+    state = read(state_dir(proj) / "state.json")
     if state and state["current"]:
-        with (proj / ".harness" / "tool_log.jsonl").open("a", encoding="utf-8") as f:
+        with (state_dir(proj) / "tool_log.jsonl").open("a", encoding="utf-8") as f:
             f.write(json.dumps(entry | {"ts_ms": time.time() * 1000, "feature": state["current"]}) + "\n")
 
 
 def push_gate(session_id: str, proj: Path, branches: list[str], what: str) -> Json | None:
     """Deny a push or PR unless the loop uses GitHub review and the human ticked every branch it names."""
-    state = read(proj / ".harness" / "state.json")
-    approved = (read(proj / ".harness" / "push_approved.json") or {"branches": []})["branches"]
+    state = read(state_dir(proj) / "state.json")
+    approved = (read(state_dir(proj) / "push_approved.json") or {"branches": []})["branches"]
     if not state or state["review"] != "github":
         return deny(session_id, "push_blocked", f"{what} is only allowed for GitHub review loops.")
     unticked = sorted(set(branches) - set(approved)) if branches else ["(no feature branch named)"]
@@ -136,7 +139,8 @@ def pre_tool(session_id: str, tool_name: str, tool_input: Json, tool_use_id: str
         running = loop_running(proj)
         hits = {protected_target(p, proj, running) for p in edited_paths(tool_input)}
     if "state" in hits:
-        return deny(session_id, "anti_gaming", ".harness/ changes only through the loop scripts. Do not edit it.", "B5")
+        return deny(session_id, "anti_gaming", "Loop state (.harness/, or the ask's loop/ folder) changes only through the loop scripts. "
+                    "Do not edit it.", "B5")
     if "files" in hits:
         return deny(session_id, "loop_files", "While features still fail, feature_list.json, progress.txt and tracker.json change only "
                     "through the loop scripts; add features with feature_list.add.json and `loop.py amend`.", "B5")
@@ -148,8 +152,8 @@ def stop(session_id: str, now_ms: float, stop_hook_active: bool) -> Json | None:
     proj = project()
     if escalation(proj):
         return None
-    features = read(proj / "feature_list.json") if (proj / ".harness" / "state.json").exists() else None
-    flow = read(proj / ".harness" / "flow.json")
+    features = read(loop_dir(proj) / "feature_list.json") if (state_dir(proj) / "state.json").exists() else None
+    flow = read(state_dir(proj) / "flow.json")
     remaining = [f["name"] for f in features or [] if not f["passes"]]
     unfinished = flow is not None and flow["stage"] != "done"
     if not remaining and not unfinished:

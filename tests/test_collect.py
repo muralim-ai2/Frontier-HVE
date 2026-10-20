@@ -126,6 +126,7 @@ def test_provenance_reports_component_evidence() -> None:
         prd.write_text(re.sub(r"\{\{\s*FILL:[^{}]*\}\}", "Filled.", prd.read_text(encoding="utf-8")), encoding="utf-8")
         (ws / "feature_list.json").write_text(json.dumps([{"name": "a", "passes": True}]), encoding="utf-8")
         (ws / ".harness").mkdir()
+        (ws / ".harness" / "state.json").write_text("{}", encoding="utf-8")
         (ws / "progress.txt").write_text("a: pass\n", encoding="utf-8")
         result = subprocess.run([*cli, "--require", "templates"], capture_output=True, text=True)
         report = json.loads(result.stdout)
@@ -158,10 +159,10 @@ def test_contract_plan_check_and_provenance() -> None:
                                   cwd=ws, capture_output=True, text=True, check=True).stdout
 
         (ws / "req.md").write_text("Build a leave portal in sprints", encoding="utf-8")
-        lifecycle("contract", "agile-scrum", "leave", "HVE agile", "req.md", "sprint-design=No UI change")
+        ask = json.loads(lifecycle("contract", "agile-scrum", "leave", "HVE agile", "req.md", "sprint-design=No UI change"))["paths"]["ask"]
         nxt = {"hook_event_name": "PreToolUse", "tool_name": "run_in_terminal", "tool_input": {"command": 'python "x/tools/loop/loop.py" next .'}}
         assert hook(nxt) == ""
-        plan = ws / ".hve" / "asks" / "leave" / "plan.md"
+        plan = ws / ask / "plan.md"
         plan.write_text("# Plan\n- Sprint 1: request leave\n", encoding="utf-8")
         assert "plan-sync" in hook({"hook_event_name": "UserPromptSubmit", "prompt": "go"})
         assert json.loads(hook(nxt))["hookSpecificOutput"]["permissionDecision"] == "deny"
@@ -184,10 +185,77 @@ def test_contract_plan_check_and_provenance() -> None:
         assert "| backlog | done | HVE product-manager | prd ✓ | prd ✗ |" in lifecycle("report", "s1")
 
 
+def test_direct_contract_tracks_skills_tasks_briefs_and_reports() -> None:
+    """A direct ask records ranked skills, persona, environment and a generated plan block; tasks, briefs and reported skills join it."""
+    with tempfile.TemporaryDirectory() as tmp:
+        ws = Path(tmp)
+        (ws / ".hve" / "runs").mkdir(parents=True)
+        (ws / ".vscode").mkdir()
+        (ws / ".vscode" / "mcp.json").write_text('{\n  // team servers\n  "servers": {"graphify": {"command": "g"},},\n}\n', encoding="utf-8")
+
+        def lifecycle(*args: str) -> subprocess.CompletedProcess[str]:
+            """Run lifecycle.py in the workspace."""
+            return subprocess.run([sys.executable, str(REPO / "tools" / "loop" / "lifecycle.py"), *args], cwd=ws, capture_output=True,
+                                  text=True, encoding="utf-8")
+
+        (ws / "req.md").write_text("Build a color palette page with Next.js", encoding="utf-8")
+        created = lifecycle("contract", "direct", "palette", "HVE creator", "req.md")
+        assert created.returncode == 0, created.stderr
+        paths = json.loads(created.stdout)["paths"]
+        assert re.fullmatch(r"\.hve/asks/\d{8}-\d{4}-palette", paths["ask"]) and paths["feature_list"] == f"{paths['ask']}/loop/feature_list.json"
+        assert (ws / paths["ask"] / "request.md").read_text(encoding="utf-8").strip() == "Build a color palette page with Next.js"
+        path = ws / paths["ask"] / "contract.json"
+        data = json.loads(path.read_text(encoding="utf-8"))
+        names = [r["name"] for r in data["skills"]["selected"]]
+        assert names and data["skills"]["tokens"] == sum(r["skill_tokens"] for r in data["skills"]["selected"]), data["skills"]
+        assert set(data["skills"]["suggested"]) <= set(names) and data["skills"]["suggested_tokens"] <= data["skills"]["tokens"], data["skills"]
+        assert data["personas"] == [{"agent": "HVE creator", "stages": ["deliver"]}] and data["tasks"] == [], data
+        assert "graphify" in {s["name"] for s in data["environment"]["mcp_servers"]}, data["environment"]
+        assert "graphify" in data["environment"]["tool_load"]["harnesses"]["vscode"]["servers"], data["environment"]
+        assert (ws / ".hve" / "skills" / names[0] / "SKILL.md").is_file()
+        plan = ws / paths["ask"] / "plan.md"
+        assert "<!-- hve:skills -->" in plan.read_text(encoding="utf-8") and lifecycle("plan-status").stdout.strip() == "null"
+        assert "MCP servers per harness:\n- vscode: " in plan.read_text(encoding="utf-8")
+        if data["skills"]["over_budget"]:
+            assert "Over the loadout guideline" in plan.read_text(encoding="utf-8") and "Suggested set" in plan.read_text(encoding="utf-8")
+        (ws / paths["feature_list"]).write_text(json.dumps([{"name": "core", "passes": False}]), encoding="utf-8")
+        tasks = json.loads(lifecycle("tasks-sync").stdout)
+        assert tasks == [{"name": "core", "milestone": "deliver", "persona": "HVE creator", "skills": names, "passes": False}], tasks
+        text = lifecycle("brief", "frontend sub-agent", "task=core").stdout
+        assert f".hve/skills/{names[0]}/SKILL.md" in text and "graphify" in text and "SKILLS-USED" in text, text
+        assert "not in the contract" in lifecycle("brief", "x", "task=ghost").stderr
+        lifecycle("used", "frontend sub-agent", "core", f"{names[0]}, made-up")
+        data = json.loads(path.read_text(encoding="utf-8"))
+        assert data["delegations"][0]["persona"] == "frontend sub-agent" and data["reported"][0]["skills"] == [names[0], "made-up"], data
+        plan.write_text("# Plan\n- Build it\n", encoding="utf-8")
+        assert lifecycle("plan-sync", "first plan").returncode == 0
+        assert plan.read_text(encoding="utf-8").startswith("# Plan") and "<!-- hve:skills -->" in plan.read_text(encoding="utf-8")
+        assert json.loads(lifecycle("plan-status").stdout)["changed"] is False
+        text = lifecycle("report", "none").stdout
+        assert "## Recommended against used" in text and f"| skill | {names[0]} |" in text and "reported by frontend sub-agent" in text, text
+        assert "| persona | frontend sub-agent | not planned | ✓ |" in text and "| persona | HVE creator | deliver | ✗ |" in text, text
+        assert "| task | core | deliver, HVE creator | ✗ passes |" in text and "| MCP server | graphify | available | ✗ |" in text, text
+        assert "made-up" in text.split("outside the contract: ")[1].splitlines()[0], text
+        assert "- Prompt cache: not measured" in text and f"- Skill load: {len(names)} skills" in text, text
+        rows = [{"turn_id": "t1", "prompt_tokens": 1000, "cache_read_tokens": 600}, {"turn_id": "t1", "prompt_tokens": 1000, "cache_read_tokens": 600},
+                {"turn_id": "t2", "prompt_tokens": 1000, "cache_read_tokens": None}]
+        (ws / ".hve" / "runs" / "m1.jsonl").write_text("\n".join(map(json.dumps, rows)), encoding="utf-8")
+        assert "600 of 2,000 prompt tokens read from cache (30%) over 2 turn(s)" in lifecycle("report", "m1").stdout
+        chosen = json.loads(lifecycle("skills", names[0]).stdout)
+        assert chosen["skills"] == [names[0]] and chosen["over_guideline_tokens"] == 0, chosen
+        assert "Choice: " + names[0] in plan.read_text(encoding="utf-8")
+        assert "not in the ask's skills" in lifecycle("skills", "made-up").stderr
+        (ws / "req.md").write_text("Create a formal presentation on revenue forecasting for the board", encoding="utf-8")
+        shifted = json.loads(lifecycle("contract", "document", "revenue", "HVE creator", "req.md").stdout)
+        assert shifted["previous_ask"]["recommend"] == "new-workspace" and shifted["previous_ask"]["ask"] == data["ask"], shifted
+        assert json.loads(lifecycle("shift", "Fix the revenue forecasting chart colours").stdout) is None
+
+
 if __name__ == "__main__":
     test_collects_minimal_reply_and_single_folder()
     test_rejects_unsafe_path_in_reply()
     test_rejects_non_benchmark_and_ambiguous_sessions()
     test_provenance_reports_component_evidence()
     test_contract_plan_check_and_provenance()
+    test_direct_contract_tracks_skills_tasks_briefs_and_reports()
     print("test_collect: OK")

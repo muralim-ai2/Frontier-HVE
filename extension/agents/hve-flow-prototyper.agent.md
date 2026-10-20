@@ -2,7 +2,6 @@
 name: HVE flow-prototyper
 description: Frontier HVE creator-flow Prototyper stage. Builds the smallest prototype that proves the design, or sends it back with a reason.
 user-invocable: false
-tools: [read/readFile, search/fileSearch, search/textSearch, search/listDirectory, edit/editFiles, edit/createFile, edit/createDirectory, execute/runInTerminal, execute/getTerminalOutput]
 hooks:
   Stop:
     - type: command

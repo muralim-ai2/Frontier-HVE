@@ -183,6 +183,15 @@ def test_context_load_counts_always_on_and_warns_on_growth() -> None:
         assert second["previous_total_tokens"] == first["total_tokens"] and len(second["warnings"]) == 2 and second["fixes"], second
 
 
+def test_tool_load_estimates_per_harness_and_warns() -> None:
+    """MCP servers are counted once per harness; a harness over the tool-load threshold is named in a warning."""
+    from context_load import tool_load
+    servers = [{"harness": "vscode", "name": f"s{i}"} for i in range(5)] + [{"harness": "claude", "name": "s0"}] * 2
+    load = tool_load(servers)
+    assert load["harnesses"]["claude"] == {"servers": ["s0"], "estimated_tokens": 1500}, load
+    assert load["warnings"] == ["vscode: 7,500 tokens from 5 MCP servers"] and load["warn_tokens"] == 6000, load
+
+
 def test_workspace_skill_evaluator_flow() -> None:
     """static -> blind -> record admits a skill whose with-answers win, into the workspace library the recommender then ranks."""
     with tempfile.TemporaryDirectory() as tmp:
@@ -227,9 +236,11 @@ def library_root(tmp: str) -> Path:
     (root / ".hve" / "runs").mkdir(parents=True)
     for hook in ("skill_loader.py", "interventions.py", "hve_paths.py", "guard_policy.py"):
         shutil.copy(REPO / "hooks" / hook, root / "hooks")
-    shutil.copy(REPO / "tools" / "skills" / "recommend.py", root / "tools" / "skills")
-    shutil.copy(REPO / "tools" / "loop" / "lifecycle.py", root / "tools" / "loop")
-    config = json.loads((REPO / "skills" / "categories.json").read_text(encoding="utf-8")) | {"loadout": {"max_skills": 2, "max_tokens": 1000}}
+    for script in ("recommend.py", "context_load.py", "scan.py"):
+        shutil.copy(REPO / "tools" / "skills" / script, root / "tools" / "skills")
+    for script in ("lifecycle.py", "environment.py", "loop_paths.py"):
+        shutil.copy(REPO / "tools" / "loop" / script, root / "tools" / "loop")
+    config = json.loads((REPO / "skills" / "categories.json").read_text(encoding="utf-8")) | {"loadout": {"max_skills": 2, "max_tokens": 1000, "keyword_floor": 0.5}}
     (root / "skills" / "admitted").mkdir(parents=True)
     (root / "skills" / "categories.json").write_text(json.dumps(config), encoding="utf-8")
     entries = [("palette-ux", "Design color palette pages.", "provisional", None, 400), ("forms", "Design forms.", "provisional", None, 300),
@@ -244,8 +255,8 @@ def library_root(tmp: str) -> Path:
     return root
 
 
-def test_skill_loader_budget_offer_and_scoped_deny() -> None:
-    """Admitted first, then the most relevant within 2 skills and 1,000 tokens; the rest is offered, loads only when ticked, and
+def test_skill_loader_loads_all_relevant_flags_budget_and_scoped_deny() -> None:
+    """Every category or keyword match loads, most relevant first whatever its status; a load over the guideline is flagged, not cut;
     only library skills outside the loadout are denied."""
     with tempfile.TemporaryDirectory() as tmp:
         root = library_root(tmp)
@@ -253,53 +264,89 @@ def test_skill_loader_budget_offer_and_scoped_deny() -> None:
         fire(root, base | {"hook_event_name": "UserPromptSubmit", "prompt": "Build a color palette page."},
              HARNESS_SKILLS_MIN_STATUS="provisional")
         loadout = json.loads((root / ".hve" / "runs" / "s1.skills.json").read_text(encoding="utf-8"))
-        assert loadout["skills"] == ["skills/admitted/proven", "skills/admitted/palette-ux"], loadout
-        assert loadout["recommended"] == ["skills/admitted/forms", "skills/admitted/layout"], loadout
-        assert (root / ".hve" / "skills" / "palette-ux" / "SKILL.md").exists()
+        assert loadout["skills"] == [f"skills/admitted/{n}" for n in ("palette-ux", "proven", "forms", "layout")], loadout
+        assert loadout["tokens"] == 1600 and loadout["over_budget"] is True and "recommended" not in loadout, loadout
+        assert (root / ".hve" / "skills" / "layout" / "SKILL.md").exists()
         first = json.loads(fire(root, base | {"hook_event_name": "PreToolUse", "tool_input": {"filePath": "x.ts"}}))
         text = first["hookSpecificOutput"]["additionalContext"]
-        assert ".hve/skills/proven/SKILL.md" in text and "forms, layout" in text and "load-skills" in text, text
-        denied = json.loads(fire(root, base | {"hook_event_name": "PreToolUse", "tool_input": {"filePath": ".hve/skills/forms/SKILL.md"}}))
+        assert ".hve/skills/layout/SKILL.md" in text and "1,600 tokens" in text and "over the loadout guideline" in text, text
+        denied = json.loads(fire(root, base | {"hook_event_name": "PreToolUse", "tool_input": {"filePath": ".hve/skills/research/SKILL.md"}}))
         assert denied["hookSpecificOutput"]["permissionDecision"] == "deny", denied
         plugin = {"filePath": "plugin/skills/feature-checklist/SKILL.md"}
         assert fire(root, base | {"hook_event_name": "PreToolUse", "tool_input": plugin}) == ""
-        ask = {"questions": [{"header": "load-skills", "question": "Load more?"}]}
-        fire(root, base | {"hook_event_name": "PostToolUse", "tool_name": "vscode_askQuestions", "tool_input": ask,
-                           "tool_response": json.dumps({"answers": {"load-skills": {"selected": ["forms"]}}})})
-        assert (root / ".hve" / "skills" / "forms" / "SKILL.md").exists()
-        again = json.loads(fire(root, base | {"hook_event_name": "PreToolUse", "tool_input": {"filePath": ".hve/skills/forms/SKILL.md"}}))
-        assert ".hve/skills/forms/SKILL.md" in again["hookSpecificOutput"]["additionalContext"], again
         fire(root, {"session_id": "s2", "hook_event_name": "UserPromptSubmit", "prompt": "Build a color palette page."},
              HARNESS_SKILLS_MIN_STATUS="admitted")
         assert json.loads((root / ".hve" / "runs" / "s2.skills.json").read_text(encoding="utf-8"))["skills"] == ["skills/admitted/proven"]
+        fire(root, {"session_id": "k1", "hook_event_name": "UserPromptSubmit", "prompt": "Fix the sourced citations"},
+             HARNESS_SKILLS_MIN_STATUS="provisional")
+        keyword = json.loads((root / ".hve" / "runs" / "k1.skills.json").read_text(encoding="utf-8"))
+        assert keyword["categories"] == [] and keyword["skills"] == ["skills/admitted/research"], keyword
         (root / "skills" / "eval_override.json").write_text(json.dumps({"skills": []}), encoding="utf-8")
         fire(root, {"session_id": "s3", "hook_event_name": "UserPromptSubmit", "prompt": "Build a color palette page."})
         assert fire(root, {"session_id": "s3", "hook_event_name": "PreToolUse", "tool_input": {"filePath": "x.ts"}}) == ""
+
+
+def open_ask(root: Path, request: str, choice: str | None = None) -> None:
+    """Write an active ask in design (layout) with forms selected, the given request and skill choice."""
+    ask = "20261019-1200-x"
+    (root / ".hve" / "asks" / ask).mkdir(parents=True)
+    (root / ".hve" / "asks" / "active.json").write_text(json.dumps({"active": ask}), encoding="utf-8")
+    stages = [{"name": "design", "skills": ["layout"]}, {"name": "build", "skills": ["research"]}]
+    contract = {"ask": ask, "request": request, "tasks": [], "current": "design", "stages": stages,
+                "skills": {"selected": [{"name": "forms"}], "choice": choice and {"choice": choice}}}
+    (root / ".hve" / "asks" / ask / "contract.json").write_text(json.dumps(contract), encoding="utf-8")
 
 
 def test_lifecycle_stage_skills_load_and_are_allowed() -> None:
     """The active ask's current stage skills load as required, may be read from the library, and count as used."""
     with tempfile.TemporaryDirectory() as tmp:
         root = library_root(tmp)
-        (root / ".hve" / "asks" / "x").mkdir(parents=True)
-        (root / ".hve" / "asks" / "active.json").write_text(json.dumps({"active": "x"}), encoding="utf-8")
-        stages = [{"name": "design", "skills": ["layout"]}, {"name": "build", "skills": ["research"]}]
-        (root / ".hve" / "asks" / "x" / "contract.json").write_text(json.dumps({"current": "design", "stages": stages}), encoding="utf-8")
+        open_ask(root, "Write sourced research.")
         base = {"session_id": "l1"}
         fire(root, base | {"hook_event_name": "UserPromptSubmit", "prompt": "Write sourced research."},
              HARNESS_SKILLS_MIN_STATUS="provisional")
         path = root / ".hve" / "runs" / "l1.skills.json"
-        assert json.loads(path.read_text(encoding="utf-8"))["skills"][0] == "skills/admitted/layout"
+        assert json.loads(path.read_text(encoding="utf-8"))["skills"][:2] == ["skills/admitted/layout", "skills/admitted/forms"]
         loadout = json.loads(path.read_text(encoding="utf-8")) | {"skills": [], "used": []}
         path.write_text(json.dumps(loadout), encoding="utf-8")
         read = fire(root, base | {"hook_event_name": "PreToolUse", "tool_input": {"filePath": "runtime/skills/admitted/layout/SKILL.md"}})
         assert "deny" not in read and json.loads(path.read_text(encoding="utf-8"))["used"] == ["skills/admitted/layout"], read
-        other = fire(root, base | {"hook_event_name": "PreToolUse", "tool_input": {"filePath": ".hve/skills/forms/SKILL.md"}})
+        other = fire(root, base | {"hook_event_name": "PreToolUse", "tool_input": {"filePath": ".hve/skills/palette-ux/SKILL.md"}})
         assert "deny" in other, other
 
 
-def test_required_skills_reserve_budget_and_load_outside_categories() -> None:
-    """Required skills load before optional matches and fail explicitly when unavailable or over budget."""
+def test_skill_choice_stops_prompt_ranking_and_topic_shift_is_recommended_once() -> None:
+    """Once the user has chosen the ask's skills, prompts add no ranked skills; a prompt starting other work gets one recommendation."""
+    with tempfile.TemporaryDirectory() as tmp:
+        root = library_root(tmp)
+        open_ask(root, "Build a War of the Worlds timeline of the Martian invasion", "suggested")
+        env = {"HARNESS_SKILLS_MIN_STATUS": "provisional"}
+        follow_up = fire(root, {"session_id": "t1", "hook_event_name": "UserPromptSubmit", "prompt": "Fix the Martian timeline colour palette page"},
+                         **env)
+        loadout = json.loads((root / ".hve" / "runs" / "t1.skills.json").read_text(encoding="utf-8"))
+        assert follow_up == "" and loadout["skills"] == ["skills/admitted/layout", "skills/admitted/forms"], (follow_up, loadout)
+        shift = {"session_id": "t1", "hook_event_name": "UserPromptSubmit", "prompt": "Build a quiz about chess openings and grandmasters"}
+        message = json.loads(fire(root, shift, **env))
+        assert "new chat" in message["systemMessage"] and "20261019-1200-x" in message["systemMessage"], message
+        assert "Relay" in message["hookSpecificOutput"]["additionalContext"], message
+        assert fire(root, shift, **env) == ""
+
+
+def test_rank_suggests_most_relevant_per_token_within_guideline() -> None:
+    """Over the guideline, the suggested set keeps required skills and adds the most relevant per token that fit."""
+    with tempfile.TemporaryDirectory() as tmp:
+        root = library_root(tmp)
+        out = subprocess.run([sys.executable, "-c", "import json,sys; sys.path.insert(0,'tools/skills'); from recommend import rank; "
+                              "r = rank('Build a color palette page.', 'provisional', ('research',)); "
+                              "print(json.dumps([r['suggested'], r['suggested_tokens'], r['load_tokens']]))"],
+                             capture_output=True, text=True, cwd=root)
+        assert out.returncode == 0, out.stderr
+        suggested, tokens, load = json.loads(out.stdout)
+        assert suggested[0] == "research" and len(suggested) == 2 and tokens <= 1000 < load, (suggested, tokens, load)
+
+
+def test_required_skills_load_first_and_outside_categories() -> None:
+    """Required skills load before matches even outside any category, fail explicitly when unavailable, and are never cut by the budget."""
     with tempfile.TemporaryDirectory() as tmp:
         root = library_root(tmp)
         env = {"HARNESS_SKILLS_MIN_STATUS": "provisional", "HARNESS_REQUIRED_SKILLS": "research,research"}
@@ -308,7 +355,6 @@ def test_required_skills_reserve_budget_and_load_outside_categories() -> None:
             loadout = json.loads((root / ".hve" / "runs" / f"{session}.skills.json").read_text(encoding="utf-8"))
             assert loadout["skills"][0] == "skills/admitted/research", loadout
             assert loadout["skills"].count("skills/admitted/research") == 1, loadout
-            assert len(loadout["skills"]) <= 2, loadout
             assert (root / ".hve" / "skills" / "research" / "SKILL.md").is_file()
             result = json.loads(fire(root, {"session_id": session, "hook_event_name": "PreToolUse",
                                            "tool_input": {"filePath": ".hve/skills/research/SKILL.md"}}))
@@ -320,9 +366,7 @@ def test_required_skills_reserve_budget_and_load_outside_categories() -> None:
             ("missing", "provisional", "must resolve uniquely", entries),
             ("research", "admitted", "must resolve uniquely", entries),
             ("forms,layout", "provisional", "", entries),
-            ("forms,layout,proven", "provisional", "exceed the loadout budget", entries),
-            ("research", "provisional", "exceed the loadout budget",
-             [entry | {"skill_tokens": 1001} if entry["name"] == "research" else entry for entry in entries]),
+            ("forms,layout,proven", "provisional", "", entries),
             ("research", "provisional", "skill-library/research (provisional)']", entries),
         ]
         for required, status, needle, variant in cases:
@@ -339,7 +383,8 @@ def test_required_skills_reserve_budget_and_load_outside_categories() -> None:
             else:
                 assert result.returncode == 0, result.stderr
                 loadout = json.loads((root / ".hve" / "runs" / "bad.skills.json").read_text(encoding="utf-8"))
-                assert loadout["skills"] == ["skills/admitted/forms", "skills/admitted/layout"], loadout
+                assert loadout["skills"] == [f"skills/admitted/{n}" for n in required.split(",")], loadout
+                assert loadout["over_budget"] is (len(loadout["skills"]) > 2), loadout
 
 
 def test_prd_skill_is_template_and_tracker_neutral() -> None:
@@ -364,9 +409,12 @@ if __name__ == "__main__":
     test_eval_report_computes_lift()
     test_micro_eval_unblinds_and_reports()
     test_context_load_counts_always_on_and_warns_on_growth()
+    test_tool_load_estimates_per_harness_and_warns()
     test_workspace_skill_evaluator_flow()
-    test_skill_loader_budget_offer_and_scoped_deny()
+    test_skill_loader_loads_all_relevant_flags_budget_and_scoped_deny()
     test_lifecycle_stage_skills_load_and_are_allowed()
-    test_required_skills_reserve_budget_and_load_outside_categories()
+    test_skill_choice_stops_prompt_ranking_and_topic_shift_is_recommended_once()
+    test_rank_suggests_most_relevant_per_token_within_guideline()
+    test_required_skills_load_first_and_outside_categories()
     test_prd_skill_is_template_and_tracker_neutral()
     print("test_skills: OK")

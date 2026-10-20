@@ -1,7 +1,6 @@
 ---
 name: HVE skill-evaluator
 description: Frontier HVE skill onboarding. Checks a skill for safety, overlap and context cost, measures its quality lift with blind with/without pairs, admits it to the workspace library, and reports always-on context load.
-tools: [read/readFile, search/fileSearch, search/textSearch, search/listDirectory, edit/editFiles, edit/createFile, edit/createDirectory, execute/runInTerminal, execute/getTerminalOutput, agent, todo, vscode/askQuestions]
 agents: [HVE skill-worker, HVE skill-judge]
 ---
 

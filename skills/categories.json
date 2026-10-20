@@ -1,7 +1,8 @@
 {
   "loadout": {
     "max_skills": 10,
-    "max_tokens": 2000
+    "max_tokens": 2000,
+    "keyword_floor": 0.5
   },
   "provisional": {
     "max_skill_tokens": 800,
@@ -19,7 +20,8 @@
     "share_warn_pct": 10,
     "growth_warn_pct": 20,
     "duplicate_similarity": 0.5,
-    "mcp_tokens_per_server_estimate": 1500
+    "mcp_tokens_per_server_estimate": 1500,
+    "tool_warn_tokens": 6000
   },
   "micro_eval": {
     "generator": "gpt-5.4-mini",
@@ -59,6 +61,10 @@
     "research": {
       "skill_pattern": "\\b(research\\w*|analyst|literature|investigat\\w*|citations?|evidence)\\b",
       "task_pattern": "\\b(research\\w*|investigat\\w*|compare|comparison|evaluate|find out|survey|analy[sz]\\w*|market|competitors?|sources?)\\b"
+    },
+    "document": {
+      "skill_pattern": "\\b(prose|presentations?|slides?|decks?|memos?|briefings?|storyline|narrative|executive summar\\w*|whitepapers?)\\b",
+      "task_pattern": "\\b(presentations?|slides?|decks?|reports?|memos?|briefings?|whitepapers?|documents?|forecast\\w*|executive|board|narrative)\\b"
     }
   }
 }

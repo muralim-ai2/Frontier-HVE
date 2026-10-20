@@ -69,12 +69,13 @@ def fire(ws: Path, client: str, payload: Json) -> list[Json]:
     return outputs
 
 
-def start_loop(ws: Path, passes: bool = False, escalated: bool = False) -> None:
-    """Write the loop state the guards read: one feature and the loop state file."""
-    (ws / ".harness").mkdir(exist_ok=True)
-    (ws / "feature_list.json").write_text(json.dumps([{"name": "login", "description": "d", "verify": "exit 0", "passes": passes}]))
+def start_loop(ws: Path, passes: bool = False, escalated: bool = False, ask: Path | None = None) -> None:
+    """Write the loop state the guards read: one feature and the loop state file, in the ask's loop/ folder when one is given."""
+    files, state_folder = (ws, ws / ".harness") if ask is None else (ask / "loop", ask / "loop")
+    state_folder.mkdir(parents=True, exist_ok=True)
+    (files / "feature_list.json").write_text(json.dumps([{"name": "login", "description": "d", "verify": "exit 0", "passes": passes}]))
     state = {"current": None, "review": "local", "escalated": escalated, "help": {"question": "Which database?"}}
-    (ws / ".harness" / "state.json").write_text(json.dumps(state), encoding="utf-8")
+    (state_folder / "state.json").write_text(json.dumps(state), encoding="utf-8")
 
 
 def test_export_structure() -> None:
@@ -91,7 +92,7 @@ def test_export_structure() -> None:
             for skill in (ws / skills).glob("*/SKILL.md"):
                 assert re.search(rf"^name: \"?{skill.parent.name}\"?$", skill.read_text(encoding="utf-8"), re.M), skill
         agents = {p.stem for p in (ws / ".claude" / "agents").glob("*.md")}
-        assert agents == {"hve-creator", "hve-single", "hve-azure-devops"}, agents
+        assert agents == {p.name.removesuffix(".agent.md") for p in (EXTENSION / "agents").glob("hve-*.agent.md")}, agents
         argv = [a for args in claude_hooks(ws).values() for a in args]
         assert {a[2] for a in argv} == {"hooks/profile_detector.py", "hooks/skill_loader.py", "hooks/compaction.py", "hooks/loop_guard.py",
                                         "hooks/module_guard.py", "hooks/template_guard.py", "scripts/choice_recorder.py", "scripts/guardrail.py"}
@@ -227,6 +228,74 @@ def test_codex_hooks() -> None:
         assert sub and "additionalContext" in sub[0]["hookSpecificOutput"], sub
 
 
+def fire_copilot(hooks: Json, ws: Path, payload: Json, env: dict[str, str]) -> list[Json]:
+    """Run every Copilot hook command for the payload's event from the workspace; return the non-empty outputs."""
+    outputs = []
+    for entry in hooks["hooks"][payload["hook_event_name"]]:
+        result = subprocess.run(entry["command"], shell=True, cwd=ws, input=json.dumps(payload), capture_output=True, text=True, env=env)
+        assert result.returncode == 0, (entry["command"], result.stderr)
+        outputs += [json.loads(result.stdout)] if result.stdout.strip() else []
+    return outputs
+
+
+def test_copilot_user_scope_and_cloud_exports() -> None:
+    """Copilot gets every HVE agent at user scope without Local-only fields, and hooks that act only while an ask is open; the
+    cloud agent gets a committed runtime and python3 hooks; scopes a client lacks are refused."""
+    subprocess.run([sys.executable, str(EXTENSION / "build.py")], check=True, capture_output=True)
+    with tempfile.TemporaryDirectory() as tmp:
+        home = Path(tmp) / "home"
+        home.mkdir()
+        env = os.environ | {"HOME": str(home), "USERPROFILE": str(home)}
+        result = subprocess.run([sys.executable, str(EXPORT), "copilot", "--user"], capture_output=True, text=True, env=env)
+        assert result.returncode == 0, result.stderr
+        assert json.loads(result.stdout)["scope"] == "user"
+        agents = home / ".copilot" / "agents"
+        assert {p.name for p in agents.glob("*.agent.md")} == {p.name for p in (EXTENSION / "agents").glob("hve-*.agent.md")}
+        creator = (agents / "hve-creator.agent.md").read_text(encoding="utf-8")
+        front = creator.split("---\n")[1]
+        assert "hooks:" not in front and "{{RUNTIME}}" not in creator and "tools:" not in front, front
+        assert f"{(home / '.hve' / 'runtime').as_posix()}/tools/loop/lifecycle.py" in creator
+        assert 'tools: ["read", "search"]' in (agents / "hve-evaluation-reviewer.agent.md").read_text(encoding="utf-8")
+        assert "handoffs" not in (agents / "hve-product-manager.agent.md").read_text(encoding="utf-8").split("---\n")[1]
+        hooks = json.loads((home / ".copilot" / "hooks" / "hve.json").read_text(encoding="utf-8"))
+        commands = [h["command"] for entries in hooks["hooks"].values() for h in entries]
+        assert hooks["version"] == 1 and "SubagentStart" in hooks["hooks"] and all("--ask-only copilot" in c for c in commands), commands
+        ws = Path(tmp) / "ws"
+        ws.mkdir()
+        start_loop(ws)
+        write = {"hook_event_name": "PreToolUse", "session_id": "p1", "timestamp": "2026-10-19T08:00:00Z", "cwd": str(ws),
+                 "tool_name": "Write", "tool_input": {"file_path": str(ws / "feature_list.json"), "content": "[]"}}
+        assert fire_copilot(hooks, ws, write, env) == [], "no open ask: the user-level hooks stay out of the way"
+        (ws / "req.md").write_text("Build a login page", encoding="utf-8")
+        lifecycle = home / ".hve" / "runtime" / "tools" / "loop" / "lifecycle.py"
+        made = subprocess.run([sys.executable, str(lifecycle), "contract", "direct", "login", "HVE creator", "req.md"], cwd=ws,
+                              capture_output=True, text=True, env=env)
+        assert made.returncode == 0, made.stderr
+        ask = ws / json.loads(made.stdout)["paths"]["ask"]
+        start_loop(ws, ask=ask)
+        write["tool_input"]["file_path"] = str(ask / "loop" / "feature_list.json")  # type: ignore[index]
+        denied = fire_copilot(hooks, ws, write, env)
+        assert any(o.get("permissionDecision") == "deny" and "loop scripts" in o["permissionDecisionReason"] for o in denied), denied
+        assert (ws / ".hve" / "runs" / "p1.skills.json").is_file(), "the loadout comes from the ask when the prompt hook did not run"
+        stop = {"hook_event_name": "Stop", "session_id": "p1", "timestamp": "2026-10-19T08:01:00Z", "cwd": str(ws),
+                "transcript_path": "t", "stop_reason": "end_turn", "stop_hook_active": False}
+        assert any(o.get("decision") == "block" and "login" in o["reason"] for o in fire_copilot(hooks, ws, stop, env))
+        sub = fire_copilot(hooks, ws, {"hook_event_name": "SubagentStart", "session_id": "p1", "cwd": str(ws), "agent_id": "a",
+                                       "agent_type": "task"}, env)
+        assert any("SKILLS-USED" in o.get("additionalContext", "") for o in sub), sub
+        cloud = Path(tmp) / "repo"
+        cloud.mkdir()
+        report = export(cloud, "cloud")
+        assert (cloud / ".github" / "hve" / "runtime" / "hooks" / "agent_compat.py").is_file() and report["scope"] == "project"
+        assert ".github/hve/runtime/tools/loop/lifecycle.py" in (cloud / ".github" / "agents" / "hve-creator.agent.md").read_text(encoding="utf-8")
+        cloud_hooks = json.loads((cloud / ".github" / "hooks" / "hve.json").read_text(encoding="utf-8"))
+        assert all(h["command"].startswith('python3 ".github/hve/runtime/hooks/agent_compat.py" --ask-only copilot')
+                   for entries in cloud_hooks["hooks"].values() for h in entries), cloud_hooks
+        for args, needle in ((["cloud", "--user"], "has no user scope"), (["copilot", str(cloud)], "user scope only")):
+            refused = subprocess.run([sys.executable, str(EXPORT), *args], capture_output=True, text=True, env=env)
+            assert refused.returncode != 0 and needle in refused.stderr, refused.stderr
+
+
 def test_wiki_is_shipped_and_linked() -> None:
     """The adapter guide ships in the runtime where the skill, agent and export report point, and wiki links resolve."""
     for page in (REPO / "docs" / "wiki").glob("*.md"):
@@ -250,5 +319,6 @@ if __name__ == "__main__":
     test_cursor_hooks()
     test_exported_template_stop_gate()
     test_codex_hooks()
+    test_copilot_user_scope_and_cloud_exports()
     test_wiki_is_shipped_and_linked()
     print("test_adapters: OK")

@@ -30,7 +30,7 @@ The contract is JSON. The validator checks:
 - exactly three council roles, all `modelTier: high`;
 - `decision.councilPasses` within the council size and `decision.maxRevisionPasses` from 0 to 3.
 
-A `command` hook gets the run folder in `HVE_EVALUATION_RUN`. The default contract always re-runs the locked checks, collects `.harness/evidence/**/*.png` for UI outputs when usability scores low (`visual-evidence`, required), and collects `.harness/evidence/**/*.log` for CLI and API outputs (`runtime-logs`, optional, because logs may live on a remote service). So the creator makes each UI check save a screenshot and each CLI or API check save its output there.
+A `command` hook gets the run folder in `HVE_EVALUATION_RUN`. The default contract always re-runs the locked checks, collects `.harness/evidence/**/*.png` for UI outputs when usability scores low (`visual-evidence`, required), and collects `.harness/evidence/**/*.log` for CLI and API outputs (`runtime-logs`, optional, because logs may live on a remote service). With an ask open, `.harness/` patterns resolve to the ask's `loop/` folder, and checks run with `HVE_EVIDENCE` pointing at its `evidence/`. So the creator makes each UI check save a screenshot and each CLI or API check save its output to `$HVE_EVIDENCE/<feature>/`.
 
 ## Council models
 

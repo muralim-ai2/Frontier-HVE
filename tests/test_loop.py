@@ -242,6 +242,38 @@ def test_parallel_options_same_failure_escalates() -> None:
         assert read_json(project / ".harness" / "state.json")["help"]["rule"] == "R5"
 
 
+def test_ask_mode_keeps_loop_files_in_the_ask_folder() -> None:
+    """With an open ask the loop files, state and evidence live in .hve/asks/<ask>/loop/ and stay out of git, commits carry the locked
+    checks, checks get HVE_EVIDENCE, and the guard protects the ask's loop files."""
+    with tempfile.TemporaryDirectory() as tmp:
+        project = Path(tmp) / "project"
+        folder = project / ".hve" / "asks" / "20261019-1200-x" / "loop"
+        folder.mkdir(parents=True)
+        (project / ".hve" / "asks" / "active.json").write_text(json.dumps({"active": "20261019-1200-x"}), encoding="utf-8")
+        (project / "check.py").write_text("import os, pathlib, sys\n"
+                                          "out = pathlib.Path(os.environ['HVE_EVIDENCE']) / pathlib.Path(sys.argv[1]).stem\n"
+                                          "out.mkdir(parents=True, exist_ok=True)\n(out / 'log.txt').write_text('checked')\n"
+                                          "sys.exit(0 if pathlib.Path(sys.argv[1]).exists() else 1)\n", encoding="utf-8")
+        (folder / "feature_list.json").write_text(json.dumps([feature(n, f"{n}.txt") for n in "abc"]), encoding="utf-8")
+        loop.init(project, "local")  # type: ignore[arg-type]
+        assert {p.name for p in folder.iterdir()} >= {"feature_list.json", "progress.txt", "tracker.json", "state.json"}
+        assert not (project / ".harness").exists() and not (project / "feature_list.json").exists()
+        assert ".hve" not in git(project, "ls-files") and "a: python check.py a.txt" in git(project, "log", "-1", "--format=%b")
+        loop.next_feature(project)
+        (project / "a.txt").write_text("a\n", encoding="utf-8")
+        assert loop.verify(project)["passes"] is True
+        assert (folder / "evidence" / "a" / "log.txt").read_text(encoding="utf-8") == "checked"
+        assert "verify: python check.py a.txt" in git(project, "log", "-1", "--format=%b")
+        assert loop.tracker(project)["features"][0]["evidence"] == [".hve/asks/20261019-1200-x/loop/evidence/a/log.txt"]
+        root = make_root(tmp)
+        env = {"HARNESS_PROJECT": "project", "HARNESS_STOP_POLICY": "once"}
+        for path, denied in ((folder / "feature_list.json", True), (folder / "state.json", True), (folder / "evidence" / "a" / "x.txt", True),
+                             (project / "feature_list.json", False), (project / "src.py", False)):
+            out = fire(root, "loop_guard.py", {"hook_event_name": "PreToolUse", "tool_name": "create_file", "tool_input": {"filePath": str(path)},
+                                               "tool_use_id": "t1"}, **env)
+            assert (out is not None) is denied, (path, out)
+
+
 def test_no_fallback_patterns() -> None:
     """Silent except/catch and TODOs are found; re-raising handlers are not."""
     assert scan_file("a.py", "def f():\n    try:\n        g()\n    except ValueError:\n        return None\n")
@@ -258,6 +290,8 @@ def make_root(tmp: str) -> Path:
     (root / "hooks").mkdir()
     for hook in ("loop_guard.py", "module_guard.py", "flow_guard.py", "interventions.py", "hve_paths.py", "guard_policy.py"):
         shutil.copy(REPO / "hooks" / hook, root / "hooks")
+    (root / "tools" / "loop").mkdir(parents=True)
+    shutil.copy(REPO / "tools" / "loop" / "loop_paths.py", root / "tools" / "loop")
     (root / ".hve" / "runs").mkdir(parents=True)
     (root / ".hve" / "runs" / "s1.budget.json").write_text(json.dumps({"start_ms": START_MS, "budget_ms": 1_200_000.0, "denied": []}),
                                                           encoding="utf-8")
@@ -391,6 +425,7 @@ if __name__ == "__main__":
     test_rules_tool_retrieval_environment()
     test_parallel_options_auto_and_human_choice()
     test_parallel_options_same_failure_escalates()
+    test_ask_mode_keeps_loop_files_in_the_ask_folder()
     test_no_fallback_patterns()
     test_loop_guard()
     test_guard_waiver()

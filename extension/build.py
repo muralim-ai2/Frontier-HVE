@@ -21,7 +21,7 @@ FILES = {
     "tools/evaluation": ["contract.py", "workflow.py", "reflection.py"],
     "tools/observe": ["provenance.py"],
     "evaluation": ["frontier.eval.json"],
-    "tools/loop": ["loop.py", "diagnose.py", "flow.py", "lifecycle.py"],
+    "tools/loop": ["loop.py", "diagnose.py", "flow.py", "lifecycle.py", "ask_report.py", "loop_paths.py", "environment.py"],
     "tools/git": ["branch_workflow.py", "parallel_options.py"],
     "tools/skills": ["recommend.py", "scan.py", "triage.py", "onboard.py", "micro_eval.py", "evaluate.py", "context_load.py"],
     "skills": ["registry.json", "categories.json"],

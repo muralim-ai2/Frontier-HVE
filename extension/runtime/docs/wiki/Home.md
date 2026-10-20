@@ -5,8 +5,9 @@ How-to pages for people and agents. Each page names the files it describes; the 
 | Page | Covers | Tracker topic |
 |---|---|---|
 | [Install](Install.md) | Requirements, one-step install, what happens without Python, checking it works with the provenance report, updating, building the VSIX | W01 |
+| [Ways of working](Ways-of-Working.md) | One ask, one folder; the flow of an ask; skill choice, plans, gates and escalations; switching topics; hooks per agent; checking the five pillars; a ten-minute smoke test of creator, e2e, agile and prototype | W03, W08 |
 | [Agents](Agents.md) | The agents available, their guardrails, and how to onboard a new agent | W02, W21 |
-| [Skills](Skills.md) | Where skills live, onboarding a skill with `HVE skill-evaluator` (blind with/without evaluation), checking it loads | W09 |
+| [Skills](Skills.md) | Where skills live, seven pathways for adding a skill, onboarding with `HVE skill-evaluator` (blind with/without evaluation), checking it loads | W09 |
 | [Adapters](Adapters.md) | Use the harness in Claude Code, Cursor and Codex CLI; connect Azure DevOps; guards per client; troubleshooting | W19 |
 | [Templates](Templates.md) | Configure PRD, technical design and test strategy templates; provenance, validation and company overrides | New capability |
 | [Product Manager](Product-Manager.md) | Use `HVE product-manager`: research, model council, PRD in the configured template, backlog in local JSON, Azure DevOps or GitHub | W20 |

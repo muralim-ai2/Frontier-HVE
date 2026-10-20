@@ -1,4 +1,4 @@
-"""Rank library skills for a task and split them into an auto-load set within the loadout budget and a ranked list to recommend."""
+"""Rank library skills for a task by relevance and load all that match by category or keyword, flagging loads over the loadout guideline."""
 
 import json
 import re
@@ -54,7 +54,8 @@ def library_entries() -> list[Json]:
 
 
 def rank(prompt: str, min_status: MinStatus, required: tuple[str, ...] = ()) -> Json:
-    """Reserve required skills within budget, then rank task-matching skills for loading or recommendation."""
+    """Return every relevant skill to load: required first, then category or keyword matches by relevance; flag a load over the loadout
+    guideline and suggest the required plus most relevant-per-token skills that fit within it."""
     if min_status not in STATUS_ORDER:
         raise ValueError(f"min_status {min_status!r}, expected one of {list(STATUS_ORDER)}")
     config = read("categories.json")
@@ -71,28 +72,24 @@ def rank(prompt: str, min_status: MinStatus, required: tuple[str, ...] = ()) -> 
                              f"A workspace skill (.hve/skills-registry.json) with the same name as a library skill is ambiguous")
         if name not in {e["name"] for e in reserved}:
             reserved.append(matches[0])
-    tokens = sum(e["skill_tokens"] for e in reserved)
-    if len(reserved) > budget["max_skills"] or tokens > budget["max_tokens"]:
-        raise ValueError(f"required skills {list(required)} exceed the loadout budget: {budget}")
     frequency = Counter(s for e in library for s in skill_stems(e))
     frequency = Counter({s: n for s, n in frequency.items() if n <= len(library) / 2})
-    matching = [e for e in library if e["status"] in allowed and set(e["task_categories"]) & set(categories)
-                and e["name"] not in required]
-    matching.sort(key=lambda e: (STATUS_ORDER[e["status"]], -relevance(prompt, e, categories, frequency), -(e["quality_lift_pp"] or 0),
-                                 e["skill_tokens"]))
-    load: list[Json] = []
-    recommend: list[Json] = []
-    for e in reserved + matching:
-        row = {k: e[k] for k in ("name", "status", "task_categories", "skill_tokens", "quality_lift_pp", "path")}
-        if e in reserved:
-            load.append(row)
-        elif len(load) < budget["max_skills"] and tokens + e["skill_tokens"] <= budget["max_tokens"]:
-            load.append(row)
-            tokens += e["skill_tokens"]
-        else:
-            recommend.append(row)
-    return {"categories": categories, "load": load, "load_tokens": tokens, "recommend": recommend, "budget": budget,
-            "evidence": SKILLSBENCH}
+    matching = [e for e in library if e["status"] in allowed and e["name"] not in required
+                and (set(e["task_categories"]) & set(categories) or relevance(prompt, e, categories, frequency) >= budget["keyword_floor"])]
+    matching.sort(key=lambda e: (-relevance(prompt, e, categories, frequency), -(e["quality_lift_pp"] or 0), e["skill_tokens"]))
+    load = [{k: e[k] for k in ("name", "status", "task_categories", "skill_tokens", "quality_lift_pp", "path")}
+            | {"reason": "required" if e in reserved else "category" if set(e["task_categories"]) & set(categories) else "keyword",
+               "relevance": round(relevance(prompt, e, categories, frequency), 2)} for e in reserved + matching]
+    tokens = sum(r["skill_tokens"] for r in load)
+    suggested: list[str] = []
+    kept = 0
+    for r in sorted(load, key=lambda r: (r["reason"] != "required", -r["relevance"] / r["skill_tokens"])):
+        if r["reason"] == "required" or (len(suggested) < budget["max_skills"] and kept + r["skill_tokens"] <= budget["max_tokens"]):
+            suggested.append(r["name"])
+            kept += r["skill_tokens"]
+    return {"categories": categories, "load": load, "load_tokens": tokens,
+            "over_budget": len(load) > budget["max_skills"] or tokens > budget["max_tokens"], "budget": budget,
+            "suggested": [r["name"] for r in load if r["name"] in suggested], "suggested_tokens": kept, "evidence": SKILLSBENCH}
 
 
 if __name__ == "__main__":

@@ -10,7 +10,8 @@ from typing import Any, Literal, TypedDict
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "tools" / "templates"))
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "tools" / "loop"))
 from manage import check_session, resolve  # noqa: E402
-from lifecycle import facts, guard_summary  # noqa: E402
+from ask_report import facts, guard_summary  # noqa: E402
+from loop_paths import loop_dir, state_dir  # noqa: E402
 
 Status = Literal["verified", "not-exercised", "failed"]
 Json = dict[str, Any]
@@ -51,11 +52,11 @@ def _templates(workspace: Path, session: str) -> Finding:
 
 def _loop(project: Path) -> tuple[Finding, bool]:
     """Return whether the feature loop was initialized with how many features pass, and whether every feature passes."""
-    features_file = project / "feature_list.json"
+    features_file = loop_dir(project) / "feature_list.json"
     if not features_file.is_file():
-        return {"status": "not-exercised", "detail": f"no feature_list.json in {project}"}, False
-    if not (project / ".harness").is_dir() or not (project / "progress.txt").is_file():
-        return {"status": "failed", "detail": "feature_list.json exists but loop.py init never ran (.harness/ or progress.txt missing)"}, False
+        return {"status": "not-exercised", "detail": f"no feature_list.json in {loop_dir(project)}"}, False
+    if not (state_dir(project) / "state.json").is_file() or not (loop_dir(project) / "progress.txt").is_file():
+        return {"status": "failed", "detail": "feature_list.json exists but loop.py init never ran (loop state or progress.txt missing)"}, False
     features = json.loads(features_file.read_text(encoding="utf-8"))
     passing = sum(1 for f in features if f["passes"])
     return {"status": "verified", "detail": f"{passing}/{len(features)} features pass; progress.txt present"}, passing == len(features)
@@ -86,7 +87,8 @@ def _contract(workspace: Path, session: str) -> tuple[Finding, Json | None]:
     stale = [f"{found['plan']['plan']} changed since its last sync"] if found["plan"] and found["plan"]["changed"] else []
     counts = ", ".join(f"{n} {s}" for s, n in sorted(Counter(s["status"] for s in found["stages"]).items()))
     detail = (f"{found['ask']} ({found['lifecycle']}): {counts}; gaps: {'; '.join(found['gaps']) or 'none'}; outside contract: "
-              f"{', '.join(found['outside_contract']) or 'none'}" + "".join(f"; {s}" for s in stale))
+              f"{', '.join(found['outside_contract']) or 'none'}; recommended skills unused: "
+              f"{', '.join(found['usage']['unused_skills']) or 'none'}" + "".join(f"; {s}" for s in stale))
     return {"status": "failed" if found["gaps"] or stale else "verified", "detail": detail}, found
 
 

@@ -4,6 +4,7 @@ import json
 import os
 import re
 import sys
+import tomllib
 from datetime import datetime, timezone
 from itertools import combinations
 from pathlib import Path
@@ -106,14 +107,44 @@ def agent_entry(name: str, workspace: Path, plugins: list[Path]) -> Json:
     raise FileNotFoundError(f"custom agent {name!r} not found in {[f.as_posix() for f in folders]}")
 
 
-def mcp_entries(workspace: Path, user_dir: Path, per_server: int) -> list[Json]:
-    """Return an estimated tool-schema cost per configured MCP server (actual schemas are only known at runtime)."""
-    entries = []
-    for origin, path in (("workspace", workspace / ".vscode" / "mcp.json"), ("user", user_dir / "mcp.json")):
+def mcp_sources(workspace: Path, user_dir: Path) -> list[tuple[str, str, Path, str]]:
+    """Return (harness, origin, file, servers key) for every MCP configuration file the supported harnesses read."""
+    home = Path.home()
+    return [("vscode", "workspace", workspace / ".vscode" / "mcp.json", "servers"), ("vscode", "user", user_dir / "mcp.json", "servers"),
+            ("claude", "workspace", workspace / ".mcp.json", "mcpServers"), ("claude", "user", home / ".claude.json", "mcpServers"),
+            ("copilot", "user", home / ".copilot" / "mcp-config.json", "mcpServers"),
+            ("cursor", "workspace", workspace / ".cursor" / "mcp.json", "mcpServers"), ("cursor", "user", home / ".cursor" / "mcp.json", "mcpServers"),
+            ("codex", "workspace", workspace / ".codex" / "config.toml", "mcp_servers"),
+            ("codex", "user", home / ".codex" / "config.toml", "mcp_servers")]
+
+
+def mcp_servers(workspace: Path, user_dir: Path) -> list[Json]:
+    """Return every configured MCP server with the harness that reads it and the file that defines it."""
+    servers = []
+    for harness, origin, path, key in mcp_sources(workspace, user_dir):
         if path.is_file():
-            entries += [{"kind": "mcp", "origin": origin, "name": server, "path": path.as_posix(), "tokens": per_server, "estimate": True}
-                        for server in read_jsonc(path).get("servers", {})]
-    return entries
+            data = tomllib.loads(path.read_text(encoding="utf-8")) if path.suffix == ".toml" else read_jsonc(path)
+            servers += [{"harness": harness, "origin": origin, "name": name, "path": path.as_posix()} for name in data.get(key) or {}]
+    return servers
+
+
+def tool_load(servers: list[Json]) -> Json:
+    """Return per harness the MCP servers it loads, their estimated tool-schema tokens, and a warning when one exceeds the threshold."""
+    config = json.loads((SKILLS_DIR / "categories.json").read_text(encoding="utf-8"))["context_load"]
+    per_harness: dict[str, list[str]] = {}
+    for s in servers:
+        per_harness.setdefault(s["harness"], []).append(s["name"])
+    load = {h: {"servers": sorted(set(names)), "estimated_tokens": len(set(names)) * config["mcp_tokens_per_server_estimate"]}
+            for h, names in per_harness.items()}
+    heavy = [f"{h}: {v['estimated_tokens']:,} tokens from {len(v['servers'])} MCP servers" for h, v in load.items()
+             if v["estimated_tokens"] > config["tool_warn_tokens"]]
+    return {"harnesses": load, "warn_tokens": config["tool_warn_tokens"], "warnings": heavy}
+
+
+def mcp_entries(workspace: Path, user_dir: Path, per_server: int) -> list[Json]:
+    """Return an estimated tool-schema cost per MCP server VS Code loads (actual schemas are only known at runtime)."""
+    return [{"kind": "mcp", "origin": s["origin"], "name": s["name"], "path": s["path"], "tokens": per_server, "estimate": True}
+            for s in mcp_servers(workspace, user_dir) if s["harness"] == "vscode"]
 
 
 def measured_names(workspace: Path) -> set[str]:

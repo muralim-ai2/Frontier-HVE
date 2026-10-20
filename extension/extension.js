@@ -18,6 +18,14 @@ const PREFERENCES = [
   { label: 'Assisted', value: 'low_code', description: 'Read and adjust code with guidance' },
   { label: 'Pro', value: 'pro_code', description: 'Use AI to code and review continuously' },
 ];
+const HARNESSES = [
+  { label: 'Copilot', description: 'Copilot CLI and the VS Code Copilot harness (~/.copilot)', client: 'copilot' },
+  { label: 'Claude Code', description: '~/.claude', client: 'claude' },
+  { label: 'Codex', description: '~/.codex and ~/.agents', client: 'codex' },
+  { label: 'Cursor', description: '~/.cursor', client: 'cursor' },
+  { label: 'Copilot cloud agent', description: 'this repository\'s .github folder; you commit it', client: 'cloud' },
+];
+const COPILOT_HOOK_FILE = '~/.copilot/hooks/hve.json';
 
 /**
  * Return the Python version a launcher runs as [major, minor], or null when it cannot be run.
@@ -120,6 +128,27 @@ async function enableResearchTelemetry() {
 }
 
 /**
+ * Run a runtime Python script and return its parsed JSON output.
+ * @param {string} python Python launcher.
+ * @param {string} script Script path.
+ * @param {string[]} args Script arguments.
+ * @param {string} cwd Working directory.
+ * @returns {Promise<any>}
+ */
+function runPythonJson(python, script, args, cwd) {
+  const [command, ...launcherArgs] = python.split(' ');
+  return new Promise((resolve, reject) => {
+    execFile(command, [...launcherArgs, script, ...args], { cwd, maxBuffer: 10 * 1024 * 1024 }, (error, out, err) => {
+      if (error) {
+        reject(new Error(`${path.basename(script)} failed: ${err || error.message}`));
+      } else {
+        resolve(JSON.parse(out));
+      }
+    });
+  });
+}
+
+/**
  * Measure the always-on context load (skills, instructions, MCP) and show its size and any warnings; the report is .hve/context_load.json.
  * @param {vscode.ExtensionContext} context
  * @param {string} workspace
@@ -127,17 +156,7 @@ async function enableResearchTelemetry() {
  */
 async function reportContextLoad(context, workspace, python) {
   const script = path.join(context.extensionPath, 'runtime', 'tools', 'skills', 'context_load.py');
-  const [command, ...args] = python.split(' ');
-  const stdout = await new Promise((resolve, reject) => {
-    execFile(command, [...args, script], { cwd: workspace, maxBuffer: 10 * 1024 * 1024 }, (error, out, err) => {
-      if (error) {
-        reject(new Error(`context_load.py failed: ${err || error.message}`));
-      } else {
-        resolve(out);
-      }
-    });
-  });
-  const report = JSON.parse(stdout);
+  const report = await runPythonJson(python, script, [], workspace);
   const shares = Object.entries(report.share_pct).map(([window, pct]) => `${pct}% of ${Number(window) / 1000}K`).join(', ');
   const summary = `Frontier HVE: ${report.total_tokens.toLocaleString()} tokens load into every request before you type `
     + `(${report.skill_count} skills; ${shares}).`;
@@ -146,6 +165,48 @@ async function reportContextLoad(context, workspace, python) {
   if (open) {
     await vscode.window.showTextDocument(vscode.Uri.file(path.join(workspace, '.hve', 'context_load.json')));
   }
+}
+
+/**
+ * Install the HVE agents, skills and hooks for the harnesses the user picks (user scope; Cloud into this repository), and keep the
+ * Local harness from running the Copilot hook file next to its own agent-scoped hooks.
+ * @param {vscode.ExtensionContext} context
+ */
+async function installHarnesses(context) {
+  const python = await findPython();
+  if (!python) {
+    await warnNoPython();
+    return;
+  }
+  const picked = await vscode.window.showQuickPick(HARNESSES, {
+    canPickMany: true, ignoreFocusOut: true, title: 'Frontier HVE: install the HVE agents, skills and guard hooks for',
+  });
+  if (!picked || picked.length === 0) {
+    return;
+  }
+  const folders = vscode.workspace.workspaceFolders;
+  const cloud = picked.some((item) => item.client === 'cloud');
+  if (cloud && (!folders || folders.length === 0)) {
+    vscode.window.showErrorMessage('Open the repository first to install for the Copilot cloud agent.');
+    return;
+  }
+  if (cloud && await vscode.window.showWarningMessage(
+    'The Copilot cloud agent reads agents, skills and hooks from the repository: this writes .github/agents, .github/skills, '
+    + '.github/hooks/hve.json and .github/hve/runtime for you to review and commit.', { modal: true }, 'Write them') !== 'Write them') {
+    return;
+  }
+  const chat = vscode.workspace.getConfiguration('chat');
+  await chat.update('hookFilesLocations', { ...(chat.get('hookFilesLocations') || {}), [COPILOT_HOOK_FILE]: false, '.github/hooks/hve.json': false },
+    vscode.ConfigurationTarget.Global);
+  const script = path.join(context.extensionPath, 'runtime', 'tools', 'adapters', 'export.py');
+  const cwd = folders && folders.length > 0 ? folders[0].uri.fsPath : context.extensionPath;
+  const lines = [];
+  for (const item of picked) {
+    const args = item.client === 'cloud' ? ['cloud', cwd] : [item.client, '--user', '--python', python];
+    const report = await runPythonJson(python, script, args, cwd);
+    lines.push(`${item.label}: ${report.invoke}.`);
+  }
+  vscode.window.showInformationMessage(`Frontier HVE installed. ${lines.join(' ')} Known gaps per harness: docs/wiki/Adapters.md.`);
 }
 
 /**
@@ -188,6 +249,7 @@ async function offerReload(message) {
 async function activate(context) {
   context.subscriptions.push(
     vscode.commands.registerCommand('frontierHve.setup', () => setUp(context)),
+    vscode.commands.registerCommand('frontierHve.installHarnesses', () => installHarnesses(context)),
     vscode.commands.registerCommand('frontierHve.researchTelemetry', enableResearchTelemetry));
   const python = await findPython();
   if (!python) {

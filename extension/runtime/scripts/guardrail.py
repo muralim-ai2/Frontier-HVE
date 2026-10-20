@@ -9,6 +9,11 @@ import tomllib
 from pathlib import Path
 from typing import Any
 
+# The runtime ships this script in scripts/ next to tools/; the repository keeps it in plugins/harness-assist/scripts/.
+sys.path.insert(0, str(next(p for p in Path(__file__).resolve().parents if (p / "tools" / "loop" / "loop_paths.py").is_file())
+                       / "tools" / "loop"))
+from loop_paths import state_dir  # noqa: E402
+
 CATALOG = json.loads((Path(__file__).parent / "enterprise_catalog.json").read_text(encoding="utf-8"))
 CODE_SUFFIXES = {".py", ".js", ".jsx", ".ts", ".tsx", ".mjs", ".cjs", ".css", ".scss", ".html", ".vue", ".svelte", ".sql"}
 SKIP_DIRS = {"node_modules", ".next", ".git", ".harness", ".hve", "dist", "build", "coverage", ".venv", "venv",
@@ -80,16 +85,16 @@ def hook() -> None:
     if payload["hook_event_name"] != "PostToolUse":
         raise ValueError(f"guardrail.py --hook does not handle {payload['hook_event_name']!r}")
     cwd = Path.cwd()
-    for harness in [cwd / ".harness", *cwd.glob(".hve/outputs/*/current/.harness")]:
+    for project, harness in [(cwd, state_dir(cwd)), *((h.parent, h) for h in cwd.glob(".hve/outputs/*/current/.harness"))]:
         if not harness.is_dir():
             continue
-        report = scan(harness.parent)
+        report = scan(project)
         digest = hashlib.sha1(json.dumps(report["reasons"]).encode()).hexdigest()
         state_file = harness / "guardrail.json"
         seen = json.loads(state_file.read_text(encoding="utf-8"))["digest"] if state_file.exists() else None
         state_file.write_text(json.dumps({"digest": digest, "report": report}, indent=2), encoding="utf-8")
         if report["verdict"] == "review" and digest != seen:
-            message = (f"Prototype guardrail ({harness.parent.name}): " + "; ".join(report["reasons"]) +
+            message = (f"Prototype guardrail ({project.name}): " + "; ".join(report["reasons"]) +
                        f". Involve: {', '.join(report['experts'])}. Use the prototype-guardrail skill before adding more.")
             print(json.dumps({"systemMessage": message, "hookSpecificOutput": {"hookEventName": "PostToolUse", "additionalContext": message}}))
             return

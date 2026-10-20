@@ -1,9 +1,8 @@
-"""Task-use gate hook: load the best library skills for the prompt within the loadout budget, offer the rest, and block other library skills."""
+"""Task-use gate hook: load every relevant library skill for the prompt and the active ask, flag loads over the guideline, and block other library skills."""
 
 import json
 import os
 import re
-import shutil
 import sys
 from pathlib import Path
 from typing import Any, TypedDict
@@ -17,23 +16,25 @@ OVERRIDE_FILE = SKILLS_DIR / "eval_override.json"
 SESSION_ID = re.compile(r"^[\w-]+$")
 SKILL_REF = re.compile(r"([^\s\"'/\\]+)[/\\]+SKILL\.md", re.I)
 ASK_TOOL = "vscode_askQuestions"
-LOAD_HEADER = "load-skills"
 sys.path.insert(0, str(ROOT / "tools" / "skills"))
 sys.path.insert(0, str(ROOT / "tools" / "loop"))
 from recommend import rank  # noqa: E402
-from lifecycle import current_skills  # noqa: E402
+from lifecycle import active, current_skills, install, shift_message, topic_shift  # noqa: E402
 
 Json = dict[str, Any]
 
 
 class Loadout(TypedDict):
-    """Skills chosen for one session, ranked skills over budget that the user may add, and whether the loadout was announced."""
+    """Skills chosen for one session, their token total, whether that exceeds the loadout guideline, and whether the loadout was announced."""
 
     categories: list[str]
     skills: list[str]
-    recommended: list[str]
+    tokens: int
+    over_budget: bool
+    budget: dict[str, int]
     announced: bool
     used: list[str]
+    shift_noted: str | None
 
 
 def state_file(session_id: str) -> Path:
@@ -49,37 +50,49 @@ def library() -> set[str]:
     return {p.name for folder in folders if folder.is_dir() for p in folder.iterdir() if p.is_dir()}
 
 
-def install(sources: list[str]) -> None:
-    """Copy library skills into <workspace>/.hve/skills/<name>/ so the agent reads them inside the workspace."""
-    for source in sources:
-        shutil.copytree(ROOT / source, STATE_DIR / "skills" / Path(source).name, dirs_exist_ok=True)
-
-
 def choose(prompt: str) -> Loadout:
-    """Return the eval override's skills if present, else the required and active lifecycle stage's skills plus the ranked skills that fit the budget, and the ranked rest."""
+    """Return the eval override's skills if present, else the required and active ask's skills plus every skill ranked for the prompt
+    (none once the user has chosen the ask's skills)."""
     if OVERRIDE_FILE.exists():
         skills = json.loads(OVERRIDE_FILE.read_text(encoding="utf-8"))["skills"]
-        return Loadout(categories=[], skills=skills, recommended=[], announced=False, used=list(skills))
+        return Loadout(categories=[], skills=skills, tokens=0, over_budget=False, budget={}, announced=False, used=list(skills),
+                       shift_noted=None)
     value = os.environ.get("HARNESS_REQUIRED_SKILLS")
     required = tuple(name.strip() for name in value.split(",")) if value is not None else ()
     required += tuple(s for s in current_skills() if s not in required)
-    ranked = rank(prompt, os.environ["HARNESS_SKILLS_MIN_STATUS"], required)  # type: ignore[arg-type]
+    chosen = (STATE_DIR / "asks" / "active.json").is_file() and active()[1]["skills"]["choice"] is not None
+    ranked = rank("" if chosen else prompt, os.environ["HARNESS_SKILLS_MIN_STATUS"], required)  # type: ignore[arg-type]
     skills = [r["path"] for r in ranked["load"]]
-    return Loadout(categories=ranked["categories"], skills=skills,
-                   recommended=[r["path"] for r in ranked["recommend"]], announced=False, used=list(skills))
+    return Loadout(categories=ranked["categories"], skills=skills, tokens=ranked["load_tokens"], over_budget=ranked["over_budget"],
+                   budget=ranked["budget"], announced=False, used=list(skills), shift_noted=None)
 
 
 def announcement(loadout: Loadout) -> str:
-    """Return the instruction naming the loaded skills and, if any, the ranked skills over budget to offer the user."""
-    text = ""
-    if loadout["skills"]:
-        paths = ", ".join(f".hve/skills/{Path(s).name}/SKILL.md" for s in loadout["skills"])
-        text = f"Skills loaded for this task: read and follow {paths} before continuing. Do not use other library skills."
-    if loadout["recommended"]:
-        names = ", ".join(Path(s).name for s in loadout["recommended"])
-        text += (f" Also relevant but over the loadout budget (ranked): {names}. Tell the user and ask with the ask-questions tool "
-                 f"(header `{LOAD_HEADER}`, multi-select, labels = skill names) which to add; only ticked skills load.")
-    return text.strip()
+    """Return the instruction naming the loaded skills and, when the load exceeds the guideline, telling the agent to surface it."""
+    if not loadout["skills"]:
+        return ""
+    paths = ", ".join(f".hve/skills/{Path(s).name}/SKILL.md" for s in loadout["skills"])
+    text = (f"Skills loaded for this task ({len(loadout['skills'])}, {loadout['tokens']:,} tokens): read and follow {paths} before "
+            "continuing. Do not use other library skills.")
+    if loadout["over_budget"]:
+        text += (f" This is over the loadout guideline ({loadout['budget']['max_skills']} skills, {loadout['budget']['max_tokens']:,} "
+                 "tokens): ask the user once whether to keep the suggested set, all, or named skills, then run `lifecycle.py skills "
+                 "suggested|all|<a,b>`; the ask's plan.md lists the skills and the suggested set.")
+    return text
+
+
+def shift_output(loadout: Loadout, prompt: str) -> Json | None:
+    """Return a once-per-ask recommendation for a new session or workspace when the prompt starts different work from the active ask."""
+    if not (STATE_DIR / "asks" / "active.json").is_file():
+        return None
+    data = active()[1]
+    shift = topic_shift(" ".join([data["request"], *(t["name"] for t in data["tasks"])]), prompt)
+    if shift is None or loadout["shift_noted"] == data["ask"]:
+        return None
+    loadout["shift_noted"] = data["ask"]
+    message = shift_message(shift, data["ask"])
+    return {"systemMessage": message, "hookSpecificOutput": {"hookEventName": "UserPromptSubmit", "additionalContext":
+            f"{message} Relay this recommendation to the user in one line before starting; if they stay, open a new ask with lifecycle.py contract."}}
 
 
 def pre_tool_output(session_id: str, loadout: Loadout, tool_input: Json) -> Json | None:
@@ -95,27 +108,14 @@ def pre_tool_output(session_id: str, loadout: Loadout, tool_input: Json) -> Json
         if reason is not None:
             return {"hookSpecificOutput": {"hookEventName": "PreToolUse", "permissionDecision": "deny", "permissionDecisionReason": reason}}
         loadout["used"] = sorted({*loadout["used"], *(f"skills/admitted/{m}" for m in blocked)})
-    if loadout["announced"] or not (loadout["skills"] or loadout["recommended"]):
+    if loadout["announced"] or not loadout["skills"]:
         return None
     loadout["announced"] = True
     return {"hookSpecificOutput": {"hookEventName": "PreToolUse", "additionalContext": announcement(loadout)}}
 
 
-def add_ticked(loadout: Loadout, tool_input: Json, tool_response: Any) -> list[str]:
-    """Move the skills the user ticked under the load-skills question from recommended into the loadout; return them."""
-    if not any(q["header"] == LOAD_HEADER for q in tool_input["questions"]):
-        return []
-    answer = (json.loads(tool_response) if isinstance(tool_response, str) else tool_response)["answers"][LOAD_HEADER]
-    ticked = [s for s in loadout["recommended"] if Path(s).name in (answer.get("selected") or [])]
-    loadout["skills"] += ticked
-    loadout["used"] = sorted({*loadout.get("used", []), *ticked})
-    loadout["recommended"] = [s for s in loadout["recommended"] if s not in ticked]
-    loadout["announced"] = loadout["announced"] and not ticked
-    return ticked
-
-
 def main() -> None:
-    """Choose and install the loadout on UserPromptSubmit; enforce and announce it on PreToolUse; add ticked skills on PostToolUse."""
+    """Choose and install the loadout on UserPromptSubmit; enforce and announce it on PreToolUse; record guard-waiver answers on PostToolUse."""
     payload = json.load(sys.stdin)
     path = state_file(payload["session_id"])
     event = payload["hook_event_name"]
@@ -125,20 +125,28 @@ def main() -> None:
             previous = json.loads(path.read_text(encoding="utf-8"))
             # Loadouts written before `used` existed carry only their current skills.
             loadout["used"] = sorted({*previous.get("used", previous["skills"]), *loadout["used"]})
+            loadout["shift_noted"] = previous.get("shift_noted")
+        output = shift_output(loadout, payload["prompt"])
         install(loadout["skills"])
         path.write_text(json.dumps(loadout), encoding="utf-8")
+        if output:
+            print(json.dumps(output))
         return
     if event not in ("PreToolUse", "PostToolUse"):
         raise ValueError(f"skill_loader.py does not handle hook event {event!r}")
     if not path.exists():
-        raise FileNotFoundError(f"{path} missing: the UserPromptSubmit skill_loader hook did not run for this session")
-    loadout = json.loads(path.read_text(encoding="utf-8"))
+        if not (STATE_DIR / "asks" / "active.json").is_file():
+            raise FileNotFoundError(f"{path} missing: the UserPromptSubmit skill_loader hook did not run for this session and no ask is active")
+        # Harnesses whose prompt hook carries no prompt or ran before the ask existed: load the active ask's skills for its request.
+        loadout = choose(active()[1]["request"])
+        install(loadout["skills"])
+    else:
+        loadout = json.loads(path.read_text(encoding="utf-8"))
     output = None
     if event == "PreToolUse":
         output = pre_tool_output(payload["session_id"], loadout, payload["tool_input"])
     elif payload["tool_name"] == ASK_TOOL:
         record_answers(payload["session_id"], payload["tool_input"], payload["tool_response"])
-        install(add_ticked(loadout, payload["tool_input"], payload["tool_response"]))
     path.write_text(json.dumps(loadout), encoding="utf-8")
     if output:
         print(json.dumps(output))

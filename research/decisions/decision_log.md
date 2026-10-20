@@ -308,3 +308,72 @@
 - Plan check: `lifecycle.py plan-sync` stores the hash of `plan.md` as a revision with a one-line note; `hooks/plan_check.py` adds reconcile context on each prompt and denies `loop.py init/next/amend` and `lifecycle.py stage` while the hash differs, for edits by the user or the agent.
 - Provenance: `lifecycle.facts` compares the contract with the session's facts (skills used, templates authored, plan sync, decisions, guard trips and waivers); `provenance.py` reports it as the `contract` component (failed on gaps in done stages or an unsynced plan) plus a `guards` summary for every agent.
 - Verified by `tests/test_loop.py`, `tests/test_collect.py`, `tests/test_skills.py`, `tests/test_extension.py`. Not verified live. Extension 0.10.0.
+
+## D-050 — Relevance-first skills without a cap, an ask contract for every agent, open tool lists, every harness
+- User decisions (2026-10-19):
+  - rank skills by relevance with status ignored and include the imported skills;
+  - drop no skills, but flag a load over 2,000 tokens in `plan.md`;
+  - sub-agents get the skills, MCP servers, plugin skills and rules;
+  - work in every harness;
+  - give every ask a contract of skills, tasks, personas and milestones;
+  - provenance compares recommended with used;
+  - remove `tools:` lists without a token blow-up;
+  - OpenTelemetry comes later.
+
+  Install level (my recommendation, user asked): user scope by default, project scope only for the cloud agent.
+- Why the agents appeared only in Local:
+  - `chat.pluginLocations` is read only by VS Code's Local harness.
+  - Agent-scoped hooks and handoffs are Local-only (VS Code docs).
+  - The Copilot harness and Copilot CLI read `~/.copilot` and `.github`, Claude reads `.claude`, and the cloud agent reads only the repository.
+  - Copilot's config-file hooks drop prompt-submit output and add no context before a tool.
+- Skills (`recommend.rank`):
+  - Candidates are skills sharing a task category with the prompt, or rare words at relevance ≥ `loadout.keyword_floor` (0.5). The floor is my addition: without it the color-palette prompt loaded 17 skills (24,590 tokens), including keyword noise at 0.14.
+  - Order is by relevance, then measured lift, then tokens; status only filters by the agent's floor.
+  - Every candidate loads; `over_budget` flags more than 10 skills or 2,000 tokens. The `load-skills` offer is removed.
+  - Known weakness: the `ux` category is broad (it holds `prd`, `power-automate-desktop` and `model-driven-app`), so the color-palette prompt still loads 14 skills (19,668 tokens). Category assignment needs a review.
+- Ask contract (`tools/loop/lifecycle.py`):
+  - `contract` (built-in lifecycle `direct` for agents without one; `+skill` to require one) records `skills`, `personas`, `tasks` (`tasks-sync`), `environment`, `delegations` and `reported`.
+  - It installs the skills to `.hve/skills/` and writes a generated skills-and-tools block in `plan.md`, which the plan check's hash excludes.
+  - `brief` gives each sub-agent its skills, plugin skills, MCP servers, rules and the `SKILLS-USED` reply line; `used` records that line; `close` and `open` toggle the active ask.
+  - `tools/loop/environment.py` detects the harness, MCP servers per harness with an estimated tool load (`context_load.tool_load`: 1,500 tokens per server, warning over 6,000), Frontier HVE hook files and plugin skills.
+  - All commands run in a terminal, so they work without hooks.
+- Hooks:
+  - `compaction.py` adds the ask's skills and the `SKILLS-USED` rule to every sub-agent.
+  - When the prompt hook could not run, `skill_loader` derives the loadout from the open ask.
+  - The PreToolUse and PostToolUse skill loaders carry `HARNESS_SKILLS_MIN_STATUS`.
+- Tools: working agents have no `tools:` list. Council, evaluation-reviewer, flow-architect and flow-maintainer (read-only), skill-judge and skill-worker (blind) and minimal (baseline) keep theirs. Token cost is measured and warned about, not capped. The before/after benchmark gate (≤ +15% first-request and ≤ +10% total prompt tokens, from provenance) is not run yet.
+- Every harness (`tools/adapters/export.py`, `hooks/agent_compat.py`):
+  - Every HVE agent is exported, at `--user` or project scope.
+  - `copilot` (user) writes `~/.copilot/agents`, `skills` and `hooks/hve.json`; `cloud` (project) writes `.github/...` with a committed runtime and `python3` hooks.
+  - Copilot agents lose the Local-only fields; kept tool lists map to Copilot's aliases.
+  - Hook files that every session runs use `agent_compat --ask-only` and act only while `.hve/asks/active.json` exists. Copilot payloads and outputs are mapped, with the timestamp as the tool call id.
+  - **Frontier HVE: Install for other harnesses** runs the exports and sets `chat.hookFilesLocations` so Local does not run those files twice.
+- Provenance: `lifecycle.facts.usage` and `report` add a recommended-against-used table:
+  - skills, read (hook) or reported (self-reported);
+  - personas, planned or delegated;
+  - tasks;
+  - MCP servers, called per the feature-loop tool log;
+  - hook files and the hooks seen.
+
+  `provenance.py` names the unused recommendations.
+- Verified by `tests/test_skills.py`, `test_collect.py`, `test_hooks.py`, `test_adapters.py`, `test_extension.py` and `test_loop.py`. Not verified live:
+  - the user-level folders for Copilot, Codex and Cursor skills;
+  - the VS Code Copilot harness listing `~/.copilot/agents`;
+  - Copilot's acceptance of PascalCase events and flat outputs;
+  - the cloud agent run;
+  - the benchmark gate.
+
+  Extension 0.11.0.
+
+## D-051 — Timestamped ask folders, topic-switch recommendations, a suggested skill set
+- User decisions (2026-10-19): move each ask's files (`feature_list.json`, `progress.txt`, `tracker.json` and the rest) under `.hve/asks/<YYYYMMDD-HHMM>-<slug>/loop/`; recommend a new session or workspace when the topic switches; over 2,000 skill tokens, recommend a set under 2,000 or, if the user keeps all, record how much was cached. The user accepted all my recommendations below.
+- Layout (`tools/loop/loop_paths.py`): with an ask open in the project, the loop files and loop state (`state.json`, `attempts/`, `evidence/`, `prs/`, `choices/`, `checks/`, `tool_log.jsonl`, `options/`, `flow.json`) live in the ask's `loop/`. With no ask open (research arms, `bench.py`, `collect.py`, trajectories) the old layout stays: loop files in the project, state in `.harness/`. Ask ids are UTC `YYYYMMDD-HHMM-<slug>`, checked wherever `active.json` is read; `contract` refuses an existing folder and copies the request to `request.md`.
+- Git: `.hve/` stays ignored, so the loop files leave git. Commits keep a read-only record instead: `[init]` and `[amend]` bodies list each locked `name: verify`; `[progress]` names the check that passed. Commits are `--allow-empty` because a fresh repo may have nothing else to commit.
+- Evidence: `loop.py` and the output evaluation run checks with `HVE_EVIDENCE` set to the evidence folder; `.harness/` patterns in the evaluation contract resolve to the ask's `loop/`.
+- Guards: `loop_guard` protects the ask's `loop/` state always and its loop files while features fail; `flow_guard`, the plugin's choice recorder and guardrail, diagnosis, branch workflow, parallel options, flow and provenance all go through `loop_paths`.
+- Topic switch (`lifecycle.topic_shift`): compares the prompt's subject words (stems without creation verbs and lifecycle fit words) with the open ask's request and task names. A different kind of deliverable (best-fitting lifecycle, e.g. `sdlc` against the new `document` lifecycle) with overlap under 0.2 recommends a new workspace; a prompt starting with a creation verb, at least 3 subject words and overlap under 0.2 recommends a new chat; anything else is a follow-up. `skill_loader` shows it once per ask per session (`systemMessage` plus context for the agent); `contract` records it as `previous_ask`. Never blocks. Heuristic, so false positives cost one line.
+- Skills: `rank` adds `suggested` (required skills, then the most relevant per token that fit 10 skills and 2,000 tokens). For the color-palette prompt: 22 candidates at 29,574 tokens, suggested `ux-flows`, `api-design`, `ui-anti-slop`, `architecture-options` at 1,606. Agents ask once; `lifecycle.py skills suggested|all|<a,b>` records the choice with the tokens over the guideline and stops prompt ranking for the rest of the ask.
+- Caching: `provenance.md` adds a skill-load line and a prompt-cache line from the session's metrics rows (cache reads against prompt tokens, measured from Copilot OTel), or "not measured" when the session has no metrics rows. Only the research arms run the metrics hook, so product-agent sessions read "not measured" until a metrics hook for product agents is added. Live OTel for product sessions stays deferred.
+- New `document` lifecycle (brief, research, outline, draft, review) and `document` skill category; `prose-anti-slop` is tagged with it.
+- `lifecycle.py` split: `tools/loop/ask_report.py` holds facts, usage, cache and the report (`lifecycle.py report` still works).
+- Verified by `tests/test_loop.py` (ask-mode loop, evidence, guard), `test_skills.py` (choice, topic shift, suggested set), `test_collect.py` (paths, request copy, choice, cache line, new-workspace recommendation) and the full suite. Not verified live: the `systemMessage` in each harness, and the cache line on a real telemetry session. Extension 0.12.0.

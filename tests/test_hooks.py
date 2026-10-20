@@ -99,12 +99,19 @@ def test_over_specified_prompt_and_invalid_profile() -> None:
 
 
 def test_subagent_start_gets_return_cap() -> None:
-    """Every sub-agent starts with the instruction to return a summary under 2,000 tokens."""
+    """Every sub-agent starts with the instruction to return a summary under 2,000 tokens; inside an ask it also gets the ask's skills."""
     with tempfile.TemporaryDirectory() as tmp:
         root = make_root(tmp, EMPTY_PROFILE)
         context = output(fire(root, "compaction.py", {"hook_event_name": "SubagentStart", "agent_id": "a1", "agent_type": "creator"}))
         assert "under 2,000 tokens" in context["hookSpecificOutput"]["additionalContext"]
         assert "exactly one role" in context["hookSpecificOutput"]["additionalContext"]
+        assert "SKILLS-USED" not in context["hookSpecificOutput"]["additionalContext"]
+        (root / ".hve" / "asks" / "x").mkdir(parents=True)
+        (root / ".hve" / "asks" / "active.json").write_text(json.dumps({"active": "x"}), encoding="utf-8")
+        (root / ".hve" / "asks" / "x" / "contract.json").write_text(json.dumps({"skills": {"selected": [{"name": "ux-flows"}]}}), encoding="utf-8")
+        context = output(fire(root, "compaction.py", {"hook_event_name": "SubagentStart", "agent_id": "a2", "agent_type": "creator"}))
+        text = context["hookSpecificOutput"]["additionalContext"]
+        assert ".hve/skills/ux-flows/SKILL.md" in text and "SKILLS-USED" in text, text
 
 
 def test_graph_follows_project() -> None:

@@ -5,11 +5,15 @@ import json
 import os
 import re
 import subprocess
+import sys
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
 from contract import OUTPUT_KINDS, EvaluationContract, ValidationHook, items, load_contract, mapping, text, validate_contract
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "loop"))
+from loop_paths import evidence_dir, loop_dir, state_dir  # noqa: E402
 
 Json = dict[str, Any]
 RUN_ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,80}$")
@@ -69,11 +73,14 @@ def _advance(folder: Path, manifest: Json, status: str) -> None:
 
 
 def _inventory(project: Path) -> list[str]:
-    """Return project-relative files a scorer may cite, without dependencies or harness state."""
+    """Return project-relative files a scorer may cite, without dependencies or harness state, plus the feature checks' evidence."""
     files = []
     for folder, dirs, names in os.walk(project):
         dirs[:] = [d for d in dirs if d not in EXCLUDED_PARTS]
         files += [(Path(folder) / name).relative_to(project).as_posix() for name in names]
+    evidence = evidence_dir(project)
+    if EXCLUDED_PARTS.intersection(evidence.relative_to(project).parts) and evidence.is_dir():
+        files += [p.relative_to(project).as_posix() for p in evidence.rglob("*") if p.is_file()]
     return sorted(files)
 
 
@@ -188,9 +195,10 @@ def _run(command: str, project: Path, timeout: int, env: dict[str, str] | None =
 
 def _feature_checks(project: Path, hook: ValidationHook) -> Json:
     """Re-run every locked feature check against the delivered output."""
-    features = items(_read_json(project / "feature_list.json"), "feature_list.json")
+    features = items(_read_json(loop_dir(project) / "feature_list.json"), "feature_list.json")
+    env = {**os.environ, "HVE_EVIDENCE": str(evidence_dir(project).resolve())}
     runs = [{"feature": text(mapping(f, "feature").get("name"), "feature.name")}
-            | _run(text(f.get("verify"), "feature.verify"), project, hook["timeoutSeconds"]) for f in features]
+            | _run(text(f.get("verify"), "feature.verify"), project, hook["timeoutSeconds"], env) for f in features]
     passed = sum(1 for r in runs if r["exitCode"] == 0)
     return {"passed": bool(runs) and passed == len(runs), "detail": f"{passed}/{len(runs)} feature checks passed", "runs": runs}
 
@@ -202,8 +210,10 @@ def _command(project: Path, folder: Path, hook: ValidationHook) -> Json:
 
 
 def _artifacts(project: Path, hook: ValidationHook) -> Json:
-    """Collect evidence files matching the hook's globs with their size and SHA-256."""
-    files = sorted({p for pattern in hook["paths"] for p in project.glob(pattern) if p.is_file()})
+    """Collect evidence files matching the hook's globs (`.harness/...` means the loop state folder) with their size and SHA-256."""
+    files = sorted({p for pattern in hook["paths"]
+                    for p in (state_dir(project).glob(pattern.removeprefix(".harness/")) if pattern.startswith(".harness/")
+                              else project.glob(pattern)) if p.is_file()})
     artifacts = [{"path": p.relative_to(project).as_posix(), "bytes": p.stat().st_size,
                   "sha256": hashlib.sha256(p.read_bytes()).hexdigest()} for p in files]
     return {"passed": bool(artifacts), "detail": f"collected {len(artifacts)} artifact(s)", "artifacts": artifacts}

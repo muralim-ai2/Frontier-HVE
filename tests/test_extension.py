@@ -67,13 +67,20 @@ def test_rendered_plugin_shape() -> None:
         assert re.search(r"^user-invocable: false", reviewer, re.M) and "edit/" not in reviewer
         assert not (out / "skills" / "ux-flows").exists() and (EXTENSION / "runtime" / "skills" / "admitted" / "ux-flows" / "SKILL.md").is_file()
         assert (out / "scripts" / "guardrail.py").exists()
+        restricted = {"council", "evaluation-reviewer", "minimal", "flow-architect", "flow-maintainer", "skill-judge", "skill-worker"}
         for name in agents:
             text = (out / "com.github.copilot" / "agents" / name).read_text(encoding="utf-8")
             assert "{{RUNTIME}}" not in text and re.search(r"^name: HVE ", text, re.M), name
             assert not re.search(r"^(model|reasoning-effort):|budget\.py|HARNESS_BUDGET", text, re.M), \
                 f"{name}: product agents use the picked model, no time budget"
+            assert bool(re.search(r"^tools:", text, re.M)) == (name.removeprefix("hve-").removesuffix(".agent.md") in restricted), \
+                f"{name}: only read-only, blind and baseline agents keep a fixed tool list"
             for script in re.findall(r'python "([^"]+\.py)"', text):
                 assert Path(script).is_file(), (name, script)
+        for name in ("creator", "creator-flow", "creator-github", "single", "product-manager", "e2e", "agile"):
+            text = (out / "com.github.copilot" / "agents" / f"hve-{name}.agent.md").read_text(encoding="utf-8")
+            assert "lifecycle.py" in text and "contract" in text and "lifecycle.py report" in text, name
+            assert name == "single" or "lifecycle.py brief" in text, name
 
 
 def test_render_for_python_launcher_and_fresh_workspace() -> None:
@@ -148,7 +155,8 @@ def test_product_manager_agent() -> None:
         pm = (folder / "hve-product-manager.agent.md").read_text(encoding="utf-8")
         assert pm.count("HVE_TEMPLATE_TYPES: prd") == 3, pm
         assert "HARNESS_REQUIRED_SKILLS: prd" in pm
-        assert "github/search_issues" in pm and "scoped to that repository" in pm
+        assert "`search_issues`" in pm and "scoped to that repository" in pm and "contract direct <slug> \"HVE product-manager\"" in pm
+        assert "+prd" in pm and "The council gets no brief" in pm
         assert "host-selected; actual model unconfirmed" in pm and 'label it "session model"' not in pm
         assert "read `.hve/skills/prd/SKILL.md`" in pm and "skills/admitted/prd/SKILL.md" not in pm
         assert "register prd --slug" in pm and "Create parents and dependencies before" in pm and "`uncovered`" in pm
@@ -164,7 +172,8 @@ def test_product_manager_agent() -> None:
             registry = json.loads((EXTENSION / "runtime" / "skills" / "registry.json").read_text(encoding="utf-8"))
             tokens = {entry["name"]: entry["skill_tokens"] for entry in registry["admitted"]}
             budget = json.loads((EXTENSION / "runtime" / "skills" / "categories.json").read_text(encoding="utf-8"))["loadout"]
-            assert sum(tokens[Path(skill).name] for skill in loadout["skills"]) <= budget["max_tokens"]
+            total = sum(tokens[Path(skill).name] for skill in loadout["skills"])
+            assert loadout["tokens"] == total and loadout["over_budget"] == (total > budget["max_tokens"] or len(loadout["skills"]) > budget["max_skills"])
             skill_path = ws / ".hve" / "skills" / "prd" / "SKILL.md"
             assert skill_path.is_file()
             for path in (skill_path, EXTENSION / "runtime" / "skills" / "admitted" / "prd" / "SKILL.md"):
@@ -254,7 +263,8 @@ def test_delivery_agents_and_lifecycles() -> None:
             made = subprocess.run([sys.executable, lifecycle_py, "contract", overlay, f"ask-{name}", f"HVE {name}", "req.md"],
                                   cwd=ws, capture_output=True, text=True)
             assert made.returncode == 0, made.stderr
-            assert json.loads((ws / ".hve" / "asks" / "active.json").read_text(encoding="utf-8")) == {"active": f"ask-{name}"}
+            active = json.loads((ws / ".hve" / "asks" / "active.json").read_text(encoding="utf-8"))["active"]
+            assert active == json.loads(made.stdout)["ask"] and re.fullmatch(rf"\d{{8}}-\d{{4}}-ask-{name}", active), active
 
 
 if __name__ == "__main__":
