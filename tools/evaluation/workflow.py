@@ -225,10 +225,14 @@ def validate_run(project: Path, run_id: str) -> Json:
     scores = {r["id"]: r for r in _read_json(folder / "rubric-results.json")["rubrics"]}
     revision = manifest["revisionPass"] > 0
     low = [r["id"] for r in contract["rubrics"] if revision or scores[r["id"]]["status"] != "ok"]
-    results, not_applicable = [], []
+    results, not_applicable, reasons = [], [], {}
     for hook in contract["validation"]["hooks"]:
         if manifest["outputKind"] not in hook["outputKinds"]:
             not_applicable.append(hook["id"])
+            continue
+        if hook["type"] == "feature-checks" and not (loop_dir(project) / "feature_list.json").is_file():
+            not_applicable.append(hook["id"])
+            reasons[hook["id"]] = "no feature loop ran for this output, so there are no locked checks to re-run"
             continue
         linked = [r["id"] for r in contract["rubrics"] if hook["id"] in r["validationHooks"]]
         rubrics = linked if hook["trigger"] == "always" else [r for r in linked if r in low]
@@ -238,7 +242,8 @@ def validate_run(project: Path, run_id: str) -> Json:
                    else _command(project, folder, hook) if hook["type"] == "command" else _artifacts(project, hook))
         results.append({"id": hook["id"], "type": hook["type"], "required": hook["required"], "rubrics": rubrics} | outcome)
     passed = all(r["passed"] for r in results if r["required"])
-    _write_json(folder / "validation-results.json", {"triggeredBy": low, "notApplicable": not_applicable, "hooks": results,
+    _write_json(folder / "validation-results.json", {"triggeredBy": low, "notApplicable": not_applicable, "notApplicableWhy": reasons,
+                                                     "hooks": results,
                                                      "passed": passed})
     _advance(folder, manifest, "awaiting-council")
     return {"runId": run_id, "status": "awaiting-council", "passed": passed,

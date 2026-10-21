@@ -2,7 +2,7 @@
   "name": "frontier-hve",
   "displayName": "Frontier HVE",
   "description": "Enterprise AI harness for GitHub Copilot: HVE agents with a verified feature loop, graph workflow, guards and human-ticked PRs.",
-  "version": "0.12.0",
+  "version": "0.14.0",
   "publisher": "muralim-ai2",
   "license": "UNLICENSED",
   "repository": {
@@ -29,6 +29,10 @@
       {
         "command": "frontierHve.researchTelemetry",
         "title": "Frontier HVE: Turn on research telemetry (benchmarks only)"
+      },
+      {
+        "command": "frontierHve.researchTelemetryOff",
+        "title": "Frontier HVE: Turn off research telemetry"
       }
     ]
   }

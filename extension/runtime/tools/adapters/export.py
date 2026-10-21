@@ -15,6 +15,7 @@ RUNTIME_PATH = ".hve/runtime"
 CLOUD_RUNTIME_PATH = ".github/hve/runtime"
 HOOK_SOURCE = "hve-creator.agent.md"
 SKIP_SKILLS = {"pr-push", "export-harness"}
+UNVERIFIED_EVENTS = {"SubagentStop"}  # not confirmed for Codex and Copilot hook files; an unknown event could void the whole file
 LAYOUT = {"claude": {"skills": ".claude/skills", "agents": ".claude/agents"},
           "cursor": {"skills": ".cursor/skills", "hooks": ".cursor/hooks.json"},
           "codex": {"skills": ".agents/skills", "hooks": ".codex/hooks.json"},
@@ -180,8 +181,9 @@ def hooks_file(t: Target, agent: Agent) -> Json:
                                         for event, hooks in agent["hooks"].items() if event in CURSOR_EVENTS}}
     if t["client"] in ("copilot", "cloud"):
         return {"version": 1, "hooks": {event: [{"type": "command", "command": shell_command(t, h), "timeoutSec": h["timeout"] or 30}
-                                                for h in hooks] for event, hooks in agent["hooks"].items()}}
-    return {"hooks": {event: [{"hooks": [{"type": "command"} | handler(t, h) for h in hooks]}] for event, hooks in agent["hooks"].items()}}
+                                                for h in hooks] for event, hooks in agent["hooks"].items() if event not in UNVERIFIED_EVENTS}}
+    return {"hooks": {event: [{"hooks": [{"type": "command"} | handler(t, h) for h in hooks]}] for event, hooks in agent["hooks"].items()
+                      if event not in UNVERIFIED_EVENTS}}
 
 
 def write_owned(path: Path, text: str) -> None:

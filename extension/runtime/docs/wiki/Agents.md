@@ -11,7 +11,7 @@ Pick these in a new chat. In VS Code the extension's agents and their agent-scop
 | `HVE creator-github` | Product work on GitHub: stacked branches, options you pick, PRs pushed only when you tick them | as creator | Yes |
 | `HVE e2e` | End-to-end delivery along a lifecycle (SDLC, consulting or a plugin/workspace one) with a gate per stage | as creator | Yes |
 | `HVE agile` | Sprints along an agile overlay with product manager, UI/UX (prototype) and engineer personas and a review per sprint | as creator | Yes |
-| `HVE prototype` | Fast UI/UX clickthrough (HTML or TypeScript) in the ask folder's `prototype/`; no loop or evaluation | loop (safety only) | Yes |
+| `HVE prototype` | Fast UI/UX clickthrough (HTML or TypeScript) in the ask folder's `prototype/`, tracked as its own ask when you run it; no loop; output evaluation on request | loop (safety only) | Yes |
 | `HVE product-manager` | Research, PRD in the configured template, backlog ([Product Manager](Product-Manager.md)) | template (PRD only), skill (`prd` always loaded), profile, compaction | Yes |
 | `HVE single` | One agent with file, search and terminal tools | template | Yes |
 | `HVE minimal` | Baseline answer, no tools | none | No |
@@ -46,6 +46,9 @@ The contract prints `paths` (ask, plan, loop, feature list, evidence). `.hve/` i
 | `environment` | Harness, MCP servers per harness with tool load, Frontier HVE hook files, plugin skills |
 | `delegations`, `reported` | Each sub-agent brief and the `SKILLS-USED` line it returned |
 | `previous_ask` | The ask this one replaced, with the new-chat or new-workspace recommendation when the work differs |
+| `checklist` | Your sign-off of each option (`opt:evaluation`, `opt:telemetry`), milestone (`stage:<name>`) and task (`task:<feature>`): value, note, and whether it came from the agent's form or a tick in `plan.md` ([Ways of working](Ways-of-Working.md#what-you-are-asked-and-why)) |
+
+When another ask is still open (milestones not done, or an evaluation you asked for not run), the new ask still gets its own folder; the contract reports it as `previous_open` and the other chat is told once to run `lifecycle.py open <its ask>` ([Parallel chats](Ways-of-Working.md#parallel-chats)).
 
 **Skill load over the guideline** (10 skills or 2,000 tokens): nothing is dropped silently. The contract computes a suggested set (required skills, then the most relevant per token that fit) and the agent asks once: suggested, all, or named skills. `lifecycle.py skills suggested|all|<a,b>` applies the choice, records it with the tokens over the guideline, and stops the skill loader adding prompt-ranked skills for the rest of the ask. The provenance report adds the skill load and the prompt cache: cache reads against prompt tokens when the session has metrics rows (the research arms' metrics hook with Copilot OTel), otherwise "not measured".
 

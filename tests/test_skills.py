@@ -238,7 +238,7 @@ def library_root(tmp: str) -> Path:
         shutil.copy(REPO / "hooks" / hook, root / "hooks")
     for script in ("recommend.py", "context_load.py", "scan.py"):
         shutil.copy(REPO / "tools" / "skills" / script, root / "tools" / "skills")
-    for script in ("lifecycle.py", "environment.py", "loop_paths.py"):
+    for script in ("lifecycle.py", "environment.py", "loop_paths.py", "ask_plan.py"):
         shutil.copy(REPO / "tools" / "loop" / script, root / "tools" / "loop")
     config = json.loads((REPO / "skills" / "categories.json").read_text(encoding="utf-8")) | {"loadout": {"max_skills": 2, "max_tokens": 1000, "keyword_floor": 0.5}}
     (root / "skills" / "admitted").mkdir(parents=True)
@@ -286,9 +286,8 @@ def test_skill_loader_loads_all_relevant_flags_budget_and_scoped_deny() -> None:
         assert fire(root, {"session_id": "s3", "hook_event_name": "PreToolUse", "tool_input": {"filePath": "x.ts"}}) == ""
 
 
-def open_ask(root: Path, request: str, choice: str | None = None) -> None:
+def open_ask(root: Path, request: str, choice: str | None = None, ask: str = "20261019-1200-x") -> None:
     """Write an active ask in design (layout) with forms selected, the given request and skill choice."""
-    ask = "20261019-1200-x"
     (root / ".hve" / "asks" / ask).mkdir(parents=True)
     (root / ".hve" / "asks" / "active.json").write_text(json.dumps({"active": ask}), encoding="utf-8")
     stages = [{"name": "design", "skills": ["layout"]}, {"name": "build", "skills": ["research"]}]
@@ -330,6 +329,24 @@ def test_skill_choice_stops_prompt_ranking_and_topic_shift_is_recommended_once()
         assert "new chat" in message["systemMessage"] and "20261019-1200-x" in message["systemMessage"], message
         assert "Relay" in message["hookSpecificOutput"]["additionalContext"], message
         assert fire(root, shift, **env) == ""
+
+
+def test_chat_is_told_once_when_another_chat_opens_an_ask() -> None:
+    """A chat that opened ask x is told once, before its next tool call, that another chat made ask y the open ask."""
+    with tempfile.TemporaryDirectory() as tmp:
+        root = library_root(tmp)
+        open_ask(root, "Build a War of the Worlds timeline")
+        env = {"HARNESS_SKILLS_MIN_STATUS": "provisional"}
+        opened = {"hook_event_name": "PostToolUse", "session_id": "p1", "tool_name": "run_in_terminal", "tool_response": "{}",
+                  "tool_input": {"command": 'python "rt/tools/loop/lifecycle.py" contract direct x "HVE creator" .hve/asks/request.md'}}
+        fire(root, opened, **env)
+        pre = {"hook_event_name": "PreToolUse", "session_id": "p1", "tool_input": {"filePath": "x.ts"}}
+        first = json.loads(fire(root, pre, **env))["hookSpecificOutput"]["additionalContext"]
+        assert "Another chat" not in first, first
+        open_ask(root, "Build a chess quiz", ask="20261019-1300-y")
+        note = json.loads(fire(root, pre, **env))["hookSpecificOutput"]["additionalContext"]
+        assert "Another chat opened ask 20261019-1300-y" in note and "lifecycle.py open 20261019-1200-x" in note, note
+        assert fire(root, pre, **env) == ""
 
 
 def test_rank_suggests_most_relevant_per_token_within_guideline() -> None:
@@ -414,6 +431,7 @@ if __name__ == "__main__":
     test_skill_loader_loads_all_relevant_flags_budget_and_scoped_deny()
     test_lifecycle_stage_skills_load_and_are_allowed()
     test_skill_choice_stops_prompt_ranking_and_topic_shift_is_recommended_once()
+    test_chat_is_told_once_when_another_chat_opens_an_ask()
     test_rank_suggests_most_relevant_per_token_within_guideline()
     test_required_skills_load_first_and_outside_categories()
     test_prd_skill_is_template_and_tracker_neutral()

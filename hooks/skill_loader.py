@@ -15,6 +15,7 @@ SKILLS_DIR = ROOT / "skills"
 OVERRIDE_FILE = SKILLS_DIR / "eval_override.json"
 SESSION_ID = re.compile(r"^[\w-]+$")
 SKILL_REF = re.compile(r"([^\s\"'/\\]+)[/\\]+SKILL\.md", re.I)
+OPENS_ASK = re.compile(r"lifecycle\.py\"?\s+(contract|open)\b")
 ASK_TOOL = "vscode_askQuestions"
 sys.path.insert(0, str(ROOT / "tools" / "skills"))
 sys.path.insert(0, str(ROOT / "tools" / "loop"))
@@ -35,6 +36,8 @@ class Loadout(TypedDict):
     announced: bool
     used: list[str]
     shift_noted: str | None
+    ask: str | None
+    displaced_noted: str | None
 
 
 def state_file(session_id: str) -> Path:
@@ -56,7 +59,7 @@ def choose(prompt: str) -> Loadout:
     if OVERRIDE_FILE.exists():
         skills = json.loads(OVERRIDE_FILE.read_text(encoding="utf-8"))["skills"]
         return Loadout(categories=[], skills=skills, tokens=0, over_budget=False, budget={}, announced=False, used=list(skills),
-                       shift_noted=None)
+                       shift_noted=None, ask=None, displaced_noted=None)
     value = os.environ.get("HARNESS_REQUIRED_SKILLS")
     required = tuple(name.strip() for name in value.split(",")) if value is not None else ()
     required += tuple(s for s in current_skills() if s not in required)
@@ -64,7 +67,7 @@ def choose(prompt: str) -> Loadout:
     ranked = rank("" if chosen else prompt, os.environ["HARNESS_SKILLS_MIN_STATUS"], required)  # type: ignore[arg-type]
     skills = [r["path"] for r in ranked["load"]]
     return Loadout(categories=ranked["categories"], skills=skills, tokens=ranked["load_tokens"], over_budget=ranked["over_budget"],
-                   budget=ranked["budget"], announced=False, used=list(skills), shift_noted=None)
+                   budget=ranked["budget"], announced=False, used=list(skills), shift_noted=None, ask=None, displaced_noted=None)
 
 
 def announcement(loadout: Loadout) -> str:
@@ -93,6 +96,20 @@ def shift_output(loadout: Loadout, prompt: str) -> Json | None:
     message = shift_message(shift, data["ask"])
     return {"systemMessage": message, "hookSpecificOutput": {"hookEventName": "UserPromptSubmit", "additionalContext":
             f"{message} Relay this recommendation to the user in one line before starting; if they stay, open a new ask with lifecycle.py contract."}}
+
+
+def displaced_context(loadout: Loadout) -> str | None:
+    """Return a once-per-switch note when another chat opened a different ask in this workspace after this chat opened its own."""
+    if loadout["ask"] is None or not (STATE_DIR / "asks" / "active.json").is_file():
+        return None
+    current = active()[1]["ask"]
+    if current == loadout["ask"] or loadout["displaced_noted"] == current:
+        return None
+    loadout["displaced_noted"] = current
+    return (f"Another chat opened ask {current} in this workspace, so lifecycle.py and loop.py now act on it, not on this chat's ask "
+            f"{loadout['ask']}. Before your next lifecycle.py or loop.py command run `lifecycle.py open {loadout['ask']}`, and tell the user "
+            "in one line: both asks keep their own folders, but parallel builds share one git checkout, so run them in separate folders or "
+            "git worktrees, one window each.")
 
 
 def pre_tool_output(session_id: str, loadout: Loadout, tool_input: Json) -> Json | None:
@@ -126,6 +143,8 @@ def main() -> None:
             # Loadouts written before `used` existed carry only their current skills.
             loadout["used"] = sorted({*previous.get("used", previous["skills"]), *loadout["used"]})
             loadout["shift_noted"] = previous.get("shift_noted")
+            loadout["ask"] = previous.get("ask")
+            loadout["displaced_noted"] = previous.get("displaced_noted")
         output = shift_output(loadout, payload["prompt"])
         install(loadout["skills"])
         path.write_text(json.dumps(loadout), encoding="utf-8")
@@ -142,11 +161,22 @@ def main() -> None:
         install(loadout["skills"])
     else:
         loadout = json.loads(path.read_text(encoding="utf-8"))
+    # Loadouts written before 0.14.0 do not track the chat's ask.
+    loadout.setdefault("ask", None)
+    loadout.setdefault("displaced_noted", None)
     output = None
     if event == "PreToolUse":
         output = pre_tool_output(payload["session_id"], loadout, payload["tool_input"])
+        note = displaced_context(loadout)
+        denied = output is not None and output["hookSpecificOutput"].get("permissionDecision") == "deny"
+        if note and not denied:
+            context = " ".join(filter(None, [output["hookSpecificOutput"]["additionalContext"] if output else "", note]))
+            output = {"hookSpecificOutput": {"hookEventName": "PreToolUse", "additionalContext": context}}
     elif payload["tool_name"] == ASK_TOOL:
         record_answers(payload["session_id"], payload["tool_input"], payload["tool_response"])
+    elif (payload["tool_name"] == "run_in_terminal" and OPENS_ASK.search(payload["tool_input"]["command"])
+          and (STATE_DIR / "asks" / "active.json").is_file()):
+        loadout["ask"] = active()[1]["ask"]
     path.write_text(json.dumps(loadout), encoding="utf-8")
     if output:
         print(json.dumps(output))

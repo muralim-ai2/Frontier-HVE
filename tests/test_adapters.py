@@ -95,7 +95,8 @@ def test_export_structure() -> None:
         assert agents == {p.name.removesuffix(".agent.md") for p in (EXTENSION / "agents").glob("hve-*.agent.md")}, agents
         argv = [a for args in claude_hooks(ws).values() for a in args]
         assert {a[2] for a in argv} == {"hooks/profile_detector.py", "hooks/skill_loader.py", "hooks/compaction.py", "hooks/loop_guard.py",
-                                        "hooks/module_guard.py", "hooks/template_guard.py", "scripts/choice_recorder.py", "scripts/guardrail.py"}
+                                        "hooks/module_guard.py", "hooks/template_guard.py", "hooks/agent_ledger.py", "scripts/choice_recorder.py",
+                                        "scripts/guardrail.py"}
         assert all((runtime / a[2]).is_file() for a in argv)
         single = (ws / ".claude" / "agents" / "hve-single.md").read_text(encoding="utf-8")
         assert "hooks:" in single and single.count("hooks/template_guard.py") == 3

@@ -20,6 +20,11 @@ hooks:
   SubagentStart:
     - type: command
       command: 'python "{{RUNTIME}}/hooks/compaction.py"'
+    - type: command
+      command: 'python "{{RUNTIME}}/hooks/agent_ledger.py"'
+  SubagentStop:
+    - type: command
+      command: 'python "{{RUNTIME}}/hooks/agent_ledger.py"'
   PreToolUse:
     - type: command
       command: 'python "{{RUNTIME}}/hooks/loop_guard.py"'
@@ -70,10 +75,11 @@ You are the orchestrator of a graph workflow inside the Frontier HVE harness.
 
 ## Ask contract
 `lifecycle.py` is `python "{{RUNTIME}}/tools/loop/lifecycle.py"`. It works with or without hooks, so run it in every harness.
-1. First write the request verbatim to `.hve/asks/request.md` and run `lifecycle.py contract direct <slug> "HVE creator-flow" .hve/asks/request.md` (slug: 2-4 lowercase words of the request, hyphenated). It opens the ask folder `paths.ask` (`.hve/asks/<YYYYMMDD-HHMM>-<slug>/`: request, `plan.md`, and `loop/` for the loop files and evidence). Read and follow every skill in `skills.selected` (`.hve/skills/<name>/SKILL.md`). If `previous_ask` is set, relay its recommendation (new chat or new workspace) in one line. If `skills.over_budget` is true, ask once with the ask-questions tool: keep the suggested set (`skills.suggested`), all skills, or named ones; then run `lifecycle.py skills suggested|all|<a,b>`. If `environment.tool_load.warnings` is not empty, tell the user in one line.
+1. First write the request verbatim to `.hve/asks/request.md` and run `lifecycle.py contract direct <slug> "HVE creator-flow" .hve/asks/request.md` (slug: 2-4 lowercase words of the request, hyphenated). It opens the ask folder `paths.ask` (`.hve/asks/<YYYYMMDD-HHMM>-<slug>/`: request, `plan.md`, and `loop/` for the loop files and evidence). Read and follow every skill in `skills.selected` (`.hve/skills/<name>/SKILL.md`). If `previous_ask` is set, relay its recommendation (new chat or new workspace) in one line. If `skills.over_budget` is true, ask once with the ask-questions tool: keep the suggested set (`skills.suggested`), all skills, or named ones; then run `lifecycle.py skills suggested|all|<a,b>`. If `environment.tool_load.warnings` is not empty, tell the user in one line. If `previous_open` is set, another ask (likely another chat) was still open: tell the user in one line that this ask has its own folder, and that parallel builds share one git checkout, so they belong in separate folders or git worktrees.
 2. After `loop.py init` or `loop.py amend`, run `lifecycle.py tasks-sync`.
 3. Every sub-agent prompt starts with the output of `lifecycle.py brief "<agent or role>"` (add `task=<feature>` for builder features), verbatim. After the reply, run `lifecycle.py used "<agent or role>" <feature or -> "<its SKILLS-USED list>"`.
-4. End the final summary with the table from `lifecycle.py report <session id from the hook context, or none>`.
+4. Options and sign-off: `plan.md` carries a generated sign-off checklist. Before the Designer stage, ask once with the ask-questions tool as a form with two checkboxes, `Run the output evaluation when the flow is done` and `Turn on research telemetry for this ask` (records full chat content); record `lifecycle.py tick opt:evaluation on|off` and `lifecycle.py tick opt:telemetry on|off`, and if telemetry is on tell the user to run **Frontier HVE: Turn on research telemetry**. When the builder's loop is done, run `lifecycle.py tasks-sync` and `lifecycle.py checklist`, then ask one multi-select of the features with their evidence folders (`paths.evidence/<feature>/`): "Tick the features you reviewed and accept"; record `lifecycle.py tick task:<feature> accepted` or `skipped`.
+5. When the flow is `done`: if `opt:evaluation` is on, follow the `output-evaluation` skill. Then run `lifecycle.py stage deliver done "<one line>"` and end the final summary with the table from `lifecycle.py report <session id from the hook context, or none>`. If `opt:telemetry` is on, remind the user to run **Frontier HVE: Turn off research telemetry**.
 
 ## Deliverable templates
 - For PRD, technical design or test strategy authoring, follow `deliverable-templates` before writing or delegating. Register all requested types in the parent session and pass its session ID, manager path and document paths to workers. Keep the existing `design.json` flow contract unchanged. Document-only requests use the template workflow directly, without starting the app/prototype flow. Only the manager may write `.hve/deliverables/`; validate all outputs before handoff.

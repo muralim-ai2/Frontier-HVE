@@ -116,7 +116,7 @@ async function enableResearchTelemetry() {
     return;
   }
   const choice = await vscode.window.showWarningMessage(
-    'Turn on the Copilot telemetry file export? It records full chat content into .hve/runs/copilot-otel.jsonl; use it for benchmarks only.',
+    'Turn on the Copilot telemetry file export? It records full chat content into .hve/runs/copilot-otel.jsonl. Use it for benchmarks or an ask that opted in, then turn it off ("Frontier HVE: Turn off research telemetry").',
     { modal: true }, 'Turn on');
   if (choice !== 'Turn on') {
     return;
@@ -125,6 +125,26 @@ async function enableResearchTelemetry() {
   await otel.update('enabled', true, vscode.ConfigurationTarget.Global);
   await otel.update('exporterType', 'file', vscode.ConfigurationTarget.Global);
   await otel.update('outfile', path.join(folders[0].uri.fsPath, '.hve', 'runs', 'copilot-otel.jsonl'), vscode.ConfigurationTarget.Global);
+}
+
+/**
+ * Turn off the Copilot OTel file export the research telemetry command turned on.
+ */
+async function disableResearchTelemetry() {
+  await vscode.workspace.getConfiguration('github.copilot.chat.otel').update('enabled', false, vscode.ConfigurationTarget.Global);
+  vscode.window.showInformationMessage('Research telemetry is off. Chats are no longer recorded to .hve/runs/copilot-otel.jsonl.');
+}
+
+/**
+ * Show a status bar reminder, which turns telemetry off when clicked, for as long as the Copilot OTel export is on.
+ * @param {vscode.StatusBarItem} item
+ */
+function showTelemetryReminder(item) {
+  if (vscode.workspace.getConfiguration('github.copilot.chat.otel').get('enabled') === true) {
+    item.show();
+  } else {
+    item.hide();
+  }
 }
 
 /**
@@ -250,7 +270,18 @@ async function activate(context) {
   context.subscriptions.push(
     vscode.commands.registerCommand('frontierHve.setup', () => setUp(context)),
     vscode.commands.registerCommand('frontierHve.installHarnesses', () => installHarnesses(context)),
-    vscode.commands.registerCommand('frontierHve.researchTelemetry', enableResearchTelemetry));
+    vscode.commands.registerCommand('frontierHve.researchTelemetry', enableResearchTelemetry),
+    vscode.commands.registerCommand('frontierHve.researchTelemetryOff', disableResearchTelemetry));
+  const telemetry = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left);
+  telemetry.text = '$(record) Research telemetry on';
+  telemetry.tooltip = 'Copilot chats are recorded with full content to .hve/runs/copilot-otel.jsonl. Click to turn research telemetry off.';
+  telemetry.command = 'frontierHve.researchTelemetryOff';
+  showTelemetryReminder(telemetry);
+  context.subscriptions.push(telemetry, vscode.workspace.onDidChangeConfiguration((event) => {
+    if (event.affectsConfiguration('github.copilot.chat.otel')) {
+      showTelemetryReminder(telemetry);
+    }
+  }));
   const python = await findPython();
   if (!python) {
     const item = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left);

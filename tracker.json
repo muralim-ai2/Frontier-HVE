@@ -111,6 +111,16 @@
       "id": "N36",
       "issue": "Built (D-051), extension 0.12.0: each ask in .hve/asks/<YYYYMMDD-HHMM>-<slug>/ with request.md and loop/ (feature_list.json, progress.txt, tracker.json, loop state, evidence via HVE_EVIDENCE); commits carry the locked checks; legacy layout when no ask is open; topic-switch recommendation (new chat or new workspace) once per ask; suggested skill set within 2,000 tokens with a recorded choice; skill-load and prompt-cache lines in provenance.md; document lifecycle and category. Unit-tested; not verified live.",
       "action": "User: install 0.12.0; in Local run HVE creator on the color palette: confirm the suggested-set question, then `lifecycle.py skills` records your choice in plan.md; check the workspace root stays clean and .hve/asks/<id>/loop/ holds the loop files and evidence; then ask for 'a formal presentation on revenue forecasting' in the same chat and confirm the new-workspace recommendation. Turn on research telemetry once to see the measured cache line."
+    },
+    {
+      "id": "N37",
+      "issue": "Built (D-052), extension 0.13.0, from the user's 2026-10-20 live tests: sign-off checklist in plan.md (options, milestones with personas, tasks with evidence) ticked in the file or via agent forms; agile pauses for review at every persona hand-off; output evaluation automatic for creator and e2e, opt-in checkbox for agile, prototype, product manager, creator-flow and creator-github (shared output-evaluation skill; works without a feature loop); contract refuses to replace an open ask without --replace; prototype and product manager open their own ask unless briefed; provenance.md pillars (OTel export when telemetry is on); Turn off research telemetry command and status bar reminder. Eleven decisions surfaced in D-052 for the research notes (parallel chats remain unsupported in one workspace). Unit-tested; not verified live.",
+      "action": "User: install 0.13.0 and rerun the Friendly prompt with e2e and agile in separate folders: check plan.md's sign-off checklist, the sign-off form after each stage or persona, ticking an item in plan.md, the evaluation checkbox in agile, and provenance.md's pillars. Tick opt:telemetry once to see measured pillars and the status bar reminder. Start a second agent in the same folder to see the open-ask question. Review the surfaced decisions in D-052."
+    },
+    {
+      "id": "N38",
+      "issue": "Built (D-053), extension 0.14.0: agent ledger hook (.hve/runs/<session>.agents.jsonl) and an Agents table in provenance.md (parent agent, sub-agent name and id, brief skills, reported skills, model from the client or OTel); parallel asks open their own folder (previous_open) instead of being refused, and a displaced chat is told once to reopen its ask. Discussion in research/findings/2026-10-21-parallel-sessions-and-agent-ledger.md. Unit-tested; not verified live.",
+      "action": "User: install 0.14.0; run e2e on the Friendly prompt and check provenance.md's Agents table; start HVE prototype in a second chat in the same folder and confirm it opens its own ask and the first chat is told to reopen its ask. Decide on the optional per-ask branch prefix for worktrees."
     }
   ],
   "wiki_topics": {
