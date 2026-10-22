@@ -11,7 +11,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "tools" / "template
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "tools" / "loop"))
 from manage import check_session, resolve  # noqa: E402
 from ask_report import facts, guard_summary  # noqa: E402
-from loop_paths import loop_dir, state_dir  # noqa: E402
+from loop_paths import loop_dir, state_file  # noqa: E402
 
 Status = Literal["verified", "not-exercised", "failed"]
 Json = dict[str, Any]
@@ -55,7 +55,7 @@ def _loop(project: Path) -> tuple[Finding, bool]:
     features_file = loop_dir(project) / "feature_list.json"
     if not features_file.is_file():
         return {"status": "not-exercised", "detail": f"no feature_list.json in {loop_dir(project)}"}, False
-    if not (state_dir(project) / "state.json").is_file() or not (loop_dir(project) / "progress.txt").is_file():
+    if not state_file(project).is_file() or not (loop_dir(project) / "progress.txt").is_file():
         return {"status": "failed", "detail": "feature_list.json exists but loop.py init never ran (loop state or progress.txt missing)"}, False
     features = json.loads(features_file.read_text(encoding="utf-8"))
     passing = sum(1 for f in features if f["passes"])

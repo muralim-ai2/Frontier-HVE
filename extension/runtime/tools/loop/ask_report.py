@@ -9,7 +9,7 @@ from typing import Any
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "hooks"))
 from lifecycle import WORKSPACE, active, plan_status  # noqa: E402
-from loop_paths import loop_dir, state_dir  # noqa: E402
+from loop_paths import loop_dir, state_dir, state_file  # noqa: E402
 from ask_plan import OPTIONS, items, refresh, ticked  # noqa: E402
 
 Json = dict[str, Any]
@@ -139,9 +139,11 @@ def agent_lines(runs: list[Json]) -> list[str]:
 
 
 def quality(workspace: Path, data: Json) -> Json:
-    """Return the ask's quality facts: feature checks passing, milestones and tasks signed off, and the latest output evaluation since it opened."""
+    """Return the ask's quality facts: its feature checks passing, milestones and tasks signed off, and the latest output evaluation since it opened."""
     features_file = loop_dir(workspace) / "feature_list.json"
     features = json.loads(features_file.read_text(encoding="utf-8")) if features_file.is_file() else []
+    lock = json.loads(state_file(workspace).read_text(encoding="utf-8"))["lock"] if state_file(workspace).is_file() else None
+    features = [f for f in features if lock is None or lock[f["name"]].get("ask") == data["ask"]]
     created = datetime.fromisoformat(data["created"]).timestamp()
     reports = sorted((p for p in (workspace / ".hve" / "evaluations").glob("*/report.json") if p.stat().st_mtime >= created),
                      key=lambda p: p.stat().st_mtime)

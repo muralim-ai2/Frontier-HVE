@@ -26,14 +26,20 @@ def export(ws: Path, client: str, *extra: str) -> Json:
     return json.loads(result.stdout)
 
 
+def guard_mode(runtime: Path, mode: str) -> None:
+    """Set the exported loop guard to enforce (deny) or advise (surface to the user)."""
+    (runtime / "hooks" / "guard_mode.json").write_text(json.dumps({"loop_guard": mode}), encoding="utf-8")
+
+
 def exported_workspace(tmp: str) -> Path:
-    """Build the extension and export all three clients plus the Azure DevOps server into a fresh workspace."""
+    """Build the extension and export all three clients plus the Azure DevOps server into a fresh workspace, loop guard enforcing."""
     subprocess.run([sys.executable, str(EXTENSION / "build.py")], check=True, capture_output=True)
     ws = Path(tmp) / "ws"
     ws.mkdir()
     for client in ("claude", "cursor", "codex", "vscode"):
         export(ws, client, "--ado", "contoso")
     (ws / ".hve" / "user_profile.json").write_text(json.dumps(PROFILE), encoding="utf-8")
+    guard_mode(ws / ".hve" / "runtime", "enforce")
     return ws
 
 
@@ -69,9 +75,9 @@ def fire(ws: Path, client: str, payload: Json) -> list[Json]:
     return outputs
 
 
-def start_loop(ws: Path, passes: bool = False, escalated: bool = False, ask: Path | None = None) -> None:
-    """Write the loop state the guards read: one feature and the loop state file, in the ask's loop/ folder when one is given."""
-    files, state_folder = (ws, ws / ".harness") if ask is None else (ask / "loop", ask / "loop")
+def start_loop(ws: Path, passes: bool = False, escalated: bool = False, in_ask: bool = False) -> None:
+    """Write the loop state the guards read: one feature and the loop state file, in .hve/project/ when an ask is open."""
+    files, state_folder = (ws / ".hve" / "project", ws / ".hve" / "project") if in_ask else (ws, ws / ".harness")
     state_folder.mkdir(parents=True, exist_ok=True)
     (files / "feature_list.json").write_text(json.dumps([{"name": "login", "description": "d", "verify": "exit 0", "passes": passes}]))
     state = {"current": None, "review": "local", "escalated": escalated, "help": {"question": "Which database?"}}
@@ -146,6 +152,11 @@ def test_claude_code_hooks() -> None:
                  "tool_input": {"file_path": str(ws / "feature_list.json"), "content": "[]"}}
         denied = fire(ws, "claude", base | write)
         assert denied[0]["hookSpecificOutput"]["permissionDecision"] == "deny" and "loop scripts" in json.dumps(denied), denied
+        guard_mode(ws / ".hve" / "runtime", "advise")
+        advised = fire(ws, "claude", base | write)
+        assert any(o.get("systemMessage", "").startswith("Guard Invoked - For your attention") for o in advised), advised
+        assert not any(o.get("hookSpecificOutput", {}).get("permissionDecision") == "deny" for o in advised), advised
+        guard_mode(ws / ".hve" / "runtime", "enforce")
         push = {"hook_event_name": "PreToolUse", "tool_name": "Bash", "tool_use_id": "t3", "tool_input": {"command": "git push -f origin main"}}
         assert "Force pushes" in fire(ws, "claude", base | push)[0]["hookSpecificOutput"]["permissionDecisionReason"]
         (ws / "big.py").write_text("x = 1\n" * 600)
@@ -250,6 +261,7 @@ def test_copilot_user_scope_and_cloud_exports() -> None:
         result = subprocess.run([sys.executable, str(EXPORT), "copilot", "--user"], capture_output=True, text=True, env=env)
         assert result.returncode == 0, result.stderr
         assert json.loads(result.stdout)["scope"] == "user"
+        guard_mode(home / ".hve" / "runtime", "enforce")
         agents = home / ".copilot" / "agents"
         assert {p.name for p in agents.glob("*.agent.md")} == {p.name for p in (EXTENSION / "agents").glob("hve-*.agent.md")}
         creator = (agents / "hve-creator.agent.md").read_text(encoding="utf-8")
@@ -272,9 +284,9 @@ def test_copilot_user_scope_and_cloud_exports() -> None:
         made = subprocess.run([sys.executable, str(lifecycle), "contract", "direct", "login", "HVE creator", "req.md"], cwd=ws,
                               capture_output=True, text=True, env=env)
         assert made.returncode == 0, made.stderr
-        ask = ws / json.loads(made.stdout)["paths"]["ask"]
-        start_loop(ws, ask=ask)
-        write["tool_input"]["file_path"] = str(ask / "loop" / "feature_list.json")  # type: ignore[index]
+        paths = json.loads(made.stdout)["paths"]
+        start_loop(ws, in_ask=True)
+        write["tool_input"]["file_path"] = str(ws / paths["feature_list"])  # type: ignore[index]
         denied = fire_copilot(hooks, ws, write, env)
         assert any(o.get("permissionDecision") == "deny" and "loop scripts" in o["permissionDecisionReason"] for o in denied), denied
         assert (ws / ".hve" / "runs" / "p1.skills.json").is_file(), "the loadout comes from the ask when the prompt hook did not run"

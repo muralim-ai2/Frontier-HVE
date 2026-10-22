@@ -409,3 +409,116 @@
 - Not built (recommended against): worktree creation commands and copying `.hve` settings between folders (a worktree gets its own `.hve/` on first use), and per-chat ask binding for every command (terminal commands cannot know their chat).
 - Decisions to note: the notice relies on the agent re-opening its ask (instruction-level, not enforced); prototype has only the loop guard, so a displaced prototype chat is not told; two feature loops in one folder remain impossible (one git checkout); branch names are shared across worktrees, so parallel asks need distinct feature names (an ask-scoped branch prefix is optional and not built); `SubagentStop` on the parent agent and in Copilot's `hve.json` is not verified live.
 - Verified by `tests/test_collect.py` (ledger hook rows, Agents table with brief, reported skills, client and OTel models, `previous_open`), `test_skills.py` (one-time displacement note) and the full suite. Extension 0.14.0.
+
+## D-054 — One project per workspace, continuation of asks, engineer stages as loops, prototype self-check, three renames (2026-10-21 17:26 UTC)
+- Findings, discussion and the user's decisions verbatim: `research/findings/2026-10-21-1856-feedback-project-level-continuation-renames.md`.
+- User decisions:
+  1. **Project level.** Each ask keeps its own implementation `plan.md`, and one central project feature list is shared by all asks.
+  2. **Continuation.** A returning user or a follow-up continues the open ask; a new ask opens only for new work, and the agent confirms the choice with the user.
+  3. **Activity log.** No per-session activity log; the agent ledger is enough.
+  4. **Prototype.** A self-check script plus screenshots.
+  5. **Renames, only these three.** E2E becomes **Frontier E2E Delivery**, agile becomes **Frontier BYOW** (Bring your own way of working), and prototype becomes **Frontier Prototype Creator**.
+- Built:
+  - **Project folder.** `.hve/project/` holds `project.json` (name, goal, kind, asks), `feature_list.json`, `feature_list.add.json`, `progress.txt`, `tracker.json` and `state.json`. Each ask keeps its attempts, evidence, PR records, choices and tool log in `.hve/asks/<id>/loop/`.
+    - `tools/loop/loop_paths.py`: an external edit, adopted.
+    - The lock records the ask that added each feature, and the tracker takes evidence from that ask.
+    - A second `init` fails and points to `loop.py amend`.
+    - `tasks-sync` and the quality pillar count only the ask's own features.
+    - The guard protects `.hve/project/`.
+  - **Continuation and paths.**
+    - `lifecycle.py where [request-file]` prints the project, the open ask with its paths and unfinished items, and a verdict: `continue`, `new-ask`, `new-workspace` or `new-project`.
+    - `lifecycle.py open` prints the ask's paths and open items.
+    - Every ask-opening agent runs `where` and confirms the verdict in one form; `HVE single` follows the verdict.
+    - The skill loader adds the open ask's paths to every prompt, and the compaction hook gives every sub-agent the ask folder and evidence path. Agents never search for `plan.md`.
+  - **Different project.** `topic_shift` compares a prompt with the project's text (goal, asks, features) and returns only `new-workspace`; `new-session` is removed.
+  - **Engineer stages.** Agile's sprint build and E2E's build stage are feature loops the orchestrator runs, one `HVE engineer` per feature, and the engineer refuses a whole-stage brief.
+  - **Prototype self-check.** `tools/prototype/check.py lint` checks the prototype's safety rules, its screens and its `#` links. `check.py shots` saves headless Edge or Chrome screenshots to the ask's `loop/evidence/prototype/`. Both run before the sign-off form.
+  - **Renames.** Display names and detailed descriptions with example uses for `hve-e2e`, `hve-agile` and `hve-prototype`; file ids are kept. The lifecycle JSON files, wiki and tests are updated.
+- Decisions to note:
+  - There is no `roadmap.md`: `project.json` and the project feature list are the central record.
+  - Features from abandoned asks stay locked; there is no retire status.
+  - "New chat" is no longer recommended: one workspace holds one project.
+  - Continuation depends on the agent instructions and is not enforced.
+  - Tool logs stay per ask and are written only while a loop runs.
+  - Screenshots need a local Edge or Chrome, and the lint is static.
+  - `where` verdicts are heuristic, and the user's answer wins.
+  - Loops started under 0.12 to 0.14 kept their files in `<ask>/loop/`. There is no migration: restart them.
+- Verified by `tests/test_collect.py` (`where` verdicts, `project.json`, project paths), `test_loop.py` (project-level files, the lock's ask, guard, prototype lint and screenshot with Edge), `test_skills.py` (paths on every prompt, new-workspace message), `test_hooks.py` (sub-agent paths), `test_adapters.py` and the full suite. Not verified live: the forms, continuation across chats, and the agile and E2E loops. Extension 0.15.0.
+
+## D-055: three visible agents on top models, a wow-uplift loop, and the NorthStar presentation skill (2026-10-21)
+- Requests, sources, what was built and the open points: `research/findings/2026-10-21-2000-frontier-agents-uplift-presentation.md`.
+- **Visible agents.** The extension shows only Frontier E2E Delivery, Frontier BYOW and Frontier Prototype Creator.
+  - Every other user agent gets `user-invocable: false`: creator, creator-flow, creator-github, single, minimal, product-manager, skill-evaluator and azure-devops. They still ship and can run as sub-agents.
+  - The research arms in `.github/agents/` stay user-invocable in this workspace.
+- **Models.** The three agents and `HVE uplift-judge` pin `model: [GPT-6 Astra, Gemini 4 Argon, Claude Fable 5, Claude Opus 5.5]` (all "(copilot)"; VS Code uses the first one available) and set `reasoning-effort: high`.
+  - VS Code ignores `reasoning-effort` in agent files (D-020).
+  - The Copilot export strips both fields.
+  - This reverses the D-050 rule that product agents use the model the user picks.
+- **Wow uplift (every deliverable the user sees).** A new plugin skill, `wow-uplift`, and a new hidden read-only judge, `HVE uplift-judge` (returns JSON). The loop runs up to 3 rounds:
+  1. The judge names two or three targeted changes.
+  2. The changes are applied.
+  3. Every check is re-run.
+  4. The same views are captured again into `loop/evidence/uplift/round-<n>/`.
+
+  The loop stops when the judge returns `done`, after round 3, or when every change in a round had to be dropped. `uplift.md` records before and after.
+  - E2E runs it before each gate whose stage produced something the user sees.
+  - BYOW runs it before such persona hand-offs.
+  - Prototype Creator runs it before its sign-off.
+- **Presentation skill.** A new plugin skill, `presentation-deck`, based on the user's NorthStar `python-pptx` builders:
+  - a discovery form (kind of deck, audience, theme, text level, how visual, speaker notes, length, logo);
+  - a story spine for each kind of deck;
+  - the visual grammar and a table that turns text into smart art;
+  - `deck_kit.py` (slide primitives) and `check_deck.py` (lint, plus PowerPoint previews).
+
+  The `document` lifecycle's draft stage lists the skill, and E2E and BYOW must use it for any deck.
+- **Open points (to decide):**
+  - The two model names "Gemini 4 Argon" and "Claude Fable 5" are inferred.
+  - The hidden skill-evaluator and azure-devops have no visible copy anywhere.
+  - A prototype running as a sub-agent may not be able to start the judge (BYOW then runs the uplift).
+  - The uplift costs up to 3 top-model calls per deliverable.
+  - `python-pptx==1.0.2` is a new dependency.
+  - Previews need PowerPoint on Windows.
+- **Verified:**
+  - The full suite passes:
+    - `test_extension` checks 23 agents and 15 skills, the visibility, and the model pins;
+    - `test_flow_plugin` checks that 15 plugin skills pass the scan.
+  - A smoke deck and the skill's example deck were built, linted and previewed with PowerPoint.
+  - Not verified live: the judge, the uplift loop and the presentation form.
+  - Extension 0.15.0.
+
+## D-056: loop guard awareness mode, error-streak guard, telemetry trim, per-ask skill scoring (2026-10-21)
+- Requests, findings and the open points: `research/findings/2026-10-21-2130-guard-awareness-error-streak-telemetry-skills.md`.
+- **Loop guard awareness mode.** Temporary, switched in `hooks/guard_mode.json` (`advise`, or `enforce` to block again).
+  - Loop-file edits, loop-state edits and the victory check no longer block.
+  - They record the trip and show "Guard Invoked - For your attention: during the run ... The modification was ..." to the user. The agent relays it word for word.
+  - Escalation, hook bypass, resume and push rules still block.
+- **Error-streak guard** (`hooks/error_guard.py`; E2E, BYOW, Prototype Creator, engineer): this guard was missing.
+  - After 3 failed terminal commands in a row, it stops the agent with "Error guard - paused for your attention", the commands and their output.
+  - Feature-loop scripts are excluded.
+  - Tools other than reading and asking stay held until the user's next prompt.
+- **Telemetry trim** (`tools/observe/otel_trim.py`): the extension runs it on every activation (when the export exists) and when telemetry is turned on.
+  - It keeps the last 3 days of the export, at most 200 MB, rewritten in place.
+  - It adds the export to `.gitignore` and tells the user what it did.
+  - It refuses during a benchmark run.
+- **Skills (corrected by the user the same day: do not curtail the shortlist):**
+  - The rank shortlists every relevant skill, with no cap, ranked by relevance.
+  - Within the guideline (10 skills, 32,000 tokens; up from 2,000) all of them load.
+  - Over it, the agent scores each shortlisted skill 0-10 for the ask across its stages and runs `lifecycle.py skills score`, which re-ranks and suggests the required plus the top-scored up to 10.
+  - The agent then shows the user the suggested skills with scores and reasons and asks: suggested, all or named.
+  - Scores show in `plan.md`.
+- **Open points:**
+  - The streak limit is 3 (the user said 3-5).
+  - Awareness mode also applies to the research arms.
+  - Copilot CLI and Cursor drop the awareness message.
+  - The trim deletes old spans that reports or uncollected benchmarks may need.
+  - Scoring is an agent judgement.
+  - `lifecycle.py` is at 495 lines.
+- **Verified:**
+  - `test_loop`: awareness messages; push still blocked; error streak pause, hold and reset.
+  - `test_adapters`: Claude Code shows the awareness message; denies in enforce mode.
+  - `test_metrics`: trim and `.gitignore`.
+  - `test_skills`: the uncapped ranked shortlist and the suggested set.
+  - `test_collect`: `skills score` suggests without dropping.
+  - The full suite passes.
+  - Not verified live.
+  - Extension 0.15.0.

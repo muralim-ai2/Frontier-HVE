@@ -20,7 +20,7 @@ ASK_TOOL = "vscode_askQuestions"
 sys.path.insert(0, str(ROOT / "tools" / "skills"))
 sys.path.insert(0, str(ROOT / "tools" / "loop"))
 from recommend import rank  # noqa: E402
-from lifecycle import active, current_skills, install, shift_message, topic_shift  # noqa: E402
+from lifecycle import active, current_skills, install, project_status, project_text, shift_message, topic_shift  # noqa: E402
 
 Json = dict[str, Any]
 
@@ -79,23 +79,29 @@ def announcement(loadout: Loadout) -> str:
             "continuing. Do not use other library skills.")
     if loadout["over_budget"]:
         text += (f" This is over the loadout guideline ({loadout['budget']['max_skills']} skills, {loadout['budget']['max_tokens']:,} "
-                 "tokens): ask the user once whether to keep the suggested set, all, or named skills, then run `lifecycle.py skills "
+                 "tokens): score every shortlisted skill 0-10 for this ask and run `lifecycle.py skills score <file>`, then show the user "
+                 "the suggested top skills with their scores and ask once: suggested, all, or named; then run `lifecycle.py skills "
                  "suggested|all|<a,b>`; the ask's plan.md lists the skills and the suggested set.")
     return text
 
 
-def shift_output(loadout: Loadout, prompt: str) -> Json | None:
-    """Return a once-per-ask recommendation for a new session or workspace when the prompt starts different work from the active ask."""
+def prompt_output(loadout: Loadout, prompt: str) -> Json | None:
+    """Return the open ask's paths for every prompt (so the agent never searches for plan.md), and once per ask a new-workspace
+    recommendation when the prompt starts a different project."""
     if not (STATE_DIR / "asks" / "active.json").is_file():
         return None
     data = active()[1]
-    shift = topic_shift(" ".join([data["request"], *(t["name"] for t in data["tasks"])]), prompt)
+    p = data["paths"]
+    context = (f"Frontier HVE open ask {data['ask']}: plan {p['plan']}, evidence {p['evidence']}, project feature list "
+               f"{p['feature_list']}. Use these paths; never search the workspace for plan.md or feature_list.json.")
+    shift = topic_shift(project_text(), prompt) if project_status() else None
     if shift is None or loadout["shift_noted"] == data["ask"]:
-        return None
+        return {"hookSpecificOutput": {"hookEventName": "UserPromptSubmit", "additionalContext": context}}
     loadout["shift_noted"] = data["ask"]
     message = shift_message(shift, data["ask"])
     return {"systemMessage": message, "hookSpecificOutput": {"hookEventName": "UserPromptSubmit", "additionalContext":
-            f"{message} Relay this recommendation to the user in one line before starting; if they stay, open a new ask with lifecycle.py contract."}}
+            f"{context} {message} Relay this recommendation to the user in one line before starting; if they stay, open a new ask with "
+            "lifecycle.py contract."}}
 
 
 def displaced_context(loadout: Loadout) -> str | None:
@@ -145,7 +151,7 @@ def main() -> None:
             loadout["shift_noted"] = previous.get("shift_noted")
             loadout["ask"] = previous.get("ask")
             loadout["displaced_noted"] = previous.get("displaced_noted")
-        output = shift_output(loadout, payload["prompt"])
+        output = prompt_output(loadout, payload["prompt"])
         install(loadout["skills"])
         path.write_text(json.dumps(loadout), encoding="utf-8")
         if output:

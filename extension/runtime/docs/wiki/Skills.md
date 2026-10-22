@@ -5,7 +5,7 @@
 | Kind | Location | Loaded |
 |---|---|---|
 | Plugin skills (`/check-context-load`, `/recommend-skills`, `delivery-coach`, ...) | `plugins/harness-assist/skills/`, shipped in the extension | Discoverable in every chat |
-| Harness library | `skills/admitted/` with `skills/registry.json`, shipped in the runtime | Per task by `skill_loader` and the ask contract: every category or keyword match, most relevant first; over 10 skills or 2,000 tokens is flagged in `plan.md` and chat with a suggested set within the guideline; the user picks suggested, all or named skills once (`lifecycle.py skills`), and the choice and its tokens over the guideline are recorded |
+| Harness library | `skills/admitted/` with `skills/registry.json`, shipped in the runtime | Per task by `skill_loader` and the ask contract: every relevant skill is shortlisted, ranked by relevance. Over 10 skills or 32,000 tokens, the agent scores the shortlist 0-10 for the ask (`lifecycle.py skills score`), shows you the suggested top 10 with scores, and you pick suggested, all or named (`lifecycle.py skills`) |
 | Workspace library | `.hve/skill-library/` with `.hve/skills-registry.json` | Per task, like the harness library |
 
 Library skills are copied to `.hve/skills/` for the session that loads them; other library skills are blocked so they cannot leak into context.

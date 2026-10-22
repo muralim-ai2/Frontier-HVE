@@ -25,7 +25,7 @@ USER_CLIENTS = {"claude", "cursor", "codex", "copilot"}
 PROJECT_CLIENTS = {"claude", "cursor", "codex", "cloud"}
 CURSOR_EVENTS = {"SessionStart": "sessionStart", "UserPromptSubmit": "beforeSubmitPrompt", "PreToolUse": "preToolUse",
                  "PostToolUse": "postToolUse", "Stop": "stop"}
-LOCAL_ONLY_FIELDS = re.compile(r"^(hooks|handoffs):\n(?:[ \t]+.*\n)*", re.M)
+LOCAL_ONLY_FIELDS = re.compile(r"^(?:(?:hooks|handoffs):\n(?:[ \t]+.*\n)*|(?:model|reasoning-effort):.*\n)", re.M)
 TOOLS_LINE = re.compile(r"^tools: \[(.*)\]$", re.M)
 ADO_DOMAINS = ["core", "work", "work-items", "repositories", "pipelines"]
 ORGANIZATION = re.compile(r"^[A-Za-z0-9][A-Za-z0-9-]{0,49}$")

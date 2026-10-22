@@ -7,7 +7,7 @@
     {"name": "backlog", "goal": "Write the PRD and a prioritised backlog of stories.", "agent": "HVE product-manager",
      "skills": ["prd"], "plugin_skills": [], "templates": ["prd"],
      "exit": "The user orders the backlog and picks the first sprint's stories.", "skip_when": "The user brings a ready backlog."},
-    {"name": "sprint-design", "goal": "Clickthrough of the sprint's screens and flows.", "agent": "HVE prototype",
+    {"name": "sprint-design", "goal": "Clickthrough of the sprint's screens and flows.", "agent": "Frontier Prototype Creator",
      "skills": ["ux-flows", "prototype-craft"], "plugin_skills": [], "templates": [],
      "exit": "The user clicks through and accepts the flows.", "skip_when": "The sprint has no UI change."},
     {"name": "sprint-build", "goal": "Build the sprint's stories as verified features.", "agent": "HVE engineer",

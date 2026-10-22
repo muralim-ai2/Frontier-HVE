@@ -5,7 +5,7 @@ description: Rank the Frontier HVE skill library for the current task, show ever
 
 # Recommend skills
 
-The library skills are not loaded into every chat (that would add their descriptions to every request). The HVE agents' skill loader picks them per task: every skill whose category or keywords match, most relevant first, whatever its status. Nothing is dropped; a load over 10 skills or 2,000 tokens is flagged.
+The library skills are not loaded into every chat (that would add their descriptions to every request). The HVE agents' skill loader picks them per task: every skill whose category or keywords match, ranked by relevance, whatever its status. Nothing is dropped silently: over 10 skills or 32,000 tokens the agent scores the shortlist for the ask and asks the user to keep the suggested top 10, all, or named skills.
 
 1. Run `python <tools>/skills/recommend.py provisional "<the task in one or two sentences>"` (`<tools>` is the harness tools folder named in your agent instructions).
 2. Show a ranked table: rank, skill, reason (required, category or keyword), status, tokens, measured lift.

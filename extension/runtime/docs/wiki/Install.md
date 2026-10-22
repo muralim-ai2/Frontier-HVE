@@ -15,7 +15,7 @@ Frontier HVE ships as one VS Code extension (VSIX). Installing it is the only re
 1. Get `frontier-hve-<version>.vsix` (from a release, or build it, see below).
 2. Extensions view → `...` → **Install from VSIX...**, or `code --install-extension frontier-hve-<version>.vsix`.
 3. Click **Reload Window** when asked.
-4. Open your project folder, open the Chat view, start a **new chat with Session Target: Local**, and pick an **HVE** agent ([Agents](Agents.md)). How a piece of work then runs: [Ways of working](Ways-of-Working.md).
+4. Open your project folder, open the Chat view, start a **new chat with Session Target: Local**, and pick an **HVE** or **Frontier** agent ([Agents](Agents.md)). How a piece of work then runs: [Ways of working](Ways-of-Working.md).
 5. For other harnesses (Session Target **Copilot**, Copilot CLI, the Copilot cloud agent, Claude Code, Codex, Cursor), run **Frontier HVE: Install for other harnesses** ([Adapters](Adapters.md)).
 
 On activation the extension finds Python, renders the agents and skills into its storage with that Python launcher and the runtime path, and registers them in `chat.pluginLocations`. It does this again after an update or when Python appears. The hooks create `<workspace>/.hve/` the first time they run.

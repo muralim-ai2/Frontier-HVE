@@ -1,4 +1,6 @@
-"""Locate the loop files: in the open ask's .hve/asks/<ask>/loop/ folder, or in the project itself when no ask is open there (research runs)."""
+"""Locate the loop files. With an ask open, the product's feature list, progress, tracker and lock live in .hve/project/ (shared by
+every ask of the workspace's one project) and each ask keeps its own attempts, evidence, PR records, choices and tool log in
+.hve/asks/<ask>/loop/. With no ask open (research runs) everything stays in the project root and .harness/."""
 
 import json
 import re
@@ -19,14 +21,23 @@ def ask_folder(project: Path) -> Path | None:
     return active.parent / ask
 
 
+def project_folder(project: Path) -> Path:
+    """Return the folder holding the project's shared files: project.json, the feature list, progress, tracker and loop lock."""
+    return project / ".hve" / "project"
+
+
 def loop_dir(project: Path) -> Path:
     """Return the folder holding feature_list.json, progress.txt and tracker.json."""
-    ask = ask_folder(project)
-    return project if ask is None else ask / "loop"
+    return project if ask_folder(project) is None else project_folder(project)
+
+
+def state_file(project: Path) -> Path:
+    """Return the loop's lock and progress state (state.json), shared by every ask of the project."""
+    return project / ".harness" / "state.json" if ask_folder(project) is None else project_folder(project) / "state.json"
 
 
 def state_dir(project: Path) -> Path:
-    """Return the folder holding the loop state: state.json, attempts, evidence, PR records, choices, checks and the tool log."""
+    """Return the open ask's loop folder (attempts, evidence, PR records, choices, checks, tool log, flow), or .harness/ without an ask."""
     ask = ask_folder(project)
     return project / ".harness" if ask is None else ask / "loop"
 
@@ -34,3 +45,12 @@ def state_dir(project: Path) -> Path:
 def evidence_dir(project: Path) -> Path:
     """Return the folder feature checks write screenshots and logs to, one subfolder per feature (exported as HVE_EVIDENCE)."""
     return state_dir(project) / "evidence"
+
+
+def ask_evidence(project: Path, ask: str | None) -> Path:
+    """Return the evidence folder of the ask that added a feature (None: a loop run without an ask)."""
+    if ask is None:
+        return project / ".harness" / "evidence"
+    if not ASK_ID.match(ask):
+        raise ValueError(f"ask id {ask!r} must match {ASK_ID.pattern}")
+    return project / ".hve" / "asks" / ask / "loop" / "evidence"

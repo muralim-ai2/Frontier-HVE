@@ -1,7 +1,7 @@
 {
   "loadout": {
     "max_skills": 10,
-    "max_tokens": 2000,
+    "max_tokens": 32000,
     "keyword_floor": 0.5
   },
   "provisional": {

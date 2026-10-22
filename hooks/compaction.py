@@ -18,7 +18,8 @@ def ask_context(workspace: Path) -> str:
     slug = json.loads(active.read_text(encoding="utf-8"))["active"]
     contract = json.loads((active.parent / slug / "contract.json").read_text(encoding="utf-8"))
     paths = ", ".join(f".hve/skills/{r['name']}/SKILL.md" for r in contract["skills"]["selected"]) or "none"
-    return (f" Frontier HVE ask {slug}: unless your brief lists other skills, follow {paths}. "
+    return (f" Frontier HVE ask {slug} (folder {contract['paths']['ask']}, evidence {contract['paths']['evidence']}; never search the "
+            f"workspace for plan.md or feature_list.json): unless your brief lists other skills, follow {paths}. "
             "End your reply with one line: SKILLS-USED: <the skills you actually followed, or none>.")
 
 

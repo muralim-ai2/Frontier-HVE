@@ -1,4 +1,5 @@
-"""Rank library skills for a task by relevance and load all that match by category or keyword, flagging loads over the loadout guideline."""
+"""Rank library skills for a task by relevance and shortlist every one that matches by category or keyword, flagging a shortlist over the
+loadout guideline with a suggested set within it."""
 
 import json
 import re
@@ -54,8 +55,8 @@ def library_entries() -> list[Json]:
 
 
 def rank(prompt: str, min_status: MinStatus, required: tuple[str, ...] = ()) -> Json:
-    """Return every relevant skill to load: required first, then category or keyword matches by relevance; flag a load over the loadout
-    guideline and suggest the required plus most relevant-per-token skills that fit within it."""
+    """Return every relevant skill, ranked: required first, then category or keyword matches by relevance (no cap); flag a shortlist over
+    the loadout guideline and suggest the required plus the most relevant-per-token skills that fit within it."""
     if min_status not in STATUS_ORDER:
         raise ValueError(f"min_status {min_status!r}, expected one of {list(STATUS_ORDER)}")
     config = read("categories.json")
@@ -77,7 +78,7 @@ def rank(prompt: str, min_status: MinStatus, required: tuple[str, ...] = ()) -> 
     matching = [e for e in library if e["status"] in allowed and e["name"] not in required
                 and (set(e["task_categories"]) & set(categories) or relevance(prompt, e, categories, frequency) >= budget["keyword_floor"])]
     matching.sort(key=lambda e: (-relevance(prompt, e, categories, frequency), -(e["quality_lift_pp"] or 0), e["skill_tokens"]))
-    load = [{k: e[k] for k in ("name", "status", "task_categories", "skill_tokens", "quality_lift_pp", "path")}
+    load = [{k: e[k] for k in ("name", "description", "status", "task_categories", "skill_tokens", "quality_lift_pp", "path")}
             | {"reason": "required" if e in reserved else "category" if set(e["task_categories"]) & set(categories) else "keyword",
                "relevance": round(relevance(prompt, e, categories, frequency), 2)} for e in reserved + matching]
     tokens = sum(r["skill_tokens"] for r in load)

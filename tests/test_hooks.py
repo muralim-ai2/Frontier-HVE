@@ -108,10 +108,11 @@ def test_subagent_start_gets_return_cap() -> None:
         assert "SKILLS-USED" not in context["hookSpecificOutput"]["additionalContext"]
         (root / ".hve" / "asks" / "x").mkdir(parents=True)
         (root / ".hve" / "asks" / "active.json").write_text(json.dumps({"active": "x"}), encoding="utf-8")
-        (root / ".hve" / "asks" / "x" / "contract.json").write_text(json.dumps({"skills": {"selected": [{"name": "ux-flows"}]}}), encoding="utf-8")
+        contract = {"skills": {"selected": [{"name": "ux-flows"}]}, "paths": {"ask": ".hve/asks/x", "evidence": ".hve/asks/x/loop/evidence"}}
+        (root / ".hve" / "asks" / "x" / "contract.json").write_text(json.dumps(contract), encoding="utf-8")
         context = output(fire(root, "compaction.py", {"hook_event_name": "SubagentStart", "agent_id": "a2", "agent_type": "creator"}))
         text = context["hookSpecificOutput"]["additionalContext"]
-        assert ".hve/skills/ux-flows/SKILL.md" in text and "SKILLS-USED" in text, text
+        assert ".hve/skills/ux-flows/SKILL.md" in text and "SKILLS-USED" in text and "evidence .hve/asks/x/loop/evidence" in text, text
 
 
 def test_graph_follows_project() -> None:

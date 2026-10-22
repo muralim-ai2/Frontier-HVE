@@ -121,7 +121,7 @@ The adapter uses Microsoft's official server, [`@azure-devops/mcp`](https://gith
 Microsoft also offers a hosted remote server (`https://mcp.dev.azure.com/<organization>`, type `http`). The exporter does not configure it, because the remote server cannot be limited to tool groups.
 
 **The HVE azure-devops agent:**
-- **Feature list to work items:** one work item per feature in the open ask's `loop/feature_list.json` (or `feature_list.json` when no ask is open). The check command becomes the acceptance criterion.
+- **Feature list to work items:** one work item per feature in the project's `.hve/project/feature_list.json` (or `feature_list.json` when no ask is open). The check command becomes the acceptance criterion.
 - **Status sync:** state updates from `tracker.json`, with the check command and its exit code as a comment.
 - **Pull requests:** for feature branches you ticked, linked to their work items. It never pushes.
 - **Builds:** latest pipeline result, failing stage and first error line.

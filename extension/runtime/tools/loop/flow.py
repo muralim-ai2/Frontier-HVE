@@ -11,7 +11,7 @@ ROOT = Path(__file__).resolve().parents[2]
 sys.path[:0] = [str(ROOT / "tools" / "git"), str(ROOT / "hooks")]
 from branch_workflow import read_json, write_json  # noqa: E402
 from loop import TRIVIAL_VERIFY, run_check  # noqa: E402
-from loop_paths import loop_dir, state_dir  # noqa: E402
+from loop_paths import loop_dir, state_dir, state_file  # noqa: E402
 from no_fallback import scan_file  # noqa: E402
 
 EDGES = {
@@ -77,7 +77,7 @@ def design(project: Path) -> Json:
 
 def feature_checks_fail(project: Path) -> list[str]:
     """Return the features that are not marked passing or whose check fails now."""
-    state = read_json(state_dir(project) / "state.json")
+    state = read_json(state_file(project))
     features = read_json(loop_dir(project) / "feature_list.json")
     return [f["name"] for f in features if not f["passes"] or run_check(state["lock"][f["name"]]["verify"], project)[0] != 0]
 
@@ -101,7 +101,7 @@ def evidence(project: Path, edge: str, state: Json) -> list[str]:
         code, output = run_check(design(project)["prototype_check"], project)
         return [] if code == 0 else [f"prototype_check exited {code}: {output[-400:]}"]
     if edge == "build-complete":
-        if not (state_dir(project) / "state.json").exists():
+        if not state_file(project).exists():
             return ["the feature loop was never initialized"]
         failing = feature_checks_fail(project)
         return [f"features failing: {failing}"] if failing else []

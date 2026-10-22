@@ -1,5 +1,6 @@
 ---
 name: HVE skill-evaluator
+user-invocable: false
 description: Frontier HVE skill onboarding. Checks a skill for safety, overlap and context cost, measures its quality lift with blind with/without pairs, admits it to the workspace library, and reports always-on context load.
 agents: [HVE skill-worker, HVE skill-judge]
 ---

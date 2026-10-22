@@ -159,7 +159,7 @@ def test_contract_plan_check_and_provenance() -> None:
                                   cwd=ws, capture_output=True, text=True, check=True).stdout
 
         (ws / "req.md").write_text("Build a leave portal in sprints", encoding="utf-8")
-        ask = json.loads(lifecycle("contract", "agile-scrum", "leave", "HVE agile", "req.md", "sprint-design=No UI change"))["paths"]["ask"]
+        ask = json.loads(lifecycle("contract", "agile-scrum", "leave", "Frontier BYOW", "req.md", "sprint-design=No UI change"))["paths"]["ask"]
         nxt = {"hook_event_name": "PreToolUse", "tool_name": "run_in_terminal", "tool_input": {"command": 'python "x/tools/loop/loop.py" next .'}}
         assert hook(nxt) == ""
         plan = ws / ask / "plan.md"
@@ -203,10 +203,18 @@ def test_direct_contract_tracks_skills_tasks_briefs_and_reports() -> None:
                                   text=True, encoding="utf-8")
 
         (ws / "req.md").write_text("Build a color palette page with Next.js", encoding="utf-8")
+        assert json.loads(lifecycle("where", "req.md").stdout)["verdict"] == "new-project"
         created = lifecycle("contract", "direct", "palette", "HVE creator", "req.md")
         assert created.returncode == 0, created.stderr
         paths = json.loads(created.stdout)["paths"]
-        assert re.fullmatch(r"\.hve/asks/\d{8}-\d{4}-palette", paths["ask"]) and paths["feature_list"] == f"{paths['ask']}/loop/feature_list.json"
+        assert re.fullmatch(r"\.hve/asks/\d{8}-\d{4}-palette", paths["ask"]) and paths["feature_list"] == ".hve/project/feature_list.json"
+        project = json.loads((ws / ".hve" / "project" / "project.json").read_text(encoding="utf-8"))
+        assert project["goal"] == "Build a color palette page with Next.js" and project["asks"] == [paths["ask"].split("/")[-1]], project
+        for prompt, verdict in (("Fix the palette page contrast", "continue"), ("Build a settings screen", "new-ask"),
+                                ("Create a formal presentation on revenue forecasting for the board", "new-workspace")):
+            (ws / "prompt.md").write_text(prompt, encoding="utf-8")
+            found = json.loads(lifecycle("where", "prompt.md").stdout)
+            assert found["verdict"] == verdict and found["open_ask"]["paths"] == paths, (prompt, found)
         assert (ws / paths["ask"] / "request.md").read_text(encoding="utf-8").strip() == "Build a color palette page with Next.js"
         path = ws / paths["ask"] / "contract.json"
         data = json.loads(path.read_text(encoding="utf-8"))
@@ -298,6 +306,18 @@ def test_direct_contract_tracks_skills_tasks_briefs_and_reports() -> None:
         assert "| Cost | 1.5 AI units | Copilot OTel export (research telemetry) |" in otel and "14 s of model calls" in otel, otel
         assert "| Cache efficiency | 20% of prompt tokens read from cache |" in otel, otel
         assert "| HVE creator | HVE council | b1 | o1 | 08:00:04 | 4 | no brief | - | claude-x (OTel) |" in otel, otel
+        pool = [r["name"] for r in json.loads(path.read_text(encoding="utf-8"))["skills"]["selected"]]
+        assert pool == names, (names, pool)
+        (ws / "scores.json").write_text(json.dumps({n: {"score": 9 if n == names[0] else 0, "why": "fits" if n == names[0] else "off topic"}
+                                                    for n in pool[1:]}), encoding="utf-8")
+        assert "score every shortlisted skill once" in lifecycle("skills", "score", "scores.json").stderr
+        (ws / "scores.json").write_text(json.dumps({n: {"score": 9 if n == names[0] else 0, "why": "fits" if n == names[0] else "off topic"}
+                                                    for n in pool}), encoding="utf-8")
+        scored = json.loads(lifecycle("skills", "score", "scores.json").stdout)
+        assert scored["shortlist"] == len(names) and [r["name"] for r in scored["suggested"]] == [names[0]], scored
+        data = json.loads(path.read_text(encoding="utf-8"))
+        assert [r["name"] for r in data["skills"]["selected"]] == names and data["skills"]["choice"] is None, "scoring only suggests"
+        assert "score 9/10: fits" in plan.read_text(encoding="utf-8")
         chosen = json.loads(lifecycle("skills", names[0]).stdout)
         assert chosen["skills"] == [names[0]] and chosen["over_guideline_tokens"] == 0, chosen
         assert "Choice: " + names[0] in plan.read_text(encoding="utf-8")

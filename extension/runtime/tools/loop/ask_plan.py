@@ -28,7 +28,8 @@ def now() -> str:
 def skills_block(data: Json) -> str:
     """Return the generated plan.md block listing the ask's skills (with a set under the guideline) and MCP tool load."""
     s = data["skills"]
-    rows = "\n".join(f"| {r['name']} | {r['status']} | {r['reason']} | {r['skill_tokens']:,} | {'yes' if r['name'] in s['suggested'] else 'no'} |"
+    why = {r["name"]: r["reason"] + (f", score {r['score']}/10: {r['why']}" if "score" in r else "") for r in s["selected"]}
+    rows = "\n".join(f"| {r['name']} | {r['status']} | {why[r['name']]} | {r['skill_tokens']:,} | {'yes' if r['name'] in s['suggested'] else 'no'} |"
                      for r in s["selected"]) or "| none | | | | |"
     warning = (f"\n**Over the loadout guideline** ({s['budget']['max_skills']} skills, {s['budget']['max_tokens']:,} tokens): these skills "
                f"add their tokens to every turn of this ask. Suggested set: {len(s['suggested'])} skills, {s['suggested_tokens']:,} tokens "

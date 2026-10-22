@@ -287,13 +287,18 @@ def test_skill_loader_loads_all_relevant_flags_budget_and_scoped_deny() -> None:
 
 
 def open_ask(root: Path, request: str, choice: str | None = None, ask: str = "20261019-1200-x") -> None:
-    """Write an active ask in design (layout) with forms selected, the given request and skill choice."""
+    """Write an active ask in design (layout) with forms selected, the given request and skill choice, and its project."""
     (root / ".hve" / "asks" / ask).mkdir(parents=True)
+    (root / ".hve" / "project").mkdir(parents=True, exist_ok=True)
     (root / ".hve" / "asks" / "active.json").write_text(json.dumps({"active": ask}), encoding="utf-8")
     stages = [{"name": "design", "skills": ["layout"]}, {"name": "build", "skills": ["research"]}]
-    contract = {"ask": ask, "request": request, "tasks": [], "current": "design", "stages": stages,
+    folder = f".hve/asks/{ask}"
+    paths = {"ask": folder, "plan": f"{folder}/plan.md", "evidence": f"{folder}/loop/evidence", "feature_list": ".hve/project/feature_list.json"}
+    contract = {"ask": ask, "request": request, "tasks": [], "current": "design", "stages": stages, "paths": paths,
                 "skills": {"selected": [{"name": "forms"}], "choice": choice and {"choice": choice}}}
     (root / ".hve" / "asks" / ask / "contract.json").write_text(json.dumps(contract), encoding="utf-8")
+    project = {"name": "x", "goal": request, "kind": None, "created": "2026-10-19T12:00:00+00:00", "asks": [ask]}
+    (root / ".hve" / "project" / "project.json").write_text(json.dumps(project), encoding="utf-8")
 
 
 def test_lifecycle_stage_skills_load_and_are_allowed() -> None:
@@ -315,7 +320,8 @@ def test_lifecycle_stage_skills_load_and_are_allowed() -> None:
 
 
 def test_skill_choice_stops_prompt_ranking_and_topic_shift_is_recommended_once() -> None:
-    """Once the user has chosen the ask's skills, prompts add no ranked skills; a prompt starting other work gets one recommendation."""
+    """Once the user has chosen the ask's skills, prompts add only the ask's paths; a prompt starting another project gets one
+    new-workspace recommendation."""
     with tempfile.TemporaryDirectory() as tmp:
         root = library_root(tmp)
         open_ask(root, "Build a War of the Worlds timeline of the Martian invasion", "suggested")
@@ -323,12 +329,14 @@ def test_skill_choice_stops_prompt_ranking_and_topic_shift_is_recommended_once()
         follow_up = fire(root, {"session_id": "t1", "hook_event_name": "UserPromptSubmit", "prompt": "Fix the Martian timeline colour palette page"},
                          **env)
         loadout = json.loads((root / ".hve" / "runs" / "t1.skills.json").read_text(encoding="utf-8"))
-        assert follow_up == "" and loadout["skills"] == ["skills/admitted/layout", "skills/admitted/forms"], (follow_up, loadout)
+        context = json.loads(follow_up)
+        assert "systemMessage" not in context and loadout["skills"] == ["skills/admitted/layout", "skills/admitted/forms"], (follow_up, loadout)
+        assert "plan .hve/asks/20261019-1200-x/plan.md" in context["hookSpecificOutput"]["additionalContext"], context
         shift = {"session_id": "t1", "hook_event_name": "UserPromptSubmit", "prompt": "Build a quiz about chess openings and grandmasters"}
         message = json.loads(fire(root, shift, **env))
-        assert "new chat" in message["systemMessage"] and "20261019-1200-x" in message["systemMessage"], message
+        assert "another folder" in message["systemMessage"] and "20261019-1200-x" in message["systemMessage"], message
         assert "Relay" in message["hookSpecificOutput"]["additionalContext"], message
-        assert fire(root, shift, **env) == ""
+        assert "systemMessage" not in json.loads(fire(root, shift, **env))
 
 
 def test_chat_is_told_once_when_another_chat_opens_an_ask() -> None:
