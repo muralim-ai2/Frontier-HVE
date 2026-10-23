@@ -6,6 +6,7 @@ const fs = require('fs');
 const path = require('path');
 const { execFile } = require('child_process');
 const { renderPlugin } = require('./render');
+const packs = require('./packs');
 
 const MIN_PYTHON = [3, 11];
 const PYTHON_LAUNCHERS = [['python'], ['python3'], ['py', '-3']];
@@ -18,6 +19,14 @@ const PREFERENCES = [
   { label: 'Assisted', value: 'low_code', description: 'Read and adjust code with guidance' },
   { label: 'Pro', value: 'pro_code', description: 'Use AI to code and review continuously' },
 ];
+const HARNESSES = [
+  { label: 'Copilot', description: 'Copilot CLI and the VS Code Copilot harness (~/.copilot)', client: 'copilot' },
+  { label: 'Claude Code', description: '~/.claude', client: 'claude' },
+  { label: 'Codex', description: '~/.codex and ~/.agents', client: 'codex' },
+  { label: 'Cursor', description: '~/.cursor', client: 'cursor' },
+  { label: 'Copilot cloud agent', description: 'this repository\'s .github folder; you commit it', client: 'cloud' },
+];
+const COPILOT_HOOK_FILE = '~/.copilot/hooks/hve.json';
 
 /**
  * Return the Python version a launcher runs as [major, minor], or null when it cannot be run.
@@ -65,6 +74,19 @@ async function registerPlugin(context, python) {
   return pluginDir;
 }
 
+/**
+ * Run an action with the Python launcher, or explain that Python is missing.
+ * @param {(python: string) => Promise<void>} action
+ */
+async function withPython(action) {
+  const python = await findPython();
+  if (!python) {
+    await warnNoPython();
+    return;
+  }
+  await action(python);
+}
+
 /** Explain that Python is missing and offer the download page. */
 async function warnNoPython() {
   const open = await vscode.window.showWarningMessage(
@@ -100,15 +122,16 @@ async function setUpWorkspace(workspace) {
 
 /**
  * Point the Copilot OTel file export at the open workspace for benchmark metrics (the file holds full chat content and grows large).
+ * @param {vscode.ExtensionContext} context
  */
-async function enableResearchTelemetry() {
+async function enableResearchTelemetry(context) {
   const folders = vscode.workspace.workspaceFolders;
   if (!folders || folders.length === 0) {
     vscode.window.showErrorMessage('Open the research workspace first.');
     return;
   }
   const choice = await vscode.window.showWarningMessage(
-    'Turn on the Copilot telemetry file export? It records full chat content into .hve/runs/copilot-otel.jsonl; use it for benchmarks only.',
+    'Turn on the Copilot telemetry file export? It records full chat content into .hve/runs/copilot-otel.jsonl. Use it for benchmarks or an ask that opted in, then turn it off ("Frontier HVE: Turn off research telemetry").',
     { modal: true }, 'Turn on');
   if (choice !== 'Turn on') {
     return;
@@ -117,6 +140,73 @@ async function enableResearchTelemetry() {
   await otel.update('enabled', true, vscode.ConfigurationTarget.Global);
   await otel.update('exporterType', 'file', vscode.ConfigurationTarget.Global);
   await otel.update('outfile', path.join(folders[0].uri.fsPath, '.hve', 'runs', 'copilot-otel.jsonl'), vscode.ConfigurationTarget.Global);
+  const python = await findPython();
+  if (python) {
+    await trimTelemetry(context, folders[0].uri.fsPath, python);
+  }
+}
+
+/**
+ * Trim the workspace's Copilot OTel export (last days, size cap) and make git ignore it, telling the user what changed.
+ * @param {vscode.ExtensionContext} context
+ * @param {string} workspace
+ * @param {string} python Python launcher.
+ */
+async function trimTelemetry(context, workspace, python) {
+  const script = path.join(context.extensionPath, 'runtime', 'tools', 'observe', 'otel_trim.py');
+  const report = await runPythonJson(python, script, [], workspace);
+  const notes = [];
+  if (report.export && report.before_mb > report.after_mb) {
+    notes.push(`trimmed the Copilot telemetry export (${report.export}) from ${report.before_mb} MB to ${report.after_mb} MB, keeping the `
+      + `last ${report.keep_days} days up to ${report.cap_mb} MB`);
+  }
+  if (report.gitignore_added) {
+    notes.push('added .hve/runs/copilot-otel.jsonl to .gitignore (it holds full chat content)');
+  }
+  if (notes.length) {
+    vscode.window.showInformationMessage(`Frontier HVE ${notes.join(' and ')}.`);
+  }
+}
+
+/**
+ * Turn off the Copilot OTel file export the research telemetry command turned on.
+ */
+async function disableResearchTelemetry() {
+  await vscode.workspace.getConfiguration('github.copilot.chat.otel').update('enabled', false, vscode.ConfigurationTarget.Global);
+  vscode.window.showInformationMessage('Research telemetry is off. Chats are no longer recorded to .hve/runs/copilot-otel.jsonl.');
+}
+
+/**
+ * Show a status bar reminder, which turns telemetry off when clicked, for as long as the Copilot OTel export is on.
+ * @param {vscode.StatusBarItem} item
+ */
+function showTelemetryReminder(item) {
+  if (vscode.workspace.getConfiguration('github.copilot.chat.otel').get('enabled') === true) {
+    item.show();
+  } else {
+    item.hide();
+  }
+}
+
+/**
+ * Run a runtime Python script and return its parsed JSON output.
+ * @param {string} python Python launcher.
+ * @param {string} script Script path.
+ * @param {string[]} args Script arguments.
+ * @param {string} cwd Working directory.
+ * @returns {Promise<any>}
+ */
+function runPythonJson(python, script, args, cwd) {
+  const [command, ...launcherArgs] = python.split(' ');
+  return new Promise((resolve, reject) => {
+    execFile(command, [...launcherArgs, script, ...args], { cwd, maxBuffer: 10 * 1024 * 1024 }, (error, out, err) => {
+      if (error) {
+        reject(new Error(`${path.basename(script)} failed: ${err || error.message}`));
+      } else {
+        resolve(JSON.parse(out));
+      }
+    });
+  });
 }
 
 /**
@@ -127,17 +217,7 @@ async function enableResearchTelemetry() {
  */
 async function reportContextLoad(context, workspace, python) {
   const script = path.join(context.extensionPath, 'runtime', 'tools', 'skills', 'context_load.py');
-  const [command, ...args] = python.split(' ');
-  const stdout = await new Promise((resolve, reject) => {
-    execFile(command, [...args, script], { cwd: workspace, maxBuffer: 10 * 1024 * 1024 }, (error, out, err) => {
-      if (error) {
-        reject(new Error(`context_load.py failed: ${err || error.message}`));
-      } else {
-        resolve(out);
-      }
-    });
-  });
-  const report = JSON.parse(stdout);
+  const report = await runPythonJson(python, script, [], workspace);
   const shares = Object.entries(report.share_pct).map(([window, pct]) => `${pct}% of ${Number(window) / 1000}K`).join(', ');
   const summary = `Frontier HVE: ${report.total_tokens.toLocaleString()} tokens load into every request before you type `
     + `(${report.skill_count} skills; ${shares}).`;
@@ -146,6 +226,48 @@ async function reportContextLoad(context, workspace, python) {
   if (open) {
     await vscode.window.showTextDocument(vscode.Uri.file(path.join(workspace, '.hve', 'context_load.json')));
   }
+}
+
+/**
+ * Install the HVE agents, skills and hooks for the harnesses the user picks (user scope; Cloud into this repository), and keep the
+ * Local harness from running the Copilot hook file next to its own agent-scoped hooks.
+ * @param {vscode.ExtensionContext} context
+ */
+async function installHarnesses(context) {
+  const python = await findPython();
+  if (!python) {
+    await warnNoPython();
+    return;
+  }
+  const picked = await vscode.window.showQuickPick(HARNESSES, {
+    canPickMany: true, ignoreFocusOut: true, title: 'Frontier HVE: install the HVE agents, skills and guard hooks for',
+  });
+  if (!picked || picked.length === 0) {
+    return;
+  }
+  const folders = vscode.workspace.workspaceFolders;
+  const cloud = picked.some((item) => item.client === 'cloud');
+  if (cloud && (!folders || folders.length === 0)) {
+    vscode.window.showErrorMessage('Open the repository first to install for the Copilot cloud agent.');
+    return;
+  }
+  if (cloud && await vscode.window.showWarningMessage(
+    'The Copilot cloud agent reads agents, skills and hooks from the repository: this writes .github/agents, .github/skills, '
+    + '.github/hooks/hve.json and .github/hve/runtime for you to review and commit.', { modal: true }, 'Write them') !== 'Write them') {
+    return;
+  }
+  const chat = vscode.workspace.getConfiguration('chat');
+  await chat.update('hookFilesLocations', { ...(chat.get('hookFilesLocations') || {}), [COPILOT_HOOK_FILE]: false, '.github/hooks/hve.json': false },
+    vscode.ConfigurationTarget.Global);
+  const script = path.join(context.extensionPath, 'runtime', 'tools', 'adapters', 'export.py');
+  const cwd = folders && folders.length > 0 ? folders[0].uri.fsPath : context.extensionPath;
+  const lines = [];
+  for (const item of picked) {
+    const args = item.client === 'cloud' ? ['cloud', cwd] : [item.client, '--user', '--python', python];
+    const report = await runPythonJson(python, script, args, cwd);
+    lines.push(`${item.label}: ${report.invoke}.`);
+  }
+  vscode.window.showInformationMessage(`Frontier HVE installed. ${lines.join(' ')} Known gaps per harness: docs/wiki/Adapters.md.`);
 }
 
 /**
@@ -175,7 +297,8 @@ async function setUp(context) {
  */
 async function offerReload(message) {
   const reload = await vscode.window.showInformationMessage(
-    `${message} Reload the window, then pick an HVE agent in a new chat with Session Target: Local.`, 'Reload Window');
+    `${message} Reload the window, then pick a Frontier agent (E2E Delivery, BYOW or Prototype Creator) or HVE creator in a new chat with Session Target: Local.`,
+    'Reload Window');
   if (reload) {
     vscode.commands.executeCommand('workbench.action.reloadWindow');
   }
@@ -186,10 +309,34 @@ async function offerReload(message) {
  * @param {vscode.ExtensionContext} context
  */
 async function activate(context) {
+  const host = { run: runPythonJson, offerReload };
   context.subscriptions.push(
     vscode.commands.registerCommand('frontierHve.setup', () => setUp(context)),
-    vscode.commands.registerCommand('frontierHve.researchTelemetry', enableResearchTelemetry));
+    vscode.commands.registerCommand('frontierHve.installHarnesses', () => installHarnesses(context)),
+    vscode.commands.registerCommand('frontierHve.researchTelemetry', () => enableResearchTelemetry(context)),
+    vscode.commands.registerCommand('frontierHve.researchTelemetryOff', disableResearchTelemetry),
+    vscode.commands.registerCommand('frontierHve.installPlugin', () => withPython((python) => packs.installPackCommand(context, python, host))),
+    vscode.commands.registerCommand('frontierHve.managePlugins', () => withPython((python) => packs.managePacksCommand(context, python, host))));
+  const telemetry = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left);
+  telemetry.text = '$(record) Research telemetry on';
+  telemetry.tooltip = 'Copilot chats are recorded with full content to .hve/runs/copilot-otel.jsonl. Click to turn research telemetry off.';
+  telemetry.command = 'frontierHve.researchTelemetryOff';
+  showTelemetryReminder(telemetry);
+  context.subscriptions.push(telemetry, vscode.workspace.onDidChangeConfiguration((event) => {
+    if (event.affectsConfiguration('github.copilot.chat.otel')) {
+      showTelemetryReminder(telemetry);
+    }
+  }));
   const python = await findPython();
+  const folders = vscode.workspace.workspaceFolders;
+  if (python && folders && folders.length > 0 && fs.existsSync(path.join(folders[0].uri.fsPath, '.hve', 'runs', 'copilot-otel.jsonl'))) {
+    // Not awaited: activation must not wait on a large file; a failure is shown, not swallowed.
+    trimTelemetry(context, folders[0].uri.fsPath, python).catch((error) => vscode.window.showErrorMessage(`Frontier HVE: ${error.message}`));
+  }
+  if (python) {
+    // Not awaited: activation must not wait on the store or on the user's answers; a failure is shown, not swallowed.
+    packs.startPacks(context, python, host).catch((error) => vscode.window.showErrorMessage(`Frontier HVE expertise packs: ${error.message}`));
+  }
   if (!python) {
     const item = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left);
     item.text = '$(warning) Frontier HVE: guards off (no Python)';

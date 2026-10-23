@@ -8,6 +8,8 @@ from collections import Counter
 from pathlib import Path
 from typing import Any
 
+from loop_paths import state_dir
+
 ENV_ERROR = re.compile(r"E403|ECONNREFUSED|ENOTFOUND|EADDRINUSE|EACCES|getaddrinfo|registry\.npmjs\.org|"
                        r"is not recognized as an internal or external command|command not found", re.I)
 REGISTRY_ERROR = re.compile(r"E403|registry\.npmjs\.org", re.I)
@@ -65,7 +67,7 @@ def read_jsonl(path: Path) -> list[Json]:
 
 def ledger_file(project: Path, feature: str) -> Path:
     """Return the attempt ledger path of a feature."""
-    return project / ".harness" / "attempts" / f"{feature}.jsonl"
+    return state_dir(project) / "attempts" / f"{feature}.jsonl"
 
 
 def append(project: Path, feature: str, entry: Json) -> None:
@@ -78,7 +80,7 @@ def append(project: Path, feature: str, entry: Json) -> None:
 
 def tool_signals(project: Path, since_ms: float) -> Json:
     """Return failed tool calls, repeated terminal commands and retrieval misses logged by the loop guard since a time."""
-    log = [e for e in read_jsonl(project / ".harness" / "tool_log.jsonl") if e["ts_ms"] >= since_ms]
+    log = [e for e in read_jsonl(state_dir(project) / "tool_log.jsonl") if e["ts_ms"] >= since_ms]
     settled = {e["id"] for e in log if e["phase"] == "post"}
     pre = [e for e in log if e["phase"] == "pre"]
     failures = Counter(e["tool"] for e in pre if e["id"] not in settled)

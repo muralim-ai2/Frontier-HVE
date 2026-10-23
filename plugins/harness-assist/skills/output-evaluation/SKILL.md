@@ -1,0 +1,16 @@
+---
+name: output-evaluation
+description: Run the Frontier HVE output evaluation on finished work - grounded rubric scores, validation hooks, a council of three reviewer models and a decision (pass, revise or human review).
+---
+
+# Output evaluation
+
+`reflection.py` is `python <tools>/evaluation/reflection.py` and the contract is `<tools>/../evaluation/frontier.eval.json` (`<tools>` is the harness tools folder named in your agent instructions). Write inputs only to `.hve/evaluations/input/`. Guards stay strict while a run is open. Run it once the work is done; `prepare` refuses when nothing changed since the last evaluation.
+
+1. Write the user's original request verbatim to `.hve/evaluations/input/request.md`. Run `reflection.py prepare . --contract <contract> --request .hve/evaluations/input/request.md --output-kind <ui|cli|api|library|document>` (the kind of output delivered; a clickthrough is `ui`, a PRD or memo is `document`). It prints the run id. When the open ask's `contract.json` lists a pack with an `evaluation`, also pass `--plugin-contract <that path> --rubric-selection .hve/evaluations/input/selection.json`, where the selection lists every core rubric once: `{"include": [...], "exclude": {"<id>": "not-applicable-output-kind" | "covered-by:<pack rubric id>"}, "reasons": {"<covered id>": "<one sentence>"}}` (`evidence-verification` and `safety-maintainability` always stay included); revision passes repeat `--plugin-contract` without a selection.
+2. Rubrics: one fresh sub-agent reads `.hve/evaluations/<run>/rubric-prompt.json` and replies with the scores JSON only. Save it to `.hve/evaluations/input/<run>-scores.json`, then `reflection.py record-scores . <run> <file>`.
+3. Validation: `reflection.py validate . <run>`. It re-runs the locked feature checks when a feature loop ran (otherwise it marks them not applicable with the reason), collects CLI or API logs, and collects screenshots when a UI rubric scores below its warning threshold.
+4. Council: `reflection.py council-prompts . <run>`. Run sub-agent `HVE evaluation-reviewer` once per role (`critical`, `balanced`, `constructive-coach`), each with the strongest available model from a different vendor; tell it its role and the prompts path. If a model is refused, pick another high-tier one the refusal lists; if none is left, run it without a model and record `--requested-model host-selected`. Save each JSON reply to `.hve/evaluations/input/<run>-<role>.json`, then `reflection.py record-council . <run> <role> <file> --requested-model "<model>"`.
+5. `reflection.py complete . <run>` prints the decision. On `revise`, fix the critical and high markers, then repeat from `prepare` with `--revision-pass 1`. On `pass` or `human-review`, stop.
+6. Inside an ask, record it: `lifecycle.py tick opt:evaluation done "<decision>, score <score>"`.
+7. Report the decision, weighted score, requested council models, a markers table (severity, kind, rubric, summary, source) and the report's `recommendations`. On `human-review`, ask the human to reflect on the markers; save their answer as `{"decision": "accept|revise|reject", "summary": "...", "disagree": [<marker indexes>]}` in `.hve/evaluations/input/<run>-human.json` and run `reflection.py record-human . <run> <file>`.

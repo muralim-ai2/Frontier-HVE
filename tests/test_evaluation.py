@@ -205,10 +205,23 @@ def test_decisions_pass_revise_and_human_review() -> None:
         assert cli.returncode == 1 and json.loads(cli.stdout)["human"] == "revise", cli
 
 
+def test_output_without_feature_loop_is_evaluated() -> None:
+    """A document or prototype with no feature loop is still scored and judged; the locked checks are marked not applicable with a reason."""
+    with tempfile.TemporaryDirectory() as tmp:
+        project = make_project(tmp, screenshot=False)
+        (project / "feature_list.json").unlink()
+        run_id = run_to_council(project, kind="document")
+        validation = json.loads((project / ".hve" / "evaluations" / run_id / "validation-results.json").read_text(encoding="utf-8"))
+        assert validation["hooks"] == [] and "locked-feature-checks" in validation["notApplicable"], validation
+        assert "no feature loop" in validation["notApplicableWhy"]["locked-feature-checks"] and validation["passed"] is True, validation
+        assert council(project, run_id, "pass", "pass", "pass")["decision"] == "pass"
+
+
 if __name__ == "__main__":
     test_contract_loads_and_rejects_unsafe_definitions()
     test_scores_must_be_grounded_and_ordered()
     test_validation_follows_trigger_and_output_kind()
     test_council_markers_are_traceable()
     test_decisions_pass_revise_and_human_review()
+    test_output_without_feature_loop_is_evaluated()
     print("test_evaluation: OK")

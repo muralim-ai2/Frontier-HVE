@@ -6,6 +6,9 @@ import sys
 from pathlib import Path
 from typing import Any
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "loop"))
+from loop_paths import state_dir  # noqa: E402
+
 SCOPE_CREEP_LINES = 1500
 
 Json = dict[str, Any]
@@ -32,7 +35,7 @@ def write_json(path: Path, data: Any) -> None:
 
 def pr_file(project: Path, feature: str) -> Path:
     """Return the PR record path of a feature."""
-    return project / ".harness" / "prs" / f"{feature}.json"
+    return state_dir(project) / "prs" / f"{feature}.json"
 
 
 def start(project: Path, feature: str) -> None:
@@ -61,14 +64,14 @@ def open_pr(project: Path, feature: str, base: str, verify: Json, base_branch: s
 
 def queue(project: Path) -> list[Json]:
     """Return the queued PRs (verified, not pushed) with what the human needs to tick them."""
-    records = [read_json(p) for p in sorted((project / ".harness" / "prs").glob("*.json"))]
+    records = [read_json(p) for p in sorted((state_dir(project) / "prs").glob("*.json"))]
     return [{"branch": r["branch"], "base_branch": r["base_branch"], "lines_added": r["lines_added"], "scope_creep": r["scope_creep"],
              "verify": r["verify"]["command"]} for r in records if r["status"] == "queued"]
 
 
 def approved(project: Path) -> list[str]:
     """Return the branches the human ticked for pushing (written by the plugin's choice recorder hook)."""
-    path = project / ".harness" / "push_approved.json"
+    path = state_dir(project) / "push_approved.json"
     return read_json(path)["branches"] if path.exists() else []
 
 
@@ -86,7 +89,7 @@ def pushed(project: Path, feature: str, url: str) -> Json:
 if __name__ == "__main__":
     args = sys.argv[1:]
     if len(args) == 2 and args[0] == "list":
-        for path in sorted((Path(args[1]) / ".harness" / "prs").glob("*.json")):
+        for path in sorted((state_dir(Path(args[1])) / "prs").glob("*.json")):
             pr = read_json(path)
             print(f"{pr['branch']} (base {pr['base_branch']}): {pr['status']}, +{pr['lines_added']} lines, verify exit "
                   f"{pr['verify']['exit_code']}" + (", SCOPE CREEP" if pr["scope_creep"] else ""))

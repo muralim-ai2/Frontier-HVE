@@ -14,16 +14,22 @@ PLUGIN_SRC = REPO / "plugins" / "harness-assist"
 FILES = {
     "hooks": ["hve_paths.py", "interventions.py", "profile_detector.py", "compaction.py", "loop_guard.py", "flow_guard.py",
               "module_guard.py", "no_fallback.py", "skill_loader.py", "agent_compat.py", "template_guard.py", "guard_policy.py",
-              "plan_check.py"],
+              "plan_check.py", "metrics.py", "agent_ledger.py", "error_guard.py", "guard_mode.json"],
     "tools/adapters": ["export.py"],
     "tools/templates": ["manage.py"],
     "tools/backlog": ["backlog.py"],
-    "tools/evaluation": ["contract.py", "workflow.py", "reflection.py"],
-    "tools/observe": ["provenance.py"],
+    "tools/evaluation": ["contract.py", "workflow.py", "reflection.py", "compose.py"],
+    "tools/observe": ["provenance.py", "otel_trim.py"],
+    "tools/plugins": ["manifest.py", "route.py", "store.py", "plugin.py", "author.py"],
+    "schemas": ["hve-plugin.schema.json"],
     "evaluation": ["frontier.eval.json"],
-    "tools/loop": ["loop.py", "diagnose.py", "flow.py", "lifecycle.py"],
+    "tools/loop": ["loop.py", "diagnose.py", "flow.py", "lifecycle.py", "lifecycle_catalog.py", "ask_plan.py", "ask_packs.py", "ask_report.py",
+                   "ask_project.py", "personas.py", "stage_evidence.py", "loop_paths.py", "environment.py"],
     "tools/git": ["branch_workflow.py", "parallel_options.py"],
+    "tools/prototype": ["check.py"],
     "tools/skills": ["recommend.py", "scan.py", "triage.py", "onboard.py", "micro_eval.py", "evaluate.py", "context_load.py"],
+    "tools/map": ["extract.py", "map_build.py", "solution_map.py"],
+    "tools/map/explorer": ["explorer.html", "explorer.css", "graph.js", "query.js", "views.js", "app.js"],
     "skills": ["registry.json", "categories.json"],
 }
 SCRIPTS = ["choice_recorder.py", "guardrail.py", "enterprise_catalog.json"]
@@ -51,6 +57,10 @@ def build() -> list[str]:
     shutil.copytree(REPO / "docs" / "wiki", RUNTIME / "docs" / "wiki")
     shutil.copytree(REPO / "templates" / "deliverables", RUNTIME / "templates" / "deliverables")
     shutil.copytree(REPO / "templates" / "lifecycles", RUNTIME / "templates" / "lifecycles")
+    shutil.copytree(REPO / "templates" / "personas", RUNTIME / "templates" / "personas")
+    sys.path.insert(0, str(REPO / "tools" / "loop"))
+    import personas  # noqa: E402  # renders persona agents into extension/agents before the agent check below
+    personas.write(EXTENSION / "agents")
     for path in RUNTIME.rglob("*.py"):
         if RUNTIME / "skills" not in path.parents:
             py_compile.compile(str(path), doraise=True)

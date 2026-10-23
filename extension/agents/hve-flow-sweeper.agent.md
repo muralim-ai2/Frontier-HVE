@@ -2,7 +2,6 @@
 name: HVE flow-sweeper
 description: Frontier HVE creator-flow Sweeper stage. Removes dead code, duplication and AI slop without growing the code, keeping every check green.
 user-invocable: false
-tools: [read/readFile, search/fileSearch, search/textSearch, search/listDirectory, edit/editFiles, execute/runInTerminal]
 hooks:
   Stop:
     - type: command

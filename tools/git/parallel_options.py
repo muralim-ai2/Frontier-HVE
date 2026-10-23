@@ -12,6 +12,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "loop"))
 from branch_workflow import git, read_json, write_json  # noqa: E402
 from diagnose import append, entry  # noqa: E402
 from loop import escalate, run_check  # noqa: E402
+from loop_paths import state_dir, state_file  # noqa: E402
 
 APPROACH = re.compile(r"^[a-z0-9][a-z0-9-]{0,30}$")
 FIRST_PORT = 3100
@@ -21,7 +22,7 @@ Json = dict[str, Any]
 
 def options_file(project: Path, feature: str) -> Path:
     """Return the options record path of a feature."""
-    return project / ".harness" / "options" / f"{feature}.json"
+    return state_dir(project) / "options" / f"{feature}.json"
 
 
 def worktree(project: Path, feature: str, approach: str) -> Path:
@@ -31,7 +32,7 @@ def worktree(project: Path, feature: str, approach: str) -> Path:
 
 def create(project: Path, feature: str, approaches: list[str]) -> Json:
     """Create branch feature/<f>--<approach> and its worktree from the current feature's HEAD for each approach."""
-    if read_json(project / ".harness" / "state.json")["current"] != feature:
+    if read_json(state_file(project))["current"] != feature:
         raise ValueError(f"{feature!r} is not the current feature: run `loop.py next` first")
     if len(approaches) < 2 or len(set(approaches)) != len(approaches) or not all(APPROACH.match(a) for a in approaches):
         raise ValueError(f"need at least 2 unique approach slugs matching {APPROACH.pattern}: {approaches}")
@@ -80,7 +81,7 @@ def adopt(project: Path, record: Json, approach: str, chosen_by: str) -> Json:
 
 def compare(project: Path, feature: str) -> Json:
     """Check and rank every approach; benchmark (review=local) adopts the best passing one, github review waits for the human."""
-    state = read_json(project / ".harness" / "state.json")
+    state = read_json(state_file(project))
     record = read_json(options_file(project, feature))
     attempt = state["attempts"][feature] + 1
     record["results"] = rank([evaluate(project, record, a, state["lock"][feature]["verify"], attempt, state["since_ms"])
@@ -103,14 +104,14 @@ def preview(project: Path, feature: str) -> list[Json]:
     for i, approach in enumerate(record["approaches"]):
         path, port = worktree(project, feature, approach), FIRST_PORT + i
         commands = (["npm install", f"npm run dev -- --port {port}"] if (path / "package.json").exists()
-                    else [read_json(project / ".harness" / "state.json")["lock"][feature]["verify"]])
+                    else [read_json(state_file(project))["lock"][feature]["verify"]])
         rows.append({"approach": approach, "folder": path.as_posix(), "port": port, "open": f'code -n "{path}"', "commands": commands})
     return rows
 
 
 def choose(project: Path, feature: str, approach: str) -> Json:
     """Adopt the approach the human ticked (recorded by the plugin's choice recorder hook), whatever the ranking says."""
-    choice_file = project / ".harness" / "choices" / f"{feature}.json"
+    choice_file = state_dir(project) / "choices" / f"{feature}.json"
     if not choice_file.exists() or read_json(choice_file)["approach"] != approach:
         raise PermissionError(f"the human has not ticked {approach!r} for {feature!r}: ask with the parallel-options skill first")
     return adopt(project, read_json(options_file(project, feature)), approach, "human")

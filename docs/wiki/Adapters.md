@@ -1,24 +1,31 @@
-# Adapters: Frontier HVE in Claude Code, Cursor, Codex and Azure DevOps
+# Adapters: Frontier HVE in every harness (Copilot, Claude Code, Cursor, Codex, cloud agent) and Azure DevOps
 
-Use the Frontier HVE agents, skills and guard hooks outside VS Code. Connect Azure DevOps through Microsoft's Azure DevOps MCP server.
+Use the Frontier HVE agents, skills and guard hooks outside VS Code's Local harness. Connect Azure DevOps through Microsoft's Azure DevOps MCP server.
 
-> **Status:** built and protocol-tested (`tests/test_adapters.py`). Nobody has run it in a live Claude Code, Cursor or Codex session yet, and the Azure DevOps server has not been started from this setup. Report what fails under tracker issue `N27`. Decision: `D-042`. Research note: `research/findings/phase-10-adapters.md`.
+> **Status:** built and protocol-tested (`tests/test_adapters.py`). Nobody has run it in a live Copilot CLI, Claude Code, Cursor, Codex or cloud agent session yet, and the Azure DevOps server has not been started from this setup. Report what fails under tracker issue `N27`. Decisions: `D-042`, `D-050`. Research note: `research/findings/phase-10-adapters.md`.
+
+## Why the extension's agents appear only in Local
+
+- The extension registers its agents through `chat.pluginLocations`, which only VS Code's **Local** harness reads. The **Copilot** harness (Copilot SDK, same runtime as Copilot CLI) reads `.github/agents`, `~/.copilot/agents` and installed CLI plugins; **Claude** reads `.claude/agents`; **Codex** and **Cursor** read their own folders; the **cloud agent** reads only the repository.
+- Agent-scoped `hooks:` and `handoffs:` in an agent file are Local-only features (VS Code docs).
+- Cursor is a separate editor that does not run VS Code chat.
+
+**Fix:** run **Frontier HVE: Install for other harnesses** (or `export.py <client> --user`). It installs every HVE agent, the harness skills and the guard hooks in each harness's own user-level folders, from the same agent templates, and copies the runtime to `~/.hve/runtime/`. The agents' ask contract (`lifecycle.py contract`, `brief`, `report`) is a terminal command, so skills, briefs and provenance work even where a hook channel is missing.
 
 ## At a glance
 
-| Client | What you get | Start the creator agent | Hooks live in | Hook scope |
+| Client | Scope | What you get | Hooks live in | Hook scope |
 |---|---|---|---|---|
-| Claude Code | `.claude/agents/hve-*.md`, `.claude/skills/`, `.mcp.json` | `claude --agent hve-creator` | the agent file | only while that agent runs |
-| Cursor | `.cursor/skills/` (agents as skills), `.cursor/hooks.json`, `.cursor/mcp.json` | `/hve-creator` in Agent chat | `.cursor/hooks.json` | every agent in the project |
-| Codex CLI | `.agents/skills/` (agents as skills), `.codex/hooks.json`, `.codex/config.toml` | `$hve-creator` | `.codex/hooks.json` | every session in the project |
-| VS Code | `.vscode/mcp.json` (Azure DevOps only; agents come from the extension) | pick **HVE azure-devops** | the agent file | only while that agent runs |
+| Copilot (CLI, VS Code Copilot harness) | user | `~/.copilot/agents/hve-*.agent.md`, `~/.copilot/skills/`, `~/.copilot/hooks/hve.json` | `~/.copilot/hooks/hve.json` | every Copilot session, acting only while an ask is open |
+| Copilot cloud agent | project | `.github/agents/`, `.github/skills/`, `.github/hooks/hve.json`, `.github/hve/runtime/` (you commit them) | `.github/hooks/hve.json` | every cloud job, acting only while an ask is open |
+| Claude Code | user or project | `.claude/agents/hve-*.md`, `.claude/skills/`, `.mcp.json` (project) | the agent file | only while that agent runs |
+| Cursor | user or project | `.cursor/skills/` (agents as skills), `.cursor/hooks.json`, `.cursor/mcp.json` (project) | `.cursor/hooks.json` | every agent (user scope: only while an ask is open) |
+| Codex CLI | user or project | `.agents/skills/` (agents as skills), `.codex/hooks.json`, `.codex/config.toml` (project) | `.codex/hooks.json` | every session (user scope: only while an ask is open) |
+| VS Code | project | `.vscode/mcp.json` (Azure DevOps only; agents come from the extension) | the agent file | only while that agent runs |
 
-Every client gets three agents:
-- **hve-creator:** the verified feature loop with guards.
-- **hve-single:** one agent, no sub-agents.
-- **hve-azure-devops:** work items, pull requests and builds.
+User scope writes under your home folder (`~/...`) and works in every workspace; nothing is committed. Install also sets `chat.hookFilesLocations` so VS Code's Local harness does not run `~/.copilot/hooks/hve.json` or `.github/hooks/hve.json` on top of the agents' own hooks. Unverified until a live run: the user-level skill folders for Copilot (`~/.copilot/skills`), Codex (`~/.agents/skills`) and Cursor (`~/.cursor/skills`), and whether the VS Code Copilot harness lists `~/.copilot/agents`.
 
-It also gets the harness skills: `delivery-coach`, `feature-checklist`, `run-tests`, `code-review`, `parallel-options`, `explain-walkthrough`, `prototype-guardrail`, `recommend-skills` and `check-context-load`. `pr-push` stays in VS Code because it needs the GitHub Pull Requests extension.
+Every client gets every HVE agent (hidden helpers included), and the harness skills: `delivery-coach`, `feature-checklist`, `run-tests`, `code-review`, `parallel-options`, `explain-walkthrough`, `prototype-guardrail`, `recommend-skills` and `check-context-load`. `pr-push` stays in VS Code because it needs the GitHub Pull Requests extension. Copilot agents lose the Local-only fields (hooks, handoffs) and keep only the read-only and blind agents' tool lists, as Copilot aliases (`read`, `search`, `execute`).
 
 ## Before you start
 
@@ -31,20 +38,25 @@ It also gets the harness skills: `delivery-coach`, `feature-checklist`, `run-tes
 
 ## Export
 
-**From chat:** pick an HVE agent in VS Code and type `/export-harness`. The agent asks which clients to export to and the Azure DevOps organization, runs the exporter and shows how to start each client.
+**From chat:** pick an HVE agent in VS Code and type `/export-harness`. The agent asks which harnesses and scope, and the Azure DevOps organization, runs the exporter and shows how to start each client.
+
+**From the Command Palette:** **Frontier HVE: Install for other harnesses** installs at user scope for the harnesses you tick (the cloud agent into the open repository, after a confirmation).
 
 **From a terminal**, in the project root:
 
 ```powershell
 $ext = Get-ChildItem "$HOME/.vscode/extensions/muralim-ai2.frontier-hve-*" | Sort-Object LastWriteTime | Select-Object -Last 1
 $hve = "$($ext.FullName)/runtime/tools/adapters/export.py"
-python $hve claude . --ado contoso     # Claude Code (+ Azure DevOps)
+python $hve copilot --user             # Copilot CLI and VS Code Copilot harness, every workspace
+python $hve claude --user              # Claude Code, every workspace
+python $hve cloud .                    # Copilot cloud agent: writes .github/ for you to commit
+python $hve claude . --ado contoso     # Claude Code for this project (+ Azure DevOps)
 python $hve cursor . --ado contoso     # Cursor
 python $hve codex  . --ado contoso     # Codex CLI
 python $hve vscode . --ado contoso     # Azure DevOps for VS Code only
 ```
 
-`--ado` is optional for `claude`, `cursor` and `codex`, and required for `vscode`. The exporter prints a JSON report with these fields:
+`--user` works for `copilot` (only scope), `claude`, `cursor` and `codex`; `--python "py -3"` sets the launcher the hooks use. `--ado` is optional at project scope for `claude`, `cursor` and `codex`, and required for `vscode`. The exporter prints a JSON report with these fields:
 - `written`: every file and folder it created or updated.
 - `invoke`: how to start the agents.
 - `gaps`: what does not work in that client.
@@ -62,6 +74,15 @@ Safety rules:
 - Running the export again is safe.
 
 ## Use the agents
+
+### Copilot CLI and the VS Code Copilot harness
+1. In Copilot CLI, pick an agent with `/agent` (for example `hve-creator`). In VS Code, set Session Target **Copilot** and pick the agent.
+2. The first thing the agent runs is `lifecycle.py contract ...`; from then on `~/.copilot/hooks/hve.json` acts in that workspace (guards, loadout, sub-agent context).
+3. `lifecycle.py close` stops the hooks acting in the workspace; `lifecycle.py open <slug>` reopens an ask.
+
+### Copilot cloud agent
+1. Run `export.py cloud .`, review and commit `.github/agents`, `.github/skills`, `.github/hooks/hve.json` and `.github/hve/runtime` to the default branch.
+2. Assign an issue to Copilot and pick an HVE agent. The job is non-interactive: plan and gate questions are skipped, and hook output files are discarded after the job; the pull request carries the work.
 
 ### Claude Code
 1. Run `claude --agent hve-creator`. The header shows `@hve-creator`.
@@ -100,7 +121,7 @@ The adapter uses Microsoft's official server, [`@azure-devops/mcp`](https://gith
 Microsoft also offers a hosted remote server (`https://mcp.dev.azure.com/<organization>`, type `http`). The exporter does not configure it, because the remote server cannot be limited to tool groups.
 
 **The HVE azure-devops agent:**
-- **Feature list to work items:** one work item per feature in `feature_list.json`. The check command becomes the acceptance criterion.
+- **Feature list to work items:** one work item per feature in the project's `.hve/project/feature_list.json` (or `feature_list.json` when no ask is open). The check command becomes the acceptance criterion.
 - **Status sync:** state updates from `tracker.json`, with the check command and its exit code as a comment.
 - **Pull requests:** for feature branches you ticked, linked to their work items. It never pushes.
 - **Builds:** latest pipeline result, failing stage and first error line.
@@ -117,7 +138,7 @@ Example prompts:
 
 | Harness behaviour | VS Code | Claude Code | Cursor | Codex |
 |---|---|---|---|---|
-| Block edits of `feature_list.json`, `progress.txt`, `tracker.json`, `.harness/` | yes | yes | yes | yes (also `apply_patch`) |
+| Block edits of the loop files (`feature_list.json`, `progress.txt`, `tracker.json`) and loop state (`.harness/` or the ask's `loop/`) | yes | yes | yes | yes (also `apply_patch`) |
 | Block force pushes, unticked pushes and git-hook bypass | yes | yes | yes | yes |
 | Module-size feedback (files over 500 lines) | yes | yes | yes, as context | yes |
 | Victory check when the agent stops with failing features | yes | yes | yes, as a follow-up message | yes |
@@ -131,7 +152,7 @@ Example prompts:
 
 ## Update, re-export, remove
 
-- **After updating the extension:** run the export again. `.hve/runtime/` is a copy and does not update itself.
+- **After updating the extension:** run the install or export again. `~/.hve/runtime/`, `.hve/runtime/` and `.github/hve/runtime/` are copies and do not update themselves.
 - **Share with your team:** commit the agent, skill and hook files if you like. They point to `.hve/runtime/`, which is git-ignored, so each clone runs the export once.
 - **Remove:** delete `.hve/runtime/`, the paths listed in `written`, and the `ado` entry in the MCP file.
 
@@ -153,7 +174,8 @@ Example prompts:
 ## How it works (maintainers)
 
 - **`tools/adapters/export.py`** reads the VS Code agent templates in `extension/agents/`, including their hooks, so all clients share one definition. It then writes each client's native files.
-- **`hooks/agent_compat.py <client> <script> [KEY=VALUE ...] [-- args]`** runs any harness hook unchanged in another client:
+- **`hooks/agent_compat.py [--ask-only] <client> <script> [KEY=VALUE ...] [-- args]`** runs any harness hook unchanged in another client (`--ask-only`: do nothing unless the project has `.hve/asks/active.json`, used by hook files every session runs):
+  - **Copilot:** PascalCase events give VS Code-compatible payloads; `tool_result.text_result_for_llm` becomes `tool_response`, the timestamp stands in for the missing tool call id, and outputs are flattened (`permissionDecision`, `additionalContext`, `decision`). Copilot drops prompt-submit output and has no context before a tool, so the skill loader derives the loadout from the open ask on the first tool call.
   - **Tool names:** `Bash`/`PowerShell`/`Shell` → `run_in_terminal`, `Write` → `create_file`, `Edit` → `replace_string_in_file`, `Read` → `read_file`, `AskUserQuestion` → `vscode_askQuestions`.
   - **Fields:** `file_path` → `filePath`.
   - **Cursor:** event names and `conversation_id` are mapped.

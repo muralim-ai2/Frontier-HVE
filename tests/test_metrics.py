@@ -131,8 +131,27 @@ def test_canceled_call_keeps_hook_working_and_fails_flush() -> None:
     assert "errored or canceled chat calls ['m0']" in flush.stderr, flush.stderr
 
 
+def test_otel_trim_keeps_recent_records_and_ignores_the_export() -> None:
+    """The trim keeps records from the last days (and undated ones), drops older ones in place, and adds the export to .gitignore once."""
+    sys.path.insert(0, str(REPO / "tools" / "observe"))
+    import otel_trim
+    with tempfile.TemporaryDirectory() as tmp:
+        ws = Path(tmp)
+        assert otel_trim.trim(ws, T0) == {"export": None, "gitignore_added": True}
+        runs = ws / ".hve" / "runs"
+        runs.mkdir(parents=True)
+        day = 86_400_000
+        old, new = chat_span("old", -4 * day, "m", 10, {}), chat_span("new", -day, "m", 10, {})
+        (runs / "copilot-otel.jsonl").write_text("".join(json.dumps(s) + "\n" for s in (old, {"resource": {}}, new)), encoding="utf-8")
+        report = otel_trim.trim(ws, T0)
+        kept = [json.loads(line).get("spanId") for line in (runs / "copilot-otel.jsonl").read_text(encoding="utf-8").splitlines()]
+        assert kept == [None, "new"] and report["before_mb"] >= report["after_mb"] and report["gitignore_added"] is False, (kept, report)
+        assert (ws / ".gitignore").read_text(encoding="utf-8").count(".hve/runs/copilot-otel.jsonl") == 1
+
+
 if __name__ == "__main__":
     test_pinned_session_with_subagent()
     test_flush_fails_on_model_pin_mismatch()
     test_canceled_call_keeps_hook_working_and_fails_flush()
+    test_otel_trim_keeps_recent_records_and_ignores_the_export()
     print("test_metrics: OK")

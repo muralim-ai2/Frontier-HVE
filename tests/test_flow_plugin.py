@@ -86,6 +86,8 @@ def test_flow_guard_blocks_unfinished_stage() -> None:
         (root / ".hve" / "runs").mkdir(parents=True)
         for hook in ("flow_guard.py", "interventions.py", "hve_paths.py"):
             shutil.copy(REPO / "hooks" / hook, root / "hooks")
+        (root / "tools" / "loop").mkdir(parents=True)
+        shutil.copy(REPO / "tools" / "loop" / "loop_paths.py", root / "tools" / "loop")
         project = make_flow(tmp)
         payload = {"hook_event_name": "SubagentStop", "agent_id": "a", "agent_type": "flow-designer", "stop_hook_active": False}
         assert run_hook(root / "hooks" / "flow_guard.py", payload, root, HARNESS_PROJECT=project.name, FLOW_STAGE="designer")["decision"] == "block"  # type: ignore[index]
@@ -142,7 +144,7 @@ def test_guardrail_flags_non_enterprise_prototype() -> None:
 def test_plugin_skills_pass_the_scan() -> None:
     """Every harness-assist skill passes the Phase 9 structure and security scan."""
     reports = [skill_scan(p.parent) for p in sorted((PLUGIN / "skills").glob("*/SKILL.md"))]
-    assert len(reports) == 11 and all(r["ok"] for r in reports), [(r["name"], r["findings"]) for r in reports if not r["ok"]]
+    assert len(reports) == 17 and all(r["ok"] for r in reports), [(r["name"], r["findings"]) for r in reports if not r["ok"]]
 
 
 if __name__ == "__main__":

@@ -52,13 +52,16 @@ def test_extension_js_parses() -> None:
 
 
 def test_rendered_plugin_shape() -> None:
-    """The plugin has its manifest, 12 skills, guardrail scripts and 22 HVE agents with every runtime path filled in."""
+    """The plugin has its manifest, 17 skills, guardrail scripts and 39 HVE agents (16 rendered from the persona catalog) with every runtime
+    path filled in; only the three
+    Frontier agents are user-invocable and they, with the uplift judge, pin top models."""
     with tempfile.TemporaryDirectory() as tmp:
         out = Path(tmp) / "plugin"
         agents = render(out)
-        assert len(agents) == 22, agents
+        assert len(agents) == 39, agents
         assert json.loads((out / "plugin.json").read_text(encoding="utf-8"))["name"] == "frontier-hve"
-        assert len(list((out / "skills").glob("*/SKILL.md"))) == 12
+        assert len(list((out / "skills").glob("*/SKILL.md"))) == 17
+        assert (EXTENSION / "runtime" / "tools" / "map" / "explorer" / "app.js").is_file()
         assert (out / "skills" / "deliverable-templates" / "SKILL.md").is_file()
         assert (EXTENSION / "runtime" / "tools" / "templates" / "manage.py").is_file()
         assert (EXTENSION / "runtime" / "templates" / "deliverables" / "prd-v1.md").is_file()
@@ -67,13 +70,24 @@ def test_rendered_plugin_shape() -> None:
         assert re.search(r"^user-invocable: false", reviewer, re.M) and "edit/" not in reviewer
         assert not (out / "skills" / "ux-flows").exists() and (EXTENSION / "runtime" / "skills" / "admitted" / "ux-flows" / "SKILL.md").is_file()
         assert (out / "scripts" / "guardrail.py").exists()
+        restricted = {"council", "evaluation-reviewer", "minimal", "flow-architect", "flow-maintainer", "skill-judge", "skill-worker",
+                      "uplift-judge"}
+        visible, pinned = {"e2e", "agile", "prototype", "creator"}, {"e2e", "agile", "prototype", "creator", "uplift-judge"}
         for name in agents:
             text = (out / "com.github.copilot" / "agents" / name).read_text(encoding="utf-8")
-            assert "{{RUNTIME}}" not in text and re.search(r"^name: HVE ", text, re.M), name
-            assert not re.search(r"^(model|reasoning-effort):|budget\.py|HARNESS_BUDGET", text, re.M), \
-                f"{name}: product agents use the picked model, no time budget"
+            short = name.removeprefix("hve-").removesuffix(".agent.md")
+            assert "{{RUNTIME}}" not in text and re.search(r"^name: (HVE |Frontier )", text, re.M), name
+            assert bool(re.search(r"^user-invocable: false", text, re.M)) == (short not in visible), f"{name}: only the Frontier agents show"
+            assert bool(re.search(r"^model: \[.*'GPT-6 Astra \(copilot\)'", text, re.M)) == (short in pinned), f"{name}: model pin"
+            assert not re.search(r"budget\.py|HARNESS_BUDGET", text), f"{name}: product agents have no time budget"
+            assert bool(re.search(r"^tools:", text, re.M)) == (short in restricted), \
+                f"{name}: only read-only, blind and baseline agents keep a fixed tool list"
             for script in re.findall(r'python "([^"]+\.py)"', text):
                 assert Path(script).is_file(), (name, script)
+        for name in ("creator", "creator-flow", "creator-github", "single", "product-manager", "e2e", "agile"):
+            text = (out / "com.github.copilot" / "agents" / f"hve-{name}.agent.md").read_text(encoding="utf-8")
+            assert "lifecycle.py" in text and "contract" in text and "lifecycle.py report" in text, name
+            assert name == "single" or "lifecycle.py brief" in text, name
 
 
 def test_render_for_python_launcher_and_fresh_workspace() -> None:
@@ -108,7 +122,7 @@ def test_rerender_updates_in_place() -> None:
         stale = out / "com.github.copilot" / "agents" / "old.agent.md"
         stale.write_text("old", encoding="utf-8")
         (out / "skills" / "old-skill").mkdir()
-        assert len(render(out, "0.1.1")) == 22
+        assert len(render(out, "0.1.1")) == 39
         assert json.loads((out / "plugin.json").read_text(encoding="utf-8"))["version"] == "0.1.1"
         assert not stale.exists() and not (out / "skills" / "old-skill").exists()
 
@@ -148,7 +162,8 @@ def test_product_manager_agent() -> None:
         pm = (folder / "hve-product-manager.agent.md").read_text(encoding="utf-8")
         assert pm.count("HVE_TEMPLATE_TYPES: prd") == 3, pm
         assert "HARNESS_REQUIRED_SKILLS: prd" in pm
-        assert "github/search_issues" in pm and "scoped to that repository" in pm
+        assert "`search_issues`" in pm and "scoped to that repository" in pm and "contract direct <slug> \"HVE product-manager\"" in pm
+        assert "+prd" in pm and "The council gets no brief" in pm
         assert "host-selected; actual model unconfirmed" in pm and 'label it "session model"' not in pm
         assert "read `.hve/skills/prd/SKILL.md`" in pm and "skills/admitted/prd/SKILL.md" not in pm
         assert "register prd --slug" in pm and "Create parents and dependencies before" in pm and "`uncovered`" in pm
@@ -164,7 +179,8 @@ def test_product_manager_agent() -> None:
             registry = json.loads((EXTENSION / "runtime" / "skills" / "registry.json").read_text(encoding="utf-8"))
             tokens = {entry["name"]: entry["skill_tokens"] for entry in registry["admitted"]}
             budget = json.loads((EXTENSION / "runtime" / "skills" / "categories.json").read_text(encoding="utf-8"))["loadout"]
-            assert sum(tokens[Path(skill).name] for skill in loadout["skills"]) <= budget["max_tokens"]
+            total = sum(tokens[Path(skill).name] for skill in loadout["skills"])
+            assert loadout["tokens"] == total and loadout["over_budget"] == (total > budget["max_tokens"] or len(loadout["skills"]) > budget["max_skills"])
             skill_path = ws / ".hve" / "skills" / "prd" / "SKILL.md"
             assert skill_path.is_file()
             for path in (skill_path, EXTENSION / "runtime" / "skills" / "admitted" / "prd" / "SKILL.md"):
@@ -244,7 +260,7 @@ def test_delivery_agents_and_lifecycles() -> None:
         render(out)
         folder = out / "com.github.copilot" / "agents"
         prototype = (folder / "hve-prototype.agent.md").read_text(encoding="utf-8")
-        assert set(re.findall(r"/hooks/(\w+\.py)", prototype)) == {"loop_guard.py"}, prototype
+        assert set(re.findall(r"/hooks/(\w+\.py)", prototype)) == {"loop_guard.py", "error_guard.py"}, prototype
         assert re.search(r"^user-invocable: false", (folder / "hve-engineer.agent.md").read_text(encoding="utf-8"), re.M)
         ws = workspace(tmp)
         for name, overlay in (("e2e", "sdlc"), ("agile", "agile-scrum")):
@@ -254,7 +270,8 @@ def test_delivery_agents_and_lifecycles() -> None:
             made = subprocess.run([sys.executable, lifecycle_py, "contract", overlay, f"ask-{name}", f"HVE {name}", "req.md"],
                                   cwd=ws, capture_output=True, text=True)
             assert made.returncode == 0, made.stderr
-            assert json.loads((ws / ".hve" / "asks" / "active.json").read_text(encoding="utf-8")) == {"active": f"ask-{name}"}
+            active = json.loads((ws / ".hve" / "asks" / "active.json").read_text(encoding="utf-8"))["active"]
+            assert active == json.loads(made.stdout)["ask"] and re.fullmatch(rf"\d{{8}}-\d{{4}}-ask-{name}", active), active
 
 
 if __name__ == "__main__":

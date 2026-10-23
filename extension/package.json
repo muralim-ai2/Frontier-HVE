@@ -2,7 +2,7 @@
   "name": "frontier-hve",
   "displayName": "Frontier HVE",
   "description": "Enterprise AI harness for GitHub Copilot: HVE agents with a verified feature loop, graph workflow, guards and human-ticked PRs.",
-  "version": "0.10.0",
+  "version": "0.18.0",
   "publisher": "muralim-ai2",
   "license": "UNLICENSED",
   "repository": {
@@ -23,9 +23,35 @@
         "title": "Frontier HVE: Set up"
       },
       {
+        "command": "frontierHve.installHarnesses",
+        "title": "Frontier HVE: Install for other harnesses (Copilot CLI, Claude, Codex, Cursor, cloud agent)"
+      },
+      {
         "command": "frontierHve.researchTelemetry",
         "title": "Frontier HVE: Turn on research telemetry (benchmarks only)"
+      },
+      {
+        "command": "frontierHve.researchTelemetryOff",
+        "title": "Frontier HVE: Turn off research telemetry"
+      },
+      {
+        "command": "frontierHve.installPlugin",
+        "title": "Frontier HVE: Install plugin (expertise pack)"
+      },
+      {
+        "command": "frontierHve.managePlugins",
+        "title": "Frontier HVE: Manage plugins (expertise packs)"
       }
-    ]
+    ],
+    "configuration": {
+      "title": "Frontier HVE",
+      "properties": {
+        "frontierHve.pluginIndex": {
+          "type": "string",
+          "default": "",
+          "description": "Organization expertise pack index (path or https URL) that lists approved packs, versions, hashes and revocations."
+        }
+      }
+    }
   }
 }

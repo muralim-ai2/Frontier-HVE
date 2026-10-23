@@ -1,6 +1,9 @@
-"""Initializer/worker loop over feature_list.json: init locks features and starts git; next picks one; verify commits, flips, or diagnoses; status writes tracker.json."""
+"""Initializer/worker loop over feature_list.json: init locks features and starts git; next picks one; verify commits, flips, or diagnoses;
+status writes tracker.json. With an ask open, the feature list, progress, tracker and lock are the project's (.hve/project/) and the
+attempts, evidence and PR records the ask's; with no ask open everything stays in the project and .harness/."""
 
 import json
+import os
 import re
 import subprocess
 import sys
@@ -13,6 +16,7 @@ ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "tools" / "git"))
 from branch_workflow import git, open_pr, read_json, start, write_json  # noqa: E402
 from diagnose import QUESTIONS, append, decide, entry, read_jsonl, ledger_file  # noqa: E402
+from loop_paths import ask_evidence, ask_folder, evidence_dir, loop_dir, state_dir, state_file  # noqa: E402
 
 NO_FALLBACK = ROOT / "hooks" / "no_fallback.py"
 NAME = re.compile(r"^[a-z0-9][a-z0-9_-]{0,40}$")
@@ -45,9 +49,9 @@ def validate(features: Any, minimum: int = MIN_FEATURES) -> None:
 
 def init(project: Path, review: Review) -> Json:
     """Validate and lock feature_list.json, write progress.txt and .gitignore, add the B1 pre-commit hook to a new or existing repo, commit."""
-    if (project / ".harness" / "state.json").exists():
-        raise FileExistsError(f"{project} is already initialized")
-    features = read_json(project / "feature_list.json")
+    if state_file(project).exists():
+        raise FileExistsError(f"{project} is already initialized: add features with feature_list.add.json and `loop.py amend`")
+    features = read_json(loop_dir(project) / "feature_list.json")
     validate(features)
     if not (project / ".git").exists():
         git(project, "init", "-b", "main")
@@ -60,25 +64,37 @@ def init(project: Path, review: Review) -> Json:
     ignore = project / ".gitignore"
     existing = ignore.read_text(encoding="utf-8").splitlines() if ignore.exists() else []
     ignore.write_text("\n".join(existing + [g for g in GITIGNORE if g not in existing]) + "\n", encoding="utf-8")
-    (project / "progress.txt").write_text("", encoding="utf-8")
+    (loop_dir(project) / "progress.txt").write_text("", encoding="utf-8")
     hook.parent.mkdir(parents=True, exist_ok=True)
     hook.write_text(script, encoding="utf-8", newline="\n")
-    write_json(project / ".harness" / "state.json", {
+    write_json(state_file(project), {
         "review": review, "trunk": git(project, "symbolic-ref", "--short", "HEAD").strip(), "order": [f["name"] for f in features],
-        "lock": {f["name"]: {"description": f["description"], "verify": f["verify"]} for f in features},
+        "lock": lock_entries(project, features),
         "attempts": {f["name"]: 0 for f in features}, "base": {}, "current": None, "since_ms": None, "escalated": None, "help": None})
     tracker(project)
     git(project, "add", "-A")
-    git(project, "commit", "-m", "[init] scaffold")
+    # Inside an ask the loop files are in git-ignored .hve/, so a fresh repo may have nothing to commit yet.
+    git(project, "commit", "--allow-empty", "-m", "[init] scaffold", "-m", locked_summary(features))
     return {"initialized": True, "review": review, "features": [f["name"] for f in features]}
+
+
+def locked_summary(features: list[Json]) -> str:
+    """Return the locked features and their checks as a commit message body, so git history keeps them when the loop files are ignored."""
+    return "\n".join(f"{f['name']}: {f['verify']}" for f in features)
+
+
+def lock_entries(project: Path, features: list[Json]) -> Json:
+    """Return the lock of new features: description, check, and the ask that added them (None without an ask)."""
+    ask = ask_folder(project)
+    return {f["name"]: {"description": f["description"], "verify": f["verify"], "ask": ask.name if ask else None} for f in features}
 
 
 def load(project: Path) -> tuple[Json, list[Json]]:
     """Return the loop state and features after checking the features still match the lock (anti-gaming, blindspot B5)."""
-    state = read_json(project / ".harness" / "state.json")
+    state = read_json(state_file(project))
     if state["escalated"]:
         raise RuntimeError(f"feature {state['escalated']!r} is escalated to the human: {state['help']['question']}")
-    features = read_json(project / "feature_list.json")
+    features = read_json(loop_dir(project) / "feature_list.json")
     locked = [(n, state["lock"][n]["description"], state["lock"][n]["verify"]) for n in state["order"]]
     if [(f["name"], f["description"], f["verify"]) for f in features] != locked:
         raise RuntimeError("B5: feature_list.json names, descriptions, or verify commands differ from the locked list")
@@ -86,9 +102,11 @@ def load(project: Path) -> tuple[Json, list[Json]]:
 
 
 def run_check(command: str, cwd: Path) -> tuple[int, str]:
-    """Run a check command and return its exit code and its output, prefixed with the command and exit code."""
+    """Run a check command with HVE_EVIDENCE set to the evidence folder; return its exit code and its output, prefixed with the command."""
+    evidence = evidence_dir(cwd)
+    evidence.mkdir(parents=True, exist_ok=True)
     check = subprocess.run(command, shell=True, cwd=cwd, capture_output=True, text=True, encoding="utf-8", errors="replace",
-                           timeout=VERIFY_TIMEOUT_S)
+                           timeout=VERIFY_TIMEOUT_S, env=os.environ | {"HVE_EVIDENCE": str(evidence.resolve())})
     return check.returncode, f"verify `{command}` exited {check.returncode}:\n{check.stdout}{check.stderr}"
 
 
@@ -96,7 +114,7 @@ def escalate(project: Path, state: Json, name: str, rule: str, question: str, ev
     """Hand the feature to the human with one question and the evidence behind it."""
     state["escalated"] = name
     state["help"] = {"feature": name, "rule": rule, "question": question, "evidence": evidence}
-    write_json(project / ".harness" / "state.json", state)
+    write_json(state_file(project), state)
 
 
 def next_feature(project: Path) -> Json:
@@ -111,7 +129,7 @@ def next_feature(project: Path) -> Json:
     start(project, name)
     now = time.time() * 1000
     state["current"], state["since_ms"] = name, now
-    write_json(project / ".harness" / "state.json", state)
+    write_json(state_file(project), state)
     if not ledger_file(project, name).exists():
         code, output = run_check(todo["verify"], project)
         append(project, name, entry(project, 0, None, code, output, now, now) | {"rule": None})
@@ -136,7 +154,7 @@ def failed(project: Path, state: Json, name: str, code: int, output: str, approa
         escalate(project, state, name, decision["rule"] if decision["escalate"] else "cap", question,
                  {"fingerprint": current["fingerprint"], "output_tail": output[-600:], "tool_failures": current["tool_failures"]})
     else:
-        write_json(project / ".harness" / "state.json", state)
+        write_json(state_file(project), state)
     return {"name": name, "passes": False, "attempts": state["attempts"][name], "rule": decision["rule"], "action": decision["action"],
             "escalated": bool(state["escalated"]), "output_tail": output[-1500:]}
 
@@ -162,37 +180,38 @@ def verify(project: Path) -> Json:
         return failed(project, state, name, 1, "no commits on the feature branch: a feature passes only with committed work")
     for f in features:
         f["passes"] = f["passes"] or f["name"] == name
-    write_json(project / "feature_list.json", features)
+    write_json(loop_dir(project) / "feature_list.json", features)
     stamp = datetime.now(timezone.utc).isoformat(timespec="seconds")
-    with (project / "progress.txt").open("a", encoding="utf-8") as log:
+    with (loop_dir(project) / "progress.txt").open("a", encoding="utf-8") as log:
         log.write(f"{stamp} {name} passes after {state['attempts'][name] + 1} attempt(s): {command}\n")
     git(project, "add", "-A")
-    git(project, "commit", "-m", f"[progress] {name} passes")
+    git(project, "commit", "--allow-empty", "-m", f"[progress] {name} passes", "-m", f"verify: {command}")
     previous = state["order"][state["order"].index(name) - 1] if state["order"].index(name) else None
     pr = open_pr(project, name, state["base"][name], {"command": command, "exit_code": 0, "output_tail": output[-2000:]},
                  base_branch=f"feature/{previous}" if previous else state["trunk"], status="queued" if state["review"] == "github" else "recorded")
     state["current"] = None
-    write_json(project / ".harness" / "state.json", state)
+    write_json(state_file(project), state)
     return {"name": name, "passes": True, "remaining": sum(not f["passes"] for f in features), "pr": pr["branch"],
             "pr_status": pr["status"], "lines_added": pr["lines_added"], "scope_creep": pr["scope_creep"]}
 
 
 def tracker(project: Path) -> Json:
-    """Write tracker.json with each feature's status, attempts, check, evidence files and the user's manual check; return it."""
-    state = read_json(project / ".harness" / "state.json")
+    """Write tracker.json with each feature's status, attempts, check, the ask that added it, its evidence files and the user's manual check."""
+    state = read_json(state_file(project))
     rows = []
-    for f in read_json(project / "feature_list.json"):
+    for f in read_json(loop_dir(project) / "feature_list.json"):
         name = f["name"]
         status = ("passed" if f["passes"] else "escalated" if state["escalated"] == name
                   else "in_progress" if state["current"] == name else "pending")
-        evidence = project / ".harness" / "evidence" / name
-        check = project / ".harness" / "checks" / f"{name}.json"
-        rows.append({"name": name, "description": f["description"], "status": status, "attempts": state["attempts"][name],
+        ask = state["lock"][name].get("ask")  # locks written before 0.15.0 carry no ask
+        evidence = ask_evidence(project, ask) / name
+        check = state_dir(project) / "checks" / f"{name}.json"
+        rows.append({"name": name, "description": f["description"], "status": status, "attempts": state["attempts"][name], "ask": ask,
                      "verify": f["verify"], "evidence": sorted(p.relative_to(project).as_posix() for p in evidence.iterdir())
                      if evidence.is_dir() else [], "manual_check": read_json(check)["result"] if check.exists() else None})
     data = {"updated": datetime.now(timezone.utc).isoformat(timespec="seconds"), "passed": sum(r["status"] == "passed" for r in rows),
             "total": len(rows), "features": rows}
-    write_json(project / "tracker.json", data)
+    write_json(loop_dir(project) / "tracker.json", data)
     return data
 
 
@@ -201,7 +220,7 @@ def amend(project: Path) -> Json:
     state, features = load(project)
     if state["current"] is not None:
         raise RuntimeError(f"feature {state['current']!r} is in progress: verify it before amending")
-    add_file = project / "feature_list.add.json"
+    add_file = loop_dir(project) / "feature_list.add.json"
     added = read_json(add_file)
     validate(added, minimum=1)
     clash = sorted({f["name"] for f in added} & set(state["order"]))
@@ -209,25 +228,25 @@ def amend(project: Path) -> Json:
         raise ValueError(f"features {clash} are already locked; new features need new names")
     names = [f["name"] for f in added]
     state["order"] += names
-    state["lock"] |= {f["name"]: {"description": f["description"], "verify": f["verify"]} for f in added}
+    state["lock"] |= lock_entries(project, added)
     state["attempts"] |= {name: 0 for name in names}
-    write_json(project / "feature_list.json", features + added)
-    write_json(project / ".harness" / "state.json", state)
+    write_json(loop_dir(project) / "feature_list.json", features + added)
+    write_json(state_file(project), state)
     add_file.unlink()
     git(project, "add", "-A")
-    git(project, "commit", "-m", f"[amend] add {', '.join(names)}")
+    git(project, "commit", "--allow-empty", "-m", f"[amend] add {', '.join(names)}", "-m", locked_summary(added))
     return {"amended": names, "total": len(features) + len(added)}
 
 
 def resume(project: Path, note: str) -> Json:
     """Human-only: record the human's answer, clear the escalation, and give the feature a fresh attempt budget."""
-    state = read_json(project / ".harness" / "state.json")
+    state = read_json(state_file(project))
     name = state["escalated"]
     if name is None:
         raise ValueError("nothing is escalated")
     append(project, name, {"human_note": note, "answers": state["help"], "ts_ms": time.time() * 1000})
     state["attempts"][name], state["escalated"], state["help"], state["since_ms"] = 0, None, None, time.time() * 1000
-    write_json(project / ".harness" / "state.json", state)
+    write_json(state_file(project), state)
     return {"resumed": name, "note": note}
 
 

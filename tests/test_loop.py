@@ -242,6 +242,42 @@ def test_parallel_options_same_failure_escalates() -> None:
         assert read_json(project / ".harness" / "state.json")["help"]["rule"] == "R5"
 
 
+def test_ask_mode_keeps_loop_files_in_the_ask_folder() -> None:
+    """With an open ask the feature list, progress, tracker and state live in .hve/project/ and the evidence in the ask's loop/ folder,
+    all out of git; commits carry the locked checks, checks get HVE_EVIDENCE, locks record the ask, and the guard protects both."""
+    with tempfile.TemporaryDirectory() as tmp:
+        project = Path(tmp) / "project"
+        folder = project / ".hve" / "asks" / "20261019-1200-x" / "loop"
+        shared = project / ".hve" / "project"
+        folder.mkdir(parents=True)
+        shared.mkdir(parents=True)
+        (project / ".hve" / "asks" / "active.json").write_text(json.dumps({"active": "20261019-1200-x"}), encoding="utf-8")
+        (project / "check.py").write_text("import os, pathlib, sys\n"
+                                          "out = pathlib.Path(os.environ['HVE_EVIDENCE']) / pathlib.Path(sys.argv[1]).stem\n"
+                                          "out.mkdir(parents=True, exist_ok=True)\n(out / 'log.txt').write_text('checked')\n"
+                                          "sys.exit(0 if pathlib.Path(sys.argv[1]).exists() else 1)\n", encoding="utf-8")
+        (shared / "feature_list.json").write_text(json.dumps([feature(n, f"{n}.txt") for n in "abc"]), encoding="utf-8")
+        loop.init(project, "local")  # type: ignore[arg-type]
+        assert {p.name for p in shared.iterdir()} >= {"feature_list.json", "progress.txt", "tracker.json", "state.json"}
+        state = json.loads((shared / "state.json").read_text(encoding="utf-8"))
+        assert state["lock"]["a"]["ask"] == "20261019-1200-x", state["lock"]
+        assert not (project / ".harness").exists() and not (project / "feature_list.json").exists()
+        assert ".hve" not in git(project, "ls-files") and "a: python check.py a.txt" in git(project, "log", "-1", "--format=%b")
+        loop.next_feature(project)
+        (project / "a.txt").write_text("a\n", encoding="utf-8")
+        assert loop.verify(project)["passes"] is True
+        assert (folder / "evidence" / "a" / "log.txt").read_text(encoding="utf-8") == "checked"
+        assert "verify: python check.py a.txt" in git(project, "log", "-1", "--format=%b")
+        assert loop.tracker(project)["features"][0]["evidence"] == [".hve/asks/20261019-1200-x/loop/evidence/a/log.txt"]
+        root = make_root(tmp)
+        env = {"HARNESS_PROJECT": "project", "HARNESS_STOP_POLICY": "once"}
+        for path, denied in ((shared / "feature_list.json", True), (shared / "state.json", True), (folder / "evidence" / "a" / "x.txt", True),
+                             (project / "feature_list.json", False), (project / "src.py", False)):
+            out = fire(root, "loop_guard.py", {"hook_event_name": "PreToolUse", "tool_name": "create_file", "tool_input": {"filePath": str(path)},
+                                               "tool_use_id": "t1"}, **env)
+            assert (out is not None) is denied, (path, out)
+
+
 def test_no_fallback_patterns() -> None:
     """Silent except/catch and TODOs are found; re-raising handlers are not."""
     assert scan_file("a.py", "def f():\n    try:\n        g()\n    except ValueError:\n        return None\n")
@@ -252,12 +288,16 @@ def test_no_fallback_patterns() -> None:
     assert scan_file("a.ts", "try { g(); } catch (e) { throw new Error(`ctx: ${e}`); }\n") == []
 
 
-def make_root(tmp: str) -> Path:
-    """Return a temp workspace with the guard hooks, .hve/runs, a 20-minute budget at 08:00 UTC, and a project folder."""
+def make_root(tmp: str, guard_mode: str = "enforce") -> Path:
+    """Return a temp workspace with the guard hooks (loop guard in the given mode), .hve/runs, a 20-minute budget at 08:00 UTC, and a
+    project folder."""
     root = Path(tmp)
     (root / "hooks").mkdir()
-    for hook in ("loop_guard.py", "module_guard.py", "flow_guard.py", "interventions.py", "hve_paths.py", "guard_policy.py"):
+    for hook in ("loop_guard.py", "module_guard.py", "flow_guard.py", "interventions.py", "hve_paths.py", "guard_policy.py", "error_guard.py"):
         shutil.copy(REPO / "hooks" / hook, root / "hooks")
+    (root / "hooks" / "guard_mode.json").write_text(json.dumps({"loop_guard": guard_mode}), encoding="utf-8")
+    (root / "tools" / "loop").mkdir(parents=True)
+    shutil.copy(REPO / "tools" / "loop" / "loop_paths.py", root / "tools" / "loop")
     (root / ".hve" / "runs").mkdir(parents=True)
     (root / ".hve" / "runs" / "s1.budget.json").write_text(json.dumps({"start_ms": START_MS, "budget_ms": 1_200_000.0, "denied": []}),
                                                           encoding="utf-8")
@@ -366,6 +406,58 @@ def test_guard_waiver() -> None:
         assert kinds.count("waived") == 1 and "waiver_answer" in kinds, kinds
 
 
+def test_loop_guard_awareness_mode() -> None:
+    """In advise mode a loop-file edit and an early stop are surfaced to the user with what changed, not blocked; pushes stay blocked."""
+    with tempfile.TemporaryDirectory() as tmp:
+        root = make_root(tmp, "advise")
+        proj = root / "proj"
+        env = {"HARNESS_PROJECT": "proj", "HARNESS_STOP_POLICY": "once"}
+        (proj / "feature_list.json").write_text(json.dumps([{"name": "a", "passes": False}]), encoding="utf-8")
+        (proj / ".harness" / "state.json").write_text(json.dumps({"review": "local", "current": None, "escalated": None}), encoding="utf-8")
+        edit = {"filePath": str(proj / "feature_list.json"), "oldString": '"passes": false', "newString": '"passes": true'}
+        out = fire(root, "loop_guard.py", {"hook_event_name": "PreToolUse", "tool_name": "replace_string_in_file", "tool_input": edit,
+                                           "tool_use_id": "t1"}, **env)
+        assert out and "permissionDecision" not in out["hookSpecificOutput"], out
+        assert out["systemMessage"].startswith("Advisory alert (experimental): surfaces LLM behaviour that helps to know. During the run a loop "
+                                                "file"), out
+        assert '`"passes": false` replaced by `"passes": true`' in out["systemMessage"] and "Advisory alert" in out["hookSpecificOutput"]["additionalContext"]
+        stop = fire(root, "loop_guard.py", {"hook_event_name": "Stop", "timestamp": "2026-10-06T08:05:00+00:00", "stop_hook_active": False},
+                    **env)
+        assert stop == {"systemMessage": stop["systemMessage"]} and "stopped while features still fail" in stop["systemMessage"], stop
+        push = fire(root, "loop_guard.py", {"hook_event_name": "PreToolUse", "tool_name": "run_in_terminal", "tool_use_id": "t2",
+                                            "tool_input": {"command": "git push --force origin main"}}, **env)
+        assert push["hookSpecificOutput"]["permissionDecision"] == "deny", push  # type: ignore[index]
+
+
+def test_error_guard_pauses_after_three_failures_in_a_row() -> None:
+    """Three failed commands in a row pause the agent and hold tools until the user's next prompt; a success or a loop check does not count."""
+    with tempfile.TemporaryDirectory() as tmp:
+        root = make_root(tmp)
+
+        def post(command: str, response: str) -> dict[str, Any] | None:
+            """Fire PostToolUse for a terminal command."""
+            return fire(root, "error_guard.py", {"hook_event_name": "PostToolUse", "tool_name": "run_in_terminal", "tool_use_id": "t",
+                                                 "tool_input": {"command": command}, "tool_response": response})
+
+        def pre(tool: str) -> dict[str, Any] | None:
+            """Fire PreToolUse."""
+            return fire(root, "error_guard.py", {"hook_event_name": "PreToolUse", "tool_name": tool, "tool_input": {}, "tool_use_id": "t"})
+
+        failed = "ModuleNotFoundError: No module named 'pptx'\nCommand exited with code 1"
+        assert post("python build_deck.py", failed) is None and post("python build_deck.py", failed) is None
+        assert post("python ../tools/loop/loop.py verify .", failed) is None and post("ls", "ok") is None
+        assert post("python build_deck.py", failed) is None and post("python build_deck.py", failed) is None
+        paused = post("python build_deck.py", failed)
+        assert paused and paused["continue"] is False and "last 3 commands failed in a row" in paused["stopReason"], paused
+        assert "No module named 'pptx'" in paused["systemMessage"], paused
+        assert pre("run_in_terminal")["hookSpecificOutput"]["permissionDecision"] == "deny"  # type: ignore[index]
+        assert pre("vscode_askQuestions") is None and pre("read_file") is None
+        fire(root, "error_guard.py", {"hook_event_name": "UserPromptSubmit", "prompt": "install python-pptx and retry"})
+        assert pre("run_in_terminal") is None
+        kinds = [json.loads(line)["kind"] for line in (root / ".hve" / "runs" / "s1.interventions.jsonl").read_text().splitlines()]
+        assert kinds == ["error_streak"], kinds
+
+
 def test_module_guard() -> None:
     """Editing a file over 500 lines is blocked with a split instruction; smaller files pass."""
     with tempfile.TemporaryDirectory() as tmp:
@@ -380,6 +472,33 @@ def test_module_guard() -> None:
         assert fire(root, "module_guard.py", {"hook_event_name": "PostToolUse", "tool_name": "apply_patch", "tool_input": patch}) is None
 
 
+def test_prototype_check() -> None:
+    """The prototype lint passes a safe clickthrough, flags unsafe code, missing screens and dead links, and screenshots go to the
+    ask's evidence folder when a browser is installed."""
+    sys.path.insert(0, str(REPO / "tools" / "prototype"))
+    import check  # noqa: E402
+    with tempfile.TemporaryDirectory() as tmp:
+        ws = Path(tmp)
+        (ws / ".hve" / "asks" / "20261021-1200-x" / "loop").mkdir(parents=True)
+        (ws / ".hve" / "asks" / "active.json").write_text(json.dumps({"active": "20261021-1200-x"}), encoding="utf-8")
+        proto = ws / "proto"
+        proto.mkdir()
+        (proto / "index.html").write_text('<h1>Dashboard</h1><a href="#/settings">Settings</a><a href="#/ghost">x</a>', encoding="utf-8")
+        (proto / "app.js").write_text("const routes = {'/dashboard': 1, 'settings': 2};\n", encoding="utf-8")
+        result = check.lint(proto, ["Dashboard", "Settings", "Billing"])
+        assert result["problems"] == ["screen 'Billing' not found in the prototype", "link #ghost has no screen, route or element id"], result
+        (proto / "app.js").write_text("fetch('/api'); eval('1');\n<script src='https://cdn.x/y.js'>", encoding="utf-8")
+        assert {p.split(": ")[1] for p in check.lint(proto, [])["problems"] if p.startswith("app.js")} == {
+            "external URL", "network call", "code from strings"}
+        (proto / "app.js").write_text("const routes = {'/dashboard': 1, 'settings': 2, 'ghost': 3};\n", encoding="utf-8")
+        assert check.lint(proto, ["Dashboard"])["ok"] is True
+        try:
+            check.browser()
+        except FileNotFoundError:
+            return
+        assert check.shots(proto, ["/settings"], ws) == [".hve/asks/20261021-1200-x/loop/evidence/prototype/settings.png"]
+
+
 if __name__ == "__main__":
     test_init_rejects_bad_feature_lists()
     test_init_in_existing_repo()
@@ -391,8 +510,12 @@ if __name__ == "__main__":
     test_rules_tool_retrieval_environment()
     test_parallel_options_auto_and_human_choice()
     test_parallel_options_same_failure_escalates()
+    test_ask_mode_keeps_loop_files_in_the_ask_folder()
     test_no_fallback_patterns()
     test_loop_guard()
     test_guard_waiver()
+    test_loop_guard_awareness_mode()
+    test_error_guard_pauses_after_three_failures_in_a_row()
     test_module_guard()
+    test_prototype_check()
     print("test_loop: OK")

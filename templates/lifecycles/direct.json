@@ -1,0 +1,11 @@
+{
+  "name": "direct",
+  "title": "Direct delivery",
+  "summary": "One stage: the agent delivers the request itself; used by agents that do not run a lifecycle (creator, single, product manager).",
+  "fits": ["direct"],
+  "stages": [
+    {"name": "deliver", "goal": "Deliver the request and verify it.", "agent": "self",
+     "skills": [], "plugin_skills": ["feature-checklist", "delivery-coach", "run-tests"], "templates": [],
+     "exit": "Every check passes and the output is reported.", "skip_when": "Never: this is the delivery."}
+  ]
+}

@@ -14,8 +14,8 @@ Before planning, follow `explain-walkthrough` section 2: what we will build, how
 State the risk, the better option and what it costs in one line each. The user decides; record their choice in your summary.
 
 ## 2. Initializer: plan in files, not in chat
-1. Use `feature-checklist` to write `feature_list.json` (3-8 features a user recognises, each with a real check).
-2. For a UI feature, make its `verify` command also capture a screenshot into `.harness/evidence/<feature>/` (for example a script that starts the app, runs `npx playwright screenshot --full-page http://localhost:<port> .harness/evidence/<feature>/page.png`, stops the app, and exits non-zero if the file is missing). The check produces the evidence, so it cannot be faked.
+1. Use `feature-checklist` to write the feature list (`paths.feature_list`, the project's `.hve/project/feature_list.json`; 3-8 features a user recognises, each with a real check).
+2. For a UI feature, make its `verify` command also capture a screenshot into `$HVE_EVIDENCE/<feature>/` (the loop sets `HVE_EVIDENCE` to the ask's `loop/evidence/`; for example a script that starts the app, runs `npx playwright screenshot --full-page http://localhost:<port> <HVE_EVIDENCE>/<feature>/page.png`, stops the app, and exits non-zero if the file is missing). The check produces the evidence, so it cannot be faked.
 3. Run `python <tools>/loop/loop.py init . --review <local|github>`. It writes `progress.txt` and `tracker.json` (status, attempts, check, evidence and manual check per feature). Show the user the tracker as a short table.
 
 ## 3. Generator and evaluator: one feature at a time

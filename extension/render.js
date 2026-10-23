@@ -78,4 +78,56 @@ function renderPlugin(extensionDir, pluginDir, version, python) {
   return agents;
 }
 
-module.exports = { renderPlugin };
+/**
+ * Return the core hook block for a pack agent: template guard and the skill loader.
+ * @returns {string}
+ */
+function packHooks() {
+  const command = (script) => `    - type: command\n      command: 'python "{{RUNTIME}}/hooks/${script}"'\n`;
+  const loader = `${command('skill_loader.py')}      env:\n        HARNESS_SKILLS_MIN_STATUS: provisional\n`;
+  return `hooks:\n  SessionStart:\n${command('template_guard.py')}`
+    + `  UserPromptSubmit:\n${command('template_guard.py')}${loader}`
+    + `  PreToolUse:\n${loader}  PostToolUse:\n${loader}`
+    + `  Stop:\n${command('template_guard.py')}`;
+}
+
+/**
+ * Render each available expertise pack into <renderedRoot>/<id>/ as an Agent Plugins folder (agents named '<pack>:<agent>' with core
+ * hooks) and delete rendered folders of packs no longer available; return the rendered folders.
+ * @param {string} extensionDir Folder of the installed extension (holds runtime/).
+ * @param {string | null} python Python launcher command, or null when none was found.
+ * @param {string} renderedRoot Folder that holds one rendered folder per pack.
+ * @param {{id: string, name: string, version: string, folder: string, manifest: object}[]} packs Packs from `plugin.py packs`.
+ * @returns {string[]}
+ */
+function renderPacks(extensionDir, python, renderedRoot, packs) {
+  const runtime = path.join(extensionDir, 'runtime').split(path.sep).join('/');
+  fs.mkdirSync(renderedRoot, { recursive: true });
+  const folders = [];
+  for (const pack of packs) {
+    const out = path.join(renderedRoot, pack.id);
+    const agentsOut = path.join(out, 'com.github.copilot', 'agents');
+    fs.mkdirSync(agentsOut, { recursive: true });
+    fs.writeFileSync(path.join(out, 'plugin.json'), JSON.stringify({
+      $schema: 'https://agent-plugins.org/schemas/1.0.0/plugin.schema.json',
+      name: pack.name,
+      version: pack.version,
+      description: `${pack.manifest.displayName} (Frontier HVE expertise pack by ${pack.manifest.publisher}), rendered by Frontier HVE.`,
+    }, null, 2) + '\n');
+    const files = [];
+    for (const agent of pack.manifest.agents) {
+      const source = fs.readFileSync(path.join(pack.folder, agent.file), 'utf8').replace(/\r\n/g, '\n');
+      const front = FRONTMATTER.exec(source)[0];
+      const named = front.replace(/^name: .*$/m, `name: ${pack.name}:${agent.name}`).replace(/\n---\n$/, `\n${packHooks()}---\n`);
+      const file = `${agent.name}.agent.md`;
+      fs.writeFileSync(path.join(agentsOut, file), renderAgent(named + source.slice(front.length), runtime, python));
+      files.push(file);
+    }
+    removeStale(agentsOut, files);
+    folders.push(out);
+  }
+  removeStale(renderedRoot, packs.map((pack) => pack.id));
+  return folders;
+}
+
+module.exports = { renderPlugin, renderPacks };

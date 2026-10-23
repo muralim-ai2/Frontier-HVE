@@ -5,11 +5,16 @@ import json
 import os
 import re
 import subprocess
+import sys
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from compose import combine, plugin_contract, selection
 from contract import OUTPUT_KINDS, EvaluationContract, ValidationHook, items, load_contract, mapping, text, validate_contract
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "loop"))
+from loop_paths import evidence_dir, loop_dir, state_dir  # noqa: E402
 
 Json = dict[str, Any]
 RUN_ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,80}$")
@@ -69,11 +74,14 @@ def _advance(folder: Path, manifest: Json, status: str) -> None:
 
 
 def _inventory(project: Path) -> list[str]:
-    """Return project-relative files a scorer may cite, without dependencies or harness state."""
+    """Return project-relative files a scorer may cite, without dependencies or harness state, plus the feature checks' evidence."""
     files = []
     for folder, dirs, names in os.walk(project):
         dirs[:] = [d for d in dirs if d not in EXCLUDED_PARTS]
         files += [(Path(folder) / name).relative_to(project).as_posix() for name in names]
+    evidence = evidence_dir(project)
+    if EXCLUDED_PARTS.intersection(evidence.relative_to(project).parts) and evidence.is_dir():
+        files += [p.relative_to(project).as_posix() for p in evidence.rglob("*") if p.is_file()]
     return sorted(files)
 
 
@@ -91,18 +99,46 @@ def latest_report(project: Path) -> Json | None:
     return mapping(_read_json(reports[-1]), "latest evaluation report") if reports else None
 
 
-def prepare(project: Path, contract_path: Path, request_path: Path, output_kind: str, revision_pass: int) -> Json:
-    """Create an immutable contract snapshot, the original request and a grounded rubric-scoring prompt."""
+def _plugin_run(project: Path, core: EvaluationContract, plugin_path: Path | None, selection_path: Path | None, output_kind: str,
+                revision_pass: int, last: Json | None) -> tuple[EvaluationContract, Json | None, str | None]:
+    """Return the run contract, the core-rubric selection and the pack rubric hash; revision passes reuse pass 0's choices."""
+    previous = _read_json(_run_folder(project, last["runId"]) / "manifest.json") if revision_pass and last else None
+    if plugin_path is None:
+        if selection_path is not None:
+            raise ValueError("--rubric-selection needs --plugin-contract")
+        if previous is not None and previous.get("pluginContractSha256") is not None:
+            raise ValueError("this evaluation used a pack rubric contract; revision passes must pass the same --plugin-contract")
+        return core, None, None
+    digest = hashlib.sha256(plugin_path.read_bytes()).hexdigest()
+    plugin = plugin_contract(json.loads(plugin_path.read_text(encoding="utf-8")), core)
+    if previous is None:
+        if selection_path is None:
+            raise ValueError("a pack rubric contract needs --rubric-selection: list every core rubric in include or exclude")
+        chosen = selection(_read_json(selection_path), core, plugin, output_kind)
+    else:
+        if selection_path is not None:
+            raise ValueError("revision passes reuse the pass 0 rubric selection; do not pass --rubric-selection")
+        if previous.get("pluginContractSha256") != digest:
+            raise ValueError("revision passes must use the same pack rubric contract as pass 0")
+        chosen = previous["rubricSelection"]
+    return combine(core, plugin, chosen), chosen, digest
+
+
+def prepare(project: Path, contract_path: Path, request_path: Path, output_kind: str, revision_pass: int,
+            plugin_path: Path | None = None, selection_path: Path | None = None) -> Json:
+    """Create an immutable contract snapshot (core, or a pack's rubrics plus the selected core rubrics), the original request and a
+    grounded rubric-scoring prompt."""
     project = _project(project)
-    contract = load_contract(contract_path.resolve())
+    core = load_contract(contract_path.resolve())
     if output_kind not in OUTPUT_KINDS:
         raise ValueError(f"output kind must be one of {list(OUTPUT_KINDS)}; got {output_kind!r}")
-    limit = contract["decision"]["maxRevisionPasses"]
+    limit = core["decision"]["maxRevisionPasses"]
     if not 0 <= revision_pass <= limit:
         raise ValueError(f"revision pass must be between 0 and {limit}")
     last = latest_report(project)
     if revision_pass and (not last or last["decision"] != "revise" or last["revisionPass"] != revision_pass - 1):
         raise ValueError(f"revision pass {revision_pass} needs a completed pass {revision_pass - 1} whose decision is revise")
+    contract, chosen, plugin_digest = _plugin_run(project, core, plugin_path, selection_path, output_kind, revision_pass, last)
     inventory = _inventory(project)
     fingerprint = _fingerprint(project, inventory)
     if last and last["fingerprint"] == fingerprint:
@@ -130,7 +166,8 @@ def prepare(project: Path, contract_path: Path, request_path: Path, output_kind:
         "runId": run_id, "revisionPass": revision_pass, "outputKind": output_kind, "fingerprint": fingerprint,
         "status": "awaiting-rubric-scores",
         "created": datetime.now(timezone.utc).isoformat(timespec="seconds"),
-        "contractSha256": hashlib.sha256(contract_path.read_bytes()).hexdigest()})
+        "contractSha256": hashlib.sha256(contract_path.read_bytes()).hexdigest(),
+        "pluginContractSha256": plugin_digest, "rubricSelection": chosen})
     return {"runId": run_id, "folder": folder.relative_to(project).as_posix(), "status": "awaiting-rubric-scores",
             "next": "score rubric-prompt.json with a fresh sub-agent, then record-scores"}
 
@@ -188,9 +225,10 @@ def _run(command: str, project: Path, timeout: int, env: dict[str, str] | None =
 
 def _feature_checks(project: Path, hook: ValidationHook) -> Json:
     """Re-run every locked feature check against the delivered output."""
-    features = items(_read_json(project / "feature_list.json"), "feature_list.json")
+    features = items(_read_json(loop_dir(project) / "feature_list.json"), "feature_list.json")
+    env = {**os.environ, "HVE_EVIDENCE": str(evidence_dir(project).resolve())}
     runs = [{"feature": text(mapping(f, "feature").get("name"), "feature.name")}
-            | _run(text(f.get("verify"), "feature.verify"), project, hook["timeoutSeconds"]) for f in features]
+            | _run(text(f.get("verify"), "feature.verify"), project, hook["timeoutSeconds"], env) for f in features]
     passed = sum(1 for r in runs if r["exitCode"] == 0)
     return {"passed": bool(runs) and passed == len(runs), "detail": f"{passed}/{len(runs)} feature checks passed", "runs": runs}
 
@@ -202,8 +240,10 @@ def _command(project: Path, folder: Path, hook: ValidationHook) -> Json:
 
 
 def _artifacts(project: Path, hook: ValidationHook) -> Json:
-    """Collect evidence files matching the hook's globs with their size and SHA-256."""
-    files = sorted({p for pattern in hook["paths"] for p in project.glob(pattern) if p.is_file()})
+    """Collect evidence files matching the hook's globs (`.harness/...` means the loop state folder) with their size and SHA-256."""
+    files = sorted({p for pattern in hook["paths"]
+                    for p in (state_dir(project).glob(pattern.removeprefix(".harness/")) if pattern.startswith(".harness/")
+                              else project.glob(pattern)) if p.is_file()})
     artifacts = [{"path": p.relative_to(project).as_posix(), "bytes": p.stat().st_size,
                   "sha256": hashlib.sha256(p.read_bytes()).hexdigest()} for p in files]
     return {"passed": bool(artifacts), "detail": f"collected {len(artifacts)} artifact(s)", "artifacts": artifacts}
@@ -215,10 +255,14 @@ def validate_run(project: Path, run_id: str) -> Json:
     scores = {r["id"]: r for r in _read_json(folder / "rubric-results.json")["rubrics"]}
     revision = manifest["revisionPass"] > 0
     low = [r["id"] for r in contract["rubrics"] if revision or scores[r["id"]]["status"] != "ok"]
-    results, not_applicable = [], []
+    results, not_applicable, reasons = [], [], {}
     for hook in contract["validation"]["hooks"]:
         if manifest["outputKind"] not in hook["outputKinds"]:
             not_applicable.append(hook["id"])
+            continue
+        if hook["type"] == "feature-checks" and not (loop_dir(project) / "feature_list.json").is_file():
+            not_applicable.append(hook["id"])
+            reasons[hook["id"]] = "no feature loop ran for this output, so there are no locked checks to re-run"
             continue
         linked = [r["id"] for r in contract["rubrics"] if hook["id"] in r["validationHooks"]]
         rubrics = linked if hook["trigger"] == "always" else [r for r in linked if r in low]
@@ -228,7 +272,8 @@ def validate_run(project: Path, run_id: str) -> Json:
                    else _command(project, folder, hook) if hook["type"] == "command" else _artifacts(project, hook))
         results.append({"id": hook["id"], "type": hook["type"], "required": hook["required"], "rubrics": rubrics} | outcome)
     passed = all(r["passed"] for r in results if r["required"])
-    _write_json(folder / "validation-results.json", {"triggeredBy": low, "notApplicable": not_applicable, "hooks": results,
+    _write_json(folder / "validation-results.json", {"triggeredBy": low, "notApplicable": not_applicable, "notApplicableWhy": reasons,
+                                                     "hooks": results,
                                                      "passed": passed})
     _advance(folder, manifest, "awaiting-council")
     return {"runId": run_id, "status": "awaiting-council", "passed": passed,
@@ -237,14 +282,16 @@ def validate_run(project: Path, run_id: str) -> Json:
 
 def council_prompts(project: Path, run_id: str) -> Json:
     """Write one evidence-bounded prompt for each high-tier council role."""
-    project, folder, contract, _ = _open_run(project, run_id, "awaiting-council")
+    project, folder, contract, manifest = _open_run(project, run_id, "awaiting-council")
     hook_ids = [h["id"] for h in contract["validation"]["hooks"]]
+    excluded = ["Core rubrics the agent excluded, with its reasons (judge whether each exclusion is sound; an unsound one is a "
+                f"miss on the covering rubric): {json.dumps(manifest['rubricSelection'])}"] if manifest.get("rubricSelection") else []
     shared = {
         "request": (folder / "request.md").read_text(encoding="utf-8"),
         "rubrics": contract["rubrics"],
         "rubricResults": _read_json(folder / "rubric-results.json")["rubrics"],
         "validationResults": _read_json(folder / "validation-results.json"),
-        "rules": [
+        "rules": excluded + [
             "Judge the rubric scores and validation evidence above. You may read project files to confirm or refute them; edit nothing.",
             "Mark risks, misses and questionable designs; do not invent proof.",
             f"Each marker's rubric is one of {[r['id'] for r in contract['rubrics']]}.",
@@ -356,6 +403,9 @@ def finalize(project: Path, run_id: str) -> Json:
                                                                        for h in validation["hooks"]]},
               "council": [{k: v[k] for k in ("role", "requestedModel", "recommendation", "summary")} for v in verdicts],
               "markers": markers,
+              "excludedCoreRubrics": ([{"id": k, "reason": v, "detail": manifest["rubricSelection"]["reasons"].get(k)}
+                                       for k, v in manifest["rubricSelection"]["exclude"].items()]
+                                      if manifest.get("rubricSelection") else []),
               "recommendations": [f"{h['id']}: {h['detail']}. {specs[h['id']]['recommendation']}"
                                   for h in validation["hooks"] if not h["required"] and not h["passed"]]}
     _write_json(folder / "report.json", report)

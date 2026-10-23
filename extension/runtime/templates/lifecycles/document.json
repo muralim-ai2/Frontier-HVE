@@ -1,0 +1,23 @@
+{
+  "name": "document",
+  "title": "Document delivery",
+  "summary": "Brief, research, outline, draft and review a written deliverable; fits presentations, decks, reports, memos and briefings.",
+  "fits": ["presentation", "deck", "slides", "report", "memo", "briefing", "document", "whitepaper", "forecast", "executive", "summary", "narrative", "board"],
+  "stages": [
+    {"name": "brief", "goal": "Agree the audience, purpose, key message, format and length.", "agent": "self",
+     "skills": [], "plugin_skills": [], "templates": [],
+     "exit": "The user confirms the brief.", "skip_when": "The request already states audience, purpose and format."},
+    {"name": "research", "goal": "Gather sourced facts and figures for the message.", "agent": "self",
+     "skills": ["web-research", "analyst"], "plugin_skills": [], "templates": [],
+     "exit": "Every figure the document will use has a source.", "skip_when": "The user supplies the content and data."},
+    {"name": "outline", "goal": "Lay out the storyline: one message per section or slide.", "agent": "self",
+     "skills": [], "plugin_skills": [], "templates": [],
+     "exit": "The user approves the outline.", "skip_when": "A one-page memo with an agreed structure."},
+    {"name": "draft", "goal": "Write the deliverable in the agreed format.", "agent": "self",
+     "skills": ["prose-anti-slop"], "plugin_skills": [], "templates": [],
+     "exit": "Every outline item is drafted and its sources cited.", "skip_when": "Never: this is the deliverable."},
+    {"name": "review", "goal": "Check facts, tone and format, then hand over.", "agent": "self",
+     "skills": [], "plugin_skills": [], "templates": [],
+     "exit": "Output reflection decides pass or human-review.", "skip_when": "Throwaway draft with no handover."}
+  ]
+}

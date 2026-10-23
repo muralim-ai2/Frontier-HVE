@@ -7,6 +7,11 @@ import time
 from pathlib import Path
 from typing import Any
 
+# The runtime ships this script in scripts/ next to tools/; the repository keeps it in plugins/harness-assist/scripts/.
+sys.path.insert(0, str(next(p for p in Path(__file__).resolve().parents if (p / "tools" / "loop" / "loop_paths.py").is_file())
+                       / "tools" / "loop"))
+from loop_paths import state_dir  # noqa: E402
+
 ASK_TOOL = "vscode_askQuestions"
 TAG = re.compile(r"\[(project|profile):\s*([^\]]+)\]")
 PREFERENCES = {"no code": "no_code", "low code": "low_code", "pro code": "pro_code"}
@@ -16,8 +21,8 @@ Json = dict[str, Any]
 
 
 def harness_dir(cwd: Path, tags: dict[str, str]) -> Path:
-    """Return the tagged project's existing .harness folder (only initialized harness projects accept ticks)."""
-    folder = (cwd / tags["project"].strip()).resolve() / ".harness"
+    """Return the tagged project's existing loop state folder (only initialized harness projects accept ticks)."""
+    folder = state_dir((cwd / tags["project"].strip()).resolve())
     if not folder.is_dir():
         raise FileNotFoundError(f"{folder} does not exist: the tagged project is not an initialized harness project")
     return folder

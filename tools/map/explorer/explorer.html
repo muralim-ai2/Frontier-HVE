@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Solution map explorer</title>
+<style>/*STYLE*/</style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <h1 id="title">Solution map</h1>
+    <div class="seg" id="hier" title="How the map is grouped"><button data-hier="concepts">Concepts</button><button data-hier="architecture">Architecture</button></div>
+    <div class="seg" id="views" title="How the map is drawn"><button data-view="tree">Tree</button><button data-view="pack">Circles</button><button data-view="force">Force</button></div>
+    <select id="concept" title="Filter to one concept"></select>
+    <div class="search">
+      <input id="q" placeholder="Search: name, file, purpose ( / )" autocomplete="off">
+      <div id="results"></div>
+    </div>
+    <div class="group" id="levels">Levels <button data-level="1">1</button><button data-level="2">2</button><button data-level="3">3</button><button data-level="4">4</button></div>
+    <button id="fit">Fit</button>
+  </header>
+  <div id="banner"><span id="bannerText"></span><button id="back">&#9664; Back</button><button id="whole">Show whole map</button></div>
+  <div id="stage">
+    <canvas id="c"></canvas>
+    <svg id="tree"></svg>
+    <div id="tip"></div>
+    <div id="hint"></div>
+  </div>
+  <aside>
+    <div id="details"></div>
+    <h2>Cypher query</h2>
+    <textarea id="cypher" spellcheck="false"></textarea>
+    <div class="row"><select id="examples"></select><button id="run">Run</button></div>
+    <div id="qmsg">MATCH (a:label {prop:'v'})-[:type]-&gt;(b) WHERE a.prop CONTAINS 'x' RETURN a, b LIMIT n. Labels: level, kind, view, language or a concept id. Ctrl+Enter runs and filters.</div>
+    <div id="qout"></div>
+    <h2 id="legendTitle">Colours</h2>
+    <div class="legend cols" id="legend"></div>
+    <h2>Edge types</h2>
+    <div class="legend cols" id="types"></div>
+    <div class="meta" id="meta"></div>
+  </aside>
+</div>
+<script>/*SCRIPT*/</script>
+</body>
+</html>

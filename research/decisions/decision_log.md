@@ -308,3 +308,286 @@
 - Plan check: `lifecycle.py plan-sync` stores the hash of `plan.md` as a revision with a one-line note; `hooks/plan_check.py` adds reconcile context on each prompt and denies `loop.py init/next/amend` and `lifecycle.py stage` while the hash differs, for edits by the user or the agent.
 - Provenance: `lifecycle.facts` compares the contract with the session's facts (skills used, templates authored, plan sync, decisions, guard trips and waivers); `provenance.py` reports it as the `contract` component (failed on gaps in done stages or an unsynced plan) plus a `guards` summary for every agent.
 - Verified by `tests/test_loop.py`, `tests/test_collect.py`, `tests/test_skills.py`, `tests/test_extension.py`. Not verified live. Extension 0.10.0.
+
+## D-050 — Relevance-first skills without a cap, an ask contract for every agent, open tool lists, every harness
+- User decisions (2026-10-19):
+  - rank skills by relevance with status ignored and include the imported skills;
+  - drop no skills, but flag a load over 2,000 tokens in `plan.md`;
+  - sub-agents get the skills, MCP servers, plugin skills and rules;
+  - work in every harness;
+  - give every ask a contract of skills, tasks, personas and milestones;
+  - provenance compares recommended with used;
+  - remove `tools:` lists without a token blow-up;
+  - OpenTelemetry comes later.
+
+  Install level (my recommendation, user asked): user scope by default, project scope only for the cloud agent.
+- Why the agents appeared only in Local:
+  - `chat.pluginLocations` is read only by VS Code's Local harness.
+  - Agent-scoped hooks and handoffs are Local-only (VS Code docs).
+  - The Copilot harness and Copilot CLI read `~/.copilot` and `.github`, Claude reads `.claude`, and the cloud agent reads only the repository.
+  - Copilot's config-file hooks drop prompt-submit output and add no context before a tool.
+- Skills (`recommend.rank`):
+  - Candidates are skills sharing a task category with the prompt, or rare words at relevance ≥ `loadout.keyword_floor` (0.5). The floor is my addition: without it the color-palette prompt loaded 17 skills (24,590 tokens), including keyword noise at 0.14.
+  - Order is by relevance, then measured lift, then tokens; status only filters by the agent's floor.
+  - Every candidate loads; `over_budget` flags more than 10 skills or 2,000 tokens. The `load-skills` offer is removed.
+  - Known weakness: the `ux` category is broad (it holds `prd`, `power-automate-desktop` and `model-driven-app`), so the color-palette prompt still loads 14 skills (19,668 tokens). Category assignment needs a review.
+- Ask contract (`tools/loop/lifecycle.py`):
+  - `contract` (built-in lifecycle `direct` for agents without one; `+skill` to require one) records `skills`, `personas`, `tasks` (`tasks-sync`), `environment`, `delegations` and `reported`.
+  - It installs the skills to `.hve/skills/` and writes a generated skills-and-tools block in `plan.md`, which the plan check's hash excludes.
+  - `brief` gives each sub-agent its skills, plugin skills, MCP servers, rules and the `SKILLS-USED` reply line; `used` records that line; `close` and `open` toggle the active ask.
+  - `tools/loop/environment.py` detects the harness, MCP servers per harness with an estimated tool load (`context_load.tool_load`: 1,500 tokens per server, warning over 6,000), Frontier HVE hook files and plugin skills.
+  - All commands run in a terminal, so they work without hooks.
+- Hooks:
+  - `compaction.py` adds the ask's skills and the `SKILLS-USED` rule to every sub-agent.
+  - When the prompt hook could not run, `skill_loader` derives the loadout from the open ask.
+  - The PreToolUse and PostToolUse skill loaders carry `HARNESS_SKILLS_MIN_STATUS`.
+- Tools: working agents have no `tools:` list. Council, evaluation-reviewer, flow-architect and flow-maintainer (read-only), skill-judge and skill-worker (blind) and minimal (baseline) keep theirs. Token cost is measured and warned about, not capped. The before/after benchmark gate (≤ +15% first-request and ≤ +10% total prompt tokens, from provenance) is not run yet.
+- Every harness (`tools/adapters/export.py`, `hooks/agent_compat.py`):
+  - Every HVE agent is exported, at `--user` or project scope.
+  - `copilot` (user) writes `~/.copilot/agents`, `skills` and `hooks/hve.json`; `cloud` (project) writes `.github/...` with a committed runtime and `python3` hooks.
+  - Copilot agents lose the Local-only fields; kept tool lists map to Copilot's aliases.
+  - Hook files that every session runs use `agent_compat --ask-only` and act only while `.hve/asks/active.json` exists. Copilot payloads and outputs are mapped, with the timestamp as the tool call id.
+  - **Frontier HVE: Install for other harnesses** runs the exports and sets `chat.hookFilesLocations` so Local does not run those files twice.
+- Provenance: `lifecycle.facts.usage` and `report` add a recommended-against-used table:
+  - skills, read (hook) or reported (self-reported);
+  - personas, planned or delegated;
+  - tasks;
+  - MCP servers, called per the feature-loop tool log;
+  - hook files and the hooks seen.
+
+  `provenance.py` names the unused recommendations.
+- Verified by `tests/test_skills.py`, `test_collect.py`, `test_hooks.py`, `test_adapters.py`, `test_extension.py` and `test_loop.py`. Not verified live:
+  - the user-level folders for Copilot, Codex and Cursor skills;
+  - the VS Code Copilot harness listing `~/.copilot/agents`;
+  - Copilot's acceptance of PascalCase events and flat outputs;
+  - the cloud agent run;
+  - the benchmark gate.
+
+  Extension 0.11.0.
+
+## D-051 — Timestamped ask folders, topic-switch recommendations, a suggested skill set
+- User decisions (2026-10-19): move each ask's files (`feature_list.json`, `progress.txt`, `tracker.json` and the rest) under `.hve/asks/<YYYYMMDD-HHMM>-<slug>/loop/`; recommend a new session or workspace when the topic switches; over 2,000 skill tokens, recommend a set under 2,000 or, if the user keeps all, record how much was cached. The user accepted all my recommendations below.
+- Layout (`tools/loop/loop_paths.py`): with an ask open in the project, the loop files and loop state (`state.json`, `attempts/`, `evidence/`, `prs/`, `choices/`, `checks/`, `tool_log.jsonl`, `options/`, `flow.json`) live in the ask's `loop/`. With no ask open (research arms, `bench.py`, `collect.py`, trajectories) the old layout stays: loop files in the project, state in `.harness/`. Ask ids are UTC `YYYYMMDD-HHMM-<slug>`, checked wherever `active.json` is read; `contract` refuses an existing folder and copies the request to `request.md`.
+- Git: `.hve/` stays ignored, so the loop files leave git. Commits keep a read-only record instead: `[init]` and `[amend]` bodies list each locked `name: verify`; `[progress]` names the check that passed. Commits are `--allow-empty` because a fresh repo may have nothing else to commit.
+- Evidence: `loop.py` and the output evaluation run checks with `HVE_EVIDENCE` set to the evidence folder; `.harness/` patterns in the evaluation contract resolve to the ask's `loop/`.
+- Guards: `loop_guard` protects the ask's `loop/` state always and its loop files while features fail; `flow_guard`, the plugin's choice recorder and guardrail, diagnosis, branch workflow, parallel options, flow and provenance all go through `loop_paths`.
+- Topic switch (`lifecycle.topic_shift`): compares the prompt's subject words (stems without creation verbs and lifecycle fit words) with the open ask's request and task names. A different kind of deliverable (best-fitting lifecycle, e.g. `sdlc` against the new `document` lifecycle) with overlap under 0.2 recommends a new workspace; a prompt starting with a creation verb, at least 3 subject words and overlap under 0.2 recommends a new chat; anything else is a follow-up. `skill_loader` shows it once per ask per session (`systemMessage` plus context for the agent); `contract` records it as `previous_ask`. Never blocks. Heuristic, so false positives cost one line.
+- Skills: `rank` adds `suggested` (required skills, then the most relevant per token that fit 10 skills and 2,000 tokens). For the color-palette prompt: 22 candidates at 29,574 tokens, suggested `ux-flows`, `api-design`, `ui-anti-slop`, `architecture-options` at 1,606. Agents ask once; `lifecycle.py skills suggested|all|<a,b>` records the choice with the tokens over the guideline and stops prompt ranking for the rest of the ask.
+- Caching: `provenance.md` adds a skill-load line and a prompt-cache line from the session's metrics rows (cache reads against prompt tokens, measured from Copilot OTel), or "not measured" when the session has no metrics rows. Only the research arms run the metrics hook, so product-agent sessions read "not measured" until a metrics hook for product agents is added. Live OTel for product sessions stays deferred.
+- New `document` lifecycle (brief, research, outline, draft, review) and `document` skill category; `prose-anti-slop` is tagged with it.
+- `lifecycle.py` split: `tools/loop/ask_report.py` holds facts, usage, cache and the report (`lifecycle.py report` still works).
+- Verified by `tests/test_loop.py` (ask-mode loop, evidence, guard), `test_skills.py` (choice, topic shift, suggested set), `test_collect.py` (paths, request copy, choice, cache line, new-workspace recommendation) and the full suite. Not verified live: the `systemMessage` in each harness, and the cache line on a real telemetry session. Extension 0.12.0.
+
+## D-052 — Sign-off checklist in plan.md, persona hand-offs, opt-in evaluation and telemetry, one open ask per workspace, pillars in provenance
+- User findings (2026-10-20 live tests of creator, e2e, agile, prototype): `plan.md` listed milestones but not personas per milestone, and nothing let the user tick milestones off after reviewing evidence; agile did not pause between personas; only creator and e2e evaluated; two parallel chats in one workspace opened separate ask folders, but the second (prototype) ran without a contract, run tracking or harness process. Nice to have: pillars in `provenance.md`, telemetry as a plan opt-in with a reminder to switch it off.
+- Built:
+  - `tools/loop/ask_plan.py`: a generated `<!-- hve:checklist -->` block in `plan.md` (options `opt:evaluation`, `opt:telemetry`; one `stage:<name>` per milestone with goal, persona, skills, templates, gate and status; one `task:<feature>` per feature with its check state and evidence folder). Sign-offs live in `contract.json` → `checklist`. `lifecycle.py tick <item> <value> [note]` records a form answer; ticks the user makes in `plan.md` are taken in on the next lifecycle write or `lifecycle.py checklist` (diffed against `checklist_rendered`, the last rendered state). The block, like the skills block, is excluded from the plan hash. A stage set back to planned loses its sign-off.
+  - Agents ask sign-off forms: e2e at every gate, agile at every persona hand-off (pause, what was delivered and where, next persona), creator and the GitHub/flow variants for features with evidence folders, prototype and product manager for their deliverable.
+  - Output evaluation: automatic for creator and e2e (`opt:evaluation on`), a checkbox for agile, prototype, product manager, creator-flow and creator-github; single only when the request asks. The steps moved into the plugin skill `output-evaluation` (agile and e2e used to point at "as HVE creator does", which a different agent cannot read). Outputs without a feature loop are evaluated; `locked-feature-checks` is marked not applicable with a reason (`notApplicableWhy`).
+  - One open ask per workspace: `contract` refuses to replace an ask whose milestones are not done or whose requested evaluation has not run, unless `--replace` (recorded as a decision in the new ask). Agents end with `lifecycle.py stage deliver done`. Prototype (run directly) and product manager open their own ask; when their prompt starts with `Frontier HVE brief` they work inside the parent's ask.
+  - `provenance.md` starts with a five-pillar table: quality (checks passing, sign-offs, latest evaluation) always; cost, tokens, latency and cache from metrics rows (research arms) or straight from the Copilot OTel export (`metrics.load_chat_spans`) when research telemetry is on. It lists the checklist and reminds to turn telemetry off.
+  - Extension: **Frontier HVE: Turn off research telemetry** and a status bar item shown while the Copilot OTel export is on.
+- Decisions to note for later features (surfaced, not settled):
+  1. **Checklist schema.** Item ids `opt:`, `stage:`, `task:` and values `on|off|done`, `accepted|changes|skipped` are now a contract other tools may read (an Azure DevOps or GitHub sync of sign-offs would build on them). Asks from 0.12.0 get an empty checklist on first read.
+  2. **"Continue without reviewing" ticks the box.** It counts as signed off (value `skipped`, shown as "continued without review"), so a full checklist does not mean everything was reviewed; the value says which. Alternative: leave such items unticked.
+  3. **`plan.md` block is generated.** Only the checkbox state inside it is read back; other edits inside the block are overwritten. Ticks outside the block are ignored.
+  4. **Parallel chats in one workspace are not supported concurrently.** There is one active pointer (`.hve/asks/active.json`) and the CLI does not know which chat runs it, so two chats would act on the same ask. The guard only stops silent replacement. Per-chat ask binding (session id → ask, an `--ask` option or environment variable for every ask-scoped command, hooks recording the binding) is deferred: hooks see the session id but cannot pass it to terminal commands, and sub-agent session ids are not verified. Recommendation until then: separate workspace folders or git worktrees.
+  5. **"Finished" means milestones done.** Agents must close `stage:deliver`; one that forgets makes the next ask need `--replace`. Research arms do not use contracts and are unaffected.
+  6. **The `Frontier HVE brief` header is an agent-to-agent protocol** that tells a persona not to open its own ask; its first words must stay stable.
+  7. **Prototype lost `agents: []`** so its opt-in evaluation can run reviewer sub-agents; its only hook is still the loop guard.
+  8. **Evaluation without a loop passes on rubrics and council alone.** A future option is a per-output-kind check (document lint, link check) so documents get a deterministic gate too.
+  9. **Telemetry is a global VS Code user setting.** The ask records intent only; turning it on records every chat in every workspace to the open workspace's file until switched off, and it measures chats started afterwards (a window reload may be needed). The status bar item is the safeguard; per-ask scoping is not possible with the Copilot settings.
+  10. **Product-agent pillars read the OTel export directly** (no metrics hook, no tool-call join), so tool-level latency and failures are not attributed; `provenance.md` must be generated from the workspace root.
+  11. **Two copies of the evaluation steps**: `HVE creator` keeps its inline steps, the other agents use the `output-evaluation` skill; they can drift. Moving creator to the skill is a follow-up once the skill is verified live.
+- Verified by `tests/test_collect.py` (checklist from form and `plan.md`, values, sign-off reset, open-ask refusal and `--replace`, pillars from metrics rows, telemetry reminder), `test_evaluation.py` (no-loop output), `test_extension.py`, `test_flow_plugin.py` (13 plugin skills) and the full suite. Not verified live: the forms in each agent, persona hand-offs, the OTel-derived pillars, the status bar item. Extension 0.13.0.
+
+## D-053 — Agent ledger and Agents table; parallel asks open their own folder instead of being refused
+- Discussion: `research/findings/2026-10-21-parallel-sessions-and-agent-ledger.md` (diagrams and examples).
+- Agent ledger: new hook `hooks/agent_ledger.py` on `SubagentStart` and `SubagentStop` of creator, e2e, agile, product manager, creator-flow and creator-github writes `.hve/runs/<session>.agents.jsonl` (time, session, ask, parent agent from the ask's contract, sub-agent name and id, and the model when the client sends one: Cursor and Codex). Not the tool log: that exists only during a feature loop and feeds loop diagnosis.
+- Agents table in `provenance.md`, across every session of the ask: parent agent, sub-agent, id, session, start, seconds, the brief logged just before the start (role and skills), the skills that role reported, and the model (client payload, else OTel spans of sub-agents inside the start-stop window, else "not measured"). Both joins go by time; the harness sees no id that links a brief or an OTel conversation to a hook's `agent_id`.
+- Parallel asks (user decision, reverses the D-052 refusal): `contract` always opens the new ask in its own folder and reports the ask it left open as `previous_open` (also a decision in the new ask); `--replace` is removed. Minimal safety: `skill_loader` remembers which ask a chat opened (after its `lifecycle.py contract|open` command) and, when another chat has moved the open-ask pointer, tells the chat once before its next tool call to run `lifecycle.py open <its ask>` and to tell the user that parallel builds belong in separate folders or git worktrees.
+- Not built (recommended against): worktree creation commands and copying `.hve` settings between folders (a worktree gets its own `.hve/` on first use), and per-chat ask binding for every command (terminal commands cannot know their chat).
+- Decisions to note: the notice relies on the agent re-opening its ask (instruction-level, not enforced); prototype has only the loop guard, so a displaced prototype chat is not told; two feature loops in one folder remain impossible (one git checkout); branch names are shared across worktrees, so parallel asks need distinct feature names (an ask-scoped branch prefix is optional and not built); `SubagentStop` on the parent agent and in Copilot's `hve.json` is not verified live.
+- Verified by `tests/test_collect.py` (ledger hook rows, Agents table with brief, reported skills, client and OTel models, `previous_open`), `test_skills.py` (one-time displacement note) and the full suite. Extension 0.14.0.
+
+## D-054 — One project per workspace, continuation of asks, engineer stages as loops, prototype self-check, three renames (2026-10-21 17:26 UTC)
+- Findings, discussion and the user's decisions verbatim: `research/findings/2026-10-21-1856-feedback-project-level-continuation-renames.md`.
+- User decisions:
+  1. **Project level.** Each ask keeps its own implementation `plan.md`, and one central project feature list is shared by all asks.
+  2. **Continuation.** A returning user or a follow-up continues the open ask; a new ask opens only for new work, and the agent confirms the choice with the user.
+  3. **Activity log.** No per-session activity log; the agent ledger is enough.
+  4. **Prototype.** A self-check script plus screenshots.
+  5. **Renames, only these three.** E2E becomes **Frontier E2E Delivery**, agile becomes **Frontier BYOW** (Bring your own way of working), and prototype becomes **Frontier Prototype Creator**.
+- Built:
+  - **Project folder.** `.hve/project/` holds `project.json` (name, goal, kind, asks), `feature_list.json`, `feature_list.add.json`, `progress.txt`, `tracker.json` and `state.json`. Each ask keeps its attempts, evidence, PR records, choices and tool log in `.hve/asks/<id>/loop/`.
+    - `tools/loop/loop_paths.py`: an external edit, adopted.
+    - The lock records the ask that added each feature, and the tracker takes evidence from that ask.
+    - A second `init` fails and points to `loop.py amend`.
+    - `tasks-sync` and the quality pillar count only the ask's own features.
+    - The guard protects `.hve/project/`.
+  - **Continuation and paths.**
+    - `lifecycle.py where [request-file]` prints the project, the open ask with its paths and unfinished items, and a verdict: `continue`, `new-ask`, `new-workspace` or `new-project`.
+    - `lifecycle.py open` prints the ask's paths and open items.
+    - Every ask-opening agent runs `where` and confirms the verdict in one form; `HVE single` follows the verdict.
+    - The skill loader adds the open ask's paths to every prompt, and the compaction hook gives every sub-agent the ask folder and evidence path. Agents never search for `plan.md`.
+  - **Different project.** `topic_shift` compares a prompt with the project's text (goal, asks, features) and returns only `new-workspace`; `new-session` is removed.
+  - **Engineer stages.** Agile's sprint build and E2E's build stage are feature loops the orchestrator runs, one `HVE engineer` per feature, and the engineer refuses a whole-stage brief.
+  - **Prototype self-check.** `tools/prototype/check.py lint` checks the prototype's safety rules, its screens and its `#` links. `check.py shots` saves headless Edge or Chrome screenshots to the ask's `loop/evidence/prototype/`. Both run before the sign-off form.
+  - **Renames.** Display names and detailed descriptions with example uses for `hve-e2e`, `hve-agile` and `hve-prototype`; file ids are kept. The lifecycle JSON files, wiki and tests are updated.
+- Decisions to note:
+  - There is no `roadmap.md`: `project.json` and the project feature list are the central record.
+  - Features from abandoned asks stay locked; there is no retire status.
+  - "New chat" is no longer recommended: one workspace holds one project.
+  - Continuation depends on the agent instructions and is not enforced.
+  - Tool logs stay per ask and are written only while a loop runs.
+  - Screenshots need a local Edge or Chrome, and the lint is static.
+  - `where` verdicts are heuristic, and the user's answer wins.
+  - Loops started under 0.12 to 0.14 kept their files in `<ask>/loop/`. There is no migration: restart them.
+- Verified by `tests/test_collect.py` (`where` verdicts, `project.json`, project paths), `test_loop.py` (project-level files, the lock's ask, guard, prototype lint and screenshot with Edge), `test_skills.py` (paths on every prompt, new-workspace message), `test_hooks.py` (sub-agent paths), `test_adapters.py` and the full suite. Not verified live: the forms, continuation across chats, and the agile and E2E loops. Extension 0.15.0.
+
+## D-055: three visible agents on top models, a wow-uplift loop, and the NorthStar presentation skill (2026-10-21)
+- Requests, sources, what was built and the open points: `research/findings/2026-10-21-2000-frontier-agents-uplift-presentation.md`.
+- **Visible agents.** The extension shows only Frontier E2E Delivery, Frontier BYOW and Frontier Prototype Creator.
+  - Every other user agent gets `user-invocable: false`: creator, creator-flow, creator-github, single, minimal, product-manager, skill-evaluator and azure-devops. They still ship and can run as sub-agents.
+  - The research arms in `.github/agents/` stay user-invocable in this workspace.
+- **Models.** The three agents and `HVE uplift-judge` pin `model: [GPT-6 Astra, Gemini 4 Argon, Claude Fable 5, Claude Opus 5.5]` (all "(copilot)"; VS Code uses the first one available) and set `reasoning-effort: high`.
+  - VS Code ignores `reasoning-effort` in agent files (D-020).
+  - The Copilot export strips both fields.
+  - This reverses the D-050 rule that product agents use the model the user picks.
+- **Wow uplift (every deliverable the user sees).** A new plugin skill, `wow-uplift`, and a new hidden read-only judge, `HVE uplift-judge` (returns JSON). The loop runs up to 3 rounds:
+  1. The judge names two or three targeted changes.
+  2. The changes are applied.
+  3. Every check is re-run.
+  4. The same views are captured again into `loop/evidence/uplift/round-<n>/`.
+
+  The loop stops when the judge returns `done`, after round 3, or when every change in a round had to be dropped. `uplift.md` records before and after.
+  - E2E runs it before each gate whose stage produced something the user sees.
+  - BYOW runs it before such persona hand-offs.
+  - Prototype Creator runs it before its sign-off.
+- **Presentation skill.** A new plugin skill, `presentation-deck`, based on the user's NorthStar `python-pptx` builders:
+  - a discovery form (kind of deck, audience, theme, text level, how visual, speaker notes, length, logo);
+  - a story spine for each kind of deck;
+  - the visual grammar and a table that turns text into smart art;
+  - `deck_kit.py` (slide primitives) and `check_deck.py` (lint, plus PowerPoint previews).
+
+  The `document` lifecycle's draft stage lists the skill, and E2E and BYOW must use it for any deck.
+- **Open points (to decide):**
+  - The two model names "Gemini 4 Argon" and "Claude Fable 5" are inferred.
+  - The hidden skill-evaluator and azure-devops have no visible copy anywhere.
+  - A prototype running as a sub-agent may not be able to start the judge (BYOW then runs the uplift).
+  - The uplift costs up to 3 top-model calls per deliverable.
+  - `python-pptx==1.0.2` is a new dependency.
+  - Previews need PowerPoint on Windows.
+- **Verified:**
+  - The full suite passes:
+    - `test_extension` checks 23 agents and 15 skills, the visibility, and the model pins;
+    - `test_flow_plugin` checks that 15 plugin skills pass the scan.
+  - A smoke deck and the skill's example deck were built, linted and previewed with PowerPoint.
+  - Not verified live: the judge, the uplift loop and the presentation form.
+  - Extension 0.15.0.
+
+## D-056: loop guard awareness mode, error-streak guard, telemetry trim, per-ask skill scoring (2026-10-21)
+- Requests, findings and the open points: `research/findings/2026-10-21-2130-guard-awareness-error-streak-telemetry-skills.md`.
+- **Loop guard awareness mode.** Temporary, switched in `hooks/guard_mode.json` (`advise`, or `enforce` to block again).
+  - Loop-file edits, loop-state edits and the victory check no longer block.
+  - They record the trip and show "Guard Invoked - For your attention: during the run ... The modification was ..." to the user. The agent relays it word for word.
+  - Escalation, hook bypass, resume and push rules still block.
+- **Error-streak guard** (`hooks/error_guard.py`; E2E, BYOW, Prototype Creator, engineer): this guard was missing.
+  - After 3 failed terminal commands in a row, it stops the agent with "Error guard - paused for your attention", the commands and their output.
+  - Feature-loop scripts are excluded.
+  - Tools other than reading and asking stay held until the user's next prompt.
+- **Telemetry trim** (`tools/observe/otel_trim.py`): the extension runs it on every activation (when the export exists) and when telemetry is turned on.
+  - It keeps the last 3 days of the export, at most 200 MB, rewritten in place.
+  - It adds the export to `.gitignore` and tells the user what it did.
+  - It refuses during a benchmark run.
+- **Skills (corrected by the user the same day: do not curtail the shortlist):**
+  - The rank shortlists every relevant skill, with no cap, ranked by relevance.
+  - Within the guideline (10 skills, 32,000 tokens; up from 2,000) all of them load.
+  - Over it, the agent scores each shortlisted skill 0-10 for the ask across its stages and runs `lifecycle.py skills score`, which re-ranks and suggests the required plus the top-scored up to 10.
+  - The agent then shows the user the suggested skills with scores and reasons and asks: suggested, all or named.
+  - Scores show in `plan.md`.
+- **Open points:**
+  - The streak limit is 3 (the user said 3-5).
+  - Awareness mode also applies to the research arms.
+  - Copilot CLI and Cursor drop the awareness message.
+  - The trim deletes old spans that reports or uncollected benchmarks may need.
+  - Scoring is an agent judgement.
+  - `lifecycle.py` is at 495 lines.
+- **Verified:**
+  - `test_loop`: awareness messages; push still blocked; error streak pause, hold and reset.
+  - `test_adapters`: Claude Code shows the awareness message; denies in enforce mode.
+  - `test_metrics`: trim and `.gitignore`.
+  - `test_skills`: the uncapped ranked shortlist and the suggested set.
+  - `test_collect`: `skills score` suggests without dropping.
+  - The full suite passes.
+  - Not verified live.
+  - Extension 0.15.0.
+
+## D-057: plugin skills are part of the ask contract; a deck request always carries presentation-deck (2026-10-22)
+- **Finding:** the user's live test (Frontier E2E Delivery, "create a deck ... 10-12 slides") showed "presentation deck skill not picked up".
+  - The transcript shows the agent did read `presentation-deck` and planned with `deck_kit.py`, but only after it had already shown the plan.
+  - The user never saw the skill: the skills form and `plan.md` list only library skills (16 shortlisted, several weakly related), and plugin skills sat only in stage briefs.
+  - The deck discovery form (kind, theme, text level, notes) was never asked.
+- **Built:**
+  - `contract` records `skills.plugin`: the plugin skills of the ask's stages, plus `presentation-deck` for any request that mentions a presentation, deck, slides or pptx.
+  - `plan.md` lists them as "always on, outside the skill budget", and briefs pass them to sub-agents.
+  - E2E and BYOW show them whenever they show skills, and for a deck read `presentation-deck` and ask its discovery form before writing the plan.
+  - The `document` lifecycle no longer names the deck skill for every document (a memo is not a deck).
+- **Verified:** `test_collect` (a deck request lists `presentation-deck` in the contract and `plan.md`; a palette page does not) and the full suite. Extension 0.15.1.
+- **Follow-up (user, same day):** the NorthStar deck was given only as a style reference, and agents should never need it. `presentation-deck` now states that the NorthStar style is built in (`deck_kit.py`, the visual grammar). A linked or named NorthStar deck means "use this style": never fetch, download, open or ask for it. A template `.pptx` is used only when it is already in the workspace. Extension 0.15.2.
+
+## D-058: review questions link their files, the advisory alert is renamed, HVE creator is back in the picker (2026-10-22)
+- **Live feedback:**
+  - A gate asked "Accept this research and story direction ...?" without a link to anything, so the user could not see what to review.
+  - The "Guard Invoked - For your attention" note read oddly.
+- **Built:**
+  - **Review links.** Every sign-off question (E2E gates, BYOW hand-offs, Prototype Creator, product manager, creator feature sign-off) puts a markdown link to each file and evidence folder to review in the question's message, each with one line on what to look at. It never asks for a review without them.
+  - **Advisory alert.** The loop guard's awareness note now reads "Advisory alert (experimental): surfaces LLM behaviour that helps to know. During the run ...".
+  - **HVE creator in the picker.** It is user-invocable again, with the same top-model list and `reasoning-effort: high`, and gains the error guard. Creator is the hook source for other harnesses, so the error guard is now also exported to them.
+- **Verified:** the full suite. Extension 0.15.3.
+
+## D-059: frontend-slides joins presentation-deck as a plugin skill; the AGPL and image-API deck skills are left out (2026-10-22)
+- **Request:** add the presentation skills from open-design.ai's "Claude PPT skills" post, except PPT Master, and make sure a presentation ask picks them up.
+- **Assessed:**
+
+| Skill | Licence | Size | Decision | Why |
+|---|---|---|---|---|
+| frontend-slides (`zarazhangrui/frontend-slides`) | MIT | 3.4 MB, about 1.7 MB as text | Added | Animated single-file HTML decks, 12 presets plus 34 bold templates |
+| guizang-ppt-skill | AGPL-3.0 | 5.8 MB | Left out (user) | Shipping AGPL inside the extension puts AGPL obligations on it |
+| dashiAI-ppt-skill | AGPL-3.0 | 57.7 MB (fonts, vendor JS, npm project) | Left out (user) | Same licence issue, plus size |
+| codex-ppt-skill | MIT | 42.8 MB | Left out (user) | Renders each slide through an external image-generation API with a key |
+
+- **Built:**
+  - `plugins/harness-assist/skills/frontend-slides/` holds the MIT text files at commit `9906a34`, with `LICENSE` and `NOTICE.md`.
+  - Removed from the copy: `deploy.sh` (publishes decks to a public Vercel URL, a client-data risk), `export-pdf.sh` (bash, downloads Chromium), the README and screenshots. Phase 6 now keeps decks in the workspace and makes PDFs through the browser's print dialog. One template phrase was reworded so the skill scan passes.
+  - `presentation-deck` stays the router. Its discovery form asks the format first: an editable NorthStar `.pptx` (recommended) or web slides. Web slides go on to `frontend-slides` from its style previews, with previews in the evidence folder and the deck at `presentation/<slug>/index.html`.
+  - Any deck request adds both skills to the contract's `skills.plugin` and `plan.md`. E2E and BYOW name both and the format question.
+- **Verified:** the scan passes (16 plugin skills), `test_collect` checks both skills on a deck request, and the full suite passes. Extension 0.15.4.
+
+## D-060: expertise packs (the plugin architecture) route into the E2E and BYOW lifecycle contract, with their token load recorded (2026-10-22)
+- **Request:** bring the plugin architecture of branch `plugin-architecture/pj-1013` into E2E and especially BYOW: tribal knowledge per practice (skills, overlays, process maps, templates) with routing in a manifest, so the model reads the manifest and not the folder. Later in the same request: the plan, the contract and the provenance must capture the packs in use and their context contribution in tokens, absolute and relative.
+- **Found:** the branch holds only the design plan. The code is open PR #8 (`feature/plugin-architecture`, jnPiyush; its decision D-048 clashes with ours). It is built on an older main; at its HEAD the skill loader's plugin routing calls removed functions; routing is a yes/no match; the process is a creator-flow graph; there are no knowledge documents.
+- **Decided with the user (discussion first):** port selectively (PR #8 at `be8284a`, credited); lifecycles are the only process format, with optional stage `evidence` and a capped `rework` step taken from the flow graphs; a manifest `knowledge` section with `use_when`; packs from the workspace (`plugins/<pack>/`) and the installed store; pack rubrics now.
+- **Built:**
+  - `tools/plugins/` (manifest, route, store, plugin, author), `schemas/hve-plugin.schema.json`, `tools/evaluation/compose.py`, and the Oracle sample rewritten with a lifecycle overlay (evidence, rework) and two knowledge documents. Manifest keys: `flows` replaced by `lifecycles` and `knowledge`; every asset is measured in tokens.
+  - `tools/loop/lifecycle_catalog.py` (catalog, pick, `route`: packs named, missing, matched with why; matched packs' overlays first), `ask_packs.py` (the pack choice check, the contract record, the token load, brief and plan lines, the provenance table) and `stage_evidence.py` (evidence checks, rework), keeping `lifecycle.py` at 497 lines.
+  - `contract ... @<pack>|@core` records `packs` and `pack_load`; it refuses an offered pack choice left unrecorded and a pack lifecycle without its pack. `stage <s> done` refuses missing evidence; `rework <s> <why>` steps back within the cap.
+  - Token load per pack: always loaded (manifest index, knowledge index, its lifecycle, its selected skills) and on demand (knowledge documents, agent prompts, templates), absolute and as a share of the ask's contracted context and of a 128K window; in the provenance also of the first and peak measured prompt. In `contract.json`, `plan.md`, `provenance.md` and `.hve/runs/<session>.provenance.json`.
+  - Skill loader: pack skills load as `<pack>:<skill>` into `.hve/skills/<pack>__<skill>`; skills of packs the ask did not choose are denied. Template manager: `<pack>:<kind>` and `plugin:<pack>/<kind>@<v>`. Output evaluation: `--plugin-contract` and `--rubric-selection`.
+  - Extension: Install plugin and Manage plugins commands, `frontierHve.pluginIndex`, reconcile and requirements on start, pack agents rendered as `<pack>:<agent>` with core hooks (`extension/packs.js`, `render.js renderPacks`).
+  - E2E and BYOW: `route` first, the `Expertise packs` question, `@pack` contract arguments, pack load shown, pack knowledge per stage, evidence and rework. Wiki `Plugins.md`.
+- **Not ported:** creator-flow pack flows, per-prompt plugin routing in the skill loader for the creator agents, export of pack agents to other harnesses (briefs name the agent file instead), the wrapper-extension API.
+- **Verified:** new `tests/test_plugins.py` (validation, install lifecycle, archive and index, routing into the contract with token load, plan, brief, provenance, skill allow and deny, pack template, evidence, rework cap, rubric composition, rendering, author kit) and the full suite. Extension 0.16.0. Not verified live.
+
+## D-061: a solution map for any repository, read by concept in chat and in an offline explorer (2026-10-23)
+- **Request:** a flag for medium and larger apps and a map that saves context (TDS `docs/design/TDS-solution-map.md`); then: build it for this repo first and perfect it, add a UI like Graphify but different (force diagram, Cypher and fuzzy search, two levels open, expand on demand), make it understandable by concept (Concept, Modules, Files, Functions, Connections, Dependencies, explanation), filter with a clear way back, add a tree and zoomable circles, make it work on any repository, and answer "help me understand <topic>" in Copilot, Claude Code and Codex with a slash command.
+- **Decided with the user:** size thresholds medium 50 files or 5,000 lines, large 300 or 50,000 (Q-1); no fresh sub-agent at the 25% checkpoint (Q-2); release snapshots committed to `docs/architecture/` (Q-3); no stack-specific framework conventions first (Q-4); views ordered Tree, Circles, Force.
+- **Found while prototyping:** word matching cannot pick an impact's start points (agent-picked seeds work); views, modules and purposes are a reviewed file, not code; read against write on data stores is not extractable by text (`uses` from code, `writes` curated).
+- **Built:** `tools/map/extract.py`, `map_build.py`, `solution_map.py` (build, explain, impact, search, overview, status, open) with no repository-specific code; `docs/architecture/solution-map.config.json` (views, modules, purposes, stores, 16 concepts, conventions, flows); `tools/map/explorer/` inlined into one offline page; plugin skill `solution-map` (17 plugin skills) followed by E2E, BYOW and HVE creator; wiki `Solution-Map.md`.
+- **Verified:** `tests/test_map.py` (generic map without config on a Python and TypeScript fixture, concepts and explain, impact, status, offline page with the Cypher engine run in Node, this repo's config) and the full suite; the unrelated Next.js benchmark app mapped without config; the explorer checked in the browser (filters, Back, Show whole map, queries, views, canvas sizing). Extension 0.17.0. The chat path is not verified live.
+
+## D-062: Frontier HVE Auto and Collab, 18 personas from a catalog, stage entry with a project ledger (2026-10-23)
+- **Request:** Frontier agents start on Claude (Opus or Fable, highest available), then GPT Astra, then Gemini Argon; rename Frontier E2E Delivery to Frontier HVE Auto (autonomous end to end) and Frontier BYOW to Frontier HVE Collab (come in at any stage, run all or one, invoke a persona with its own skills, MCP servers, plugins and knowledge packs, each visit its own ask with the whole project tracked); personas TPM, DS, Solution Architect, DB Engineer, DevOps Engineer, Security Architect, DB Architect, Engineer, Test Engineer, Test Architect, UX Designer, UI Engineer, and Code, Architecture, Security, UX, Test and Product Reviewers.
+- **Decided with the user:** one persona catalog rendered into agents; each Collab entry is a new ask scoped to its stages with a project stage ledger; a matching pack lifecycle replaces the stage plan in the same ask; Auto pauses only at the milestones the user ticks; all 18 personas now with minimal skills; HVE product-manager covers TPM and HVE engineer is the Engineer.
+- **Built:** model lists `Claude Opus 5.5, Claude Fable 5, GPT-6 Astra, Gemini 4 Argon` for the Frontier agents and HVE creator; display names `Frontier HVE Auto` and `Frontier HVE Collab` (files stay `hve-e2e`, `hve-agile`); `templates/personas/` (catalog and builder, designer and reviewer templates) and `tools/loop/personas.py` (validate, render, match, check) rendering 16 agents at build; lifecycle `team-delivery` with a stage per persona and `loop: true` on build stages (also on sdlc build and agile sprint-build; sdlc design goes to the solution architect); `tools/loop/ask_project.py` (project functions moved out of lifecycle.py, plus `ledger`); `contract ... only=<stages> for=<lifecycle>:<stage> gates=ticked`; `gate:<stage>` checklist items; briefs name the persona's role, stage goal and gate; Collab and Auto prompts; wiki Agents.
+- **Verified:** `tests/test_personas.py` (catalog current and every lifecycle agent exists, scoped asks, pack lifecycle for a stage, ledger across asks, ticked gates) and the full suite. Extension 0.18.0. Not verified live.

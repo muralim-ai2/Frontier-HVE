@@ -141,7 +141,8 @@
       "source": "authored (see skills/authored/NOTICE)",
       "status": "admitted",
       "task_categories": [
-        "de-slop"
+        "de-slop",
+        "document"
       ],
       "skill_tokens": 380,
       "quality_lift_pp": 28.0,
