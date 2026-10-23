@@ -54,10 +54,10 @@ flowchart LR
 | Agent | Lifecycle | Where you are asked |
 |---|---|---|
 | `HVE creator` | `direct` | Skill choice, plan and dependencies with the telemetry option, escalations, feature sign-off, human review of the evaluation |
-| `Frontier E2E Delivery` (`hve-e2e`) | You pick (`sdlc`, `consulting-delivery`, `document`, or a plugin or workspace one) and skip stages | Lifecycle and skips, skill choice, plan with the telemetry option, a sign-off and gate form after each stage |
-| `Frontier BYOW` (`hve-agile`, Bring your own way of working) | An agile overlay (`agile-scrum` or a plugin or workspace one) | Overlay and skips, skill choice, plan with evaluation and telemetry options, a hand-off review after each persona, each sprint review |
-| `Frontier Prototype Creator` (`hve-prototype`) | `direct` when you run it; none as BYOW's designer (it works in BYOW's ask) | Screens, skill choice and options in one form; sign-off of the self-checked clickthrough with its screenshots |
-| `HVE product-manager` | `direct`, `prd` required (none as E2E or BYOW's persona) | Skill choice, options, research questions, backlog target, PRD sign-off |
+| `Frontier HVE Auto` (`hve-e2e`) | You pick (`sdlc`, `consulting-delivery`, `document`, or a plugin or workspace one) and skip stages | Lifecycle and skips, skill choice, plan with the telemetry option, a sign-off and gate form after each stage |
+| `Frontier HVE Collab` (`hve-agile`) | An agile overlay (`agile-scrum` or a plugin or workspace one) | Overlay and skips, skill choice, plan with evaluation and telemetry options, a hand-off review after each persona, each sprint review |
+| `Frontier Prototype Creator` (`hve-prototype`) | `direct` when you run it; none as Collab's designer (it works in Collab's ask) | Screens, skill choice and options in one form; sign-off of the self-checked clickthrough with its screenshots |
+| `HVE product-manager` | `direct`, `prd` required (none as Auto's or Collab's persona) | Skill choice, options, research questions, backlog target, PRD sign-off |
 
 Every agent that opens asks also asks first whether to continue the open ask, start a new one in the project, or move to a new workspace.
 
@@ -81,13 +81,13 @@ Every agent that opens asks also asks first whether to continue the open ask, st
   ```
 
   After each milestone the agent asks: *Reviewed - accept*, *Continue without reviewing* (fine, recorded as such) or *Needs changes*; it skips the question when you already ticked the item. `lifecycle.py tick <item> <value> "<note>"` records an answer, `lifecycle.py checklist` takes in your ticks from `plan.md` and lists what is still open. Ticking inside the generated block does not trigger the plan check. A stage set back to planned (a new sprint, a change of direction) loses its sign-off.
-- **Persona hand-offs** (`Frontier BYOW`): after each persona's step (product manager, designer, engineer) the agent pauses, says what was delivered and where, names the next persona, and asks the sign-off question before switching. A step whose persona is the engineer (sprint build, and the E2E build stage) is a feature loop the orchestrator runs itself, one engineer per feature; an engineer handed a whole stage refuses.
+- **Persona hand-offs** (`Frontier HVE Collab`): after each persona's step (product manager, designer, engineer) the agent pauses, says what was delivered and where, names the next persona, and asks the sign-off question before switching. A step whose persona is the engineer (sprint build, and the Auto build stage) is a feature loop the orchestrator runs itself, one engineer per feature; an engineer handed a whole stage refuses.
 - **Prototype self-check** (`Frontier Prototype Creator`): before you see it, `tools/prototype/check.py lint` checks the clickthrough (no network calls, external scripts or code from strings, every screen present, no dead `#` links) and `check.py shots` saves a headless Edge or Chrome screenshot of each screen to the ask's `loop/evidence/prototype/`.
 - **Wow uplift** (every deliverable you see, all three Frontier agents): before the sign-off, `HVE uplift-judge` (a top model, read-only) looks at the files and screenshots and names two or three small, targeted improvements (a heading hierarchy, a theme, a wordmark, a better grid; for decks fewer words, a flow instead of bullets, alignment). The agent applies them, re-runs every check, captures the same views again and asks the judge for the next round, up to 3 rounds or until it says `done`. Images per round go to the ask's `loop/evidence/uplift/round-<n>/`, the summary to `uplift.md`.
 - **Presentations**: any deck follows the `presentation-deck` skill. One discovery form first (format: editable `.pptx` or web slides; kind of deck: informational, analysis, pitch, decision, status or workshop; audience; theme: NorthStar ink with one accent, brand colours or a template; text level; how visual; speaker notes; length; logo), then an outline of takeaway titles, a `python-pptx` build with `deck_kit.py` (header band, cards, chips, chevron flows, layers, metric tiles, one takeaway bar per slide), `check_deck.py lint` and PowerPoint slide previews. Web slides instead follow `frontend-slides` (MIT, from `zarazhangrui/frontend-slides`): three style previews to pick from, then one animated HTML file at `presentation/<slug>/index.html`. Decks are never deployed to a public host.
-- **Output evaluation.** Automatic for `HVE creator` and `Frontier E2E Delivery`. `Frontier BYOW`, `Frontier Prototype Creator`, `HVE product-manager`, `HVE creator-flow` and `HVE creator-github` ask for it as a checkbox in the plan form and run it when ticked (shared `output-evaluation` skill); `HVE single` never asks and runs it only when your request does. Outputs without a feature loop (a prototype, a PRD, a memo) are scored and judged; the locked checks are marked not applicable with the reason.
+- **Output evaluation.** Automatic for `HVE creator` and `Frontier HVE Auto`. `Frontier HVE Collab`, `Frontier Prototype Creator`, `HVE product-manager`, `HVE creator-flow` and `HVE creator-github` ask for it as a checkbox in the plan form and run it when ticked (shared `output-evaluation` skill); `HVE single` never asks and runs it only when your request does. Outputs without a feature loop (a prototype, a PRD, a memo) are scored and judged; the locked checks are marked not applicable with the reason.
 - **Research telemetry** (opt-in per ask, for every agent that asks questions): tick `opt:telemetry` and run **Frontier HVE: Turn on research telemetry**; it records full chat content, measures chats started afterwards, and a status bar item stays visible until you run **Frontier HVE: Turn off research telemetry** (or click the item). The agent and `provenance.md` remind you to turn it off.
-- **Gates and sprint reviews** (`Frontier E2E Delivery`, `Frontier BYOW`): continue, change direction, or stop.
+- **Gates and sprint reviews** (`Frontier HVE Auto`, `Frontier HVE Collab`): continue, change direction, or stop.
 - **Escalations.** When the loop is stuck (same failure, circular fixes, attempt cap) it stops and asks you one question; only you can resume.
 - **Guard waivers.** After 3 trips of the same guard in a session, the agent asks whether to keep it or lay it down for the session. Loop state, hook bypass, pushes and the plan check are never waivable, and guards are strict again during the output evaluation.
 
@@ -136,14 +136,14 @@ An ask finishes when its milestones are done (agents end with `lifecycle.py stag
 | `skill_loader` | prompt submit, before and after tools | `.hve/runs/<session>.skills.json`; the open ask's paths on every prompt; new-workspace message |
 | `loop_guard` | before and after tools, stop | `<ask>/loop/tool_log.jsonl`; denies in `.hve/runs/<session>.interventions.jsonl` |
 | `module_guard` | after edits | split request for files over 500 lines |
-| `plan_check` (E2E, BYOW) | prompt submit, before loop and stage commands | holds runs while `plan.md` is out of sync |
+| `plan_check` (Auto, Collab) | prompt submit, before loop and stage commands | holds runs while `plan.md` is out of sync |
 | `compaction` | sub-agent start | ask folder, evidence path, ask skills and rules in every sub-agent |
 | `agent_ledger` | sub-agent start and stop | `.hve/runs/<session>.agents.jsonl`: parent agent, sub-agent name and id, ask, time, and the model when the client sends it (Cursor, Codex) |
 | `template_guard` | session start and stop | deliverables only from configured templates |
 | `profile_detector` | session start, prompt submit | `.hve/user_profile.json` (build preference, explanation depth) |
 | `metrics` (research arms in `.github/agents/` only) | every event | `.hve/runs/<session>.events.jsonl` and, with research telemetry, `<session>.jsonl` (tokens, cost, cache per model call) |
 
-`Frontier Prototype Creator` runs only `loop_guard` (safety); creator, E2E and BYOW run all but `metrics`.
+`Frontier Prototype Creator` runs only `loop_guard` (safety); creator, Auto and Collab run all but `metrics`.
 
 The ask's `provenance.md` has an **Agents** table built from the ledger, across every session of the ask:
 
@@ -182,8 +182,8 @@ Use an empty folder with `git init` and run each prompt in a **new Local chat** 
 |---|---|---|---|
 | 1 | `Frontier Prototype Creator` | `Clickthrough of a leave request flow with three screens: my balance, request form, confirmation. Placeholder data only.` | 1.5 min |
 | 2 | `HVE creator` | `Build a colour palette page: pick a base colour, show 5 tints and 5 shades, and a WCAG contrast check of each against white and black. Plain HTML, CSS and JS, no dependencies. Use the feature loop with exactly 3 features whose checks run with node or python only.` Then, in a new chat with the same agent: `Add a copy-to-clipboard button for each tint.` | 5 min |
-| 3 | `Frontier E2E Delivery` | `Create a one-page executive memo for the board on the FY27 revenue forecast: base 120m, upside 135m, downside 104m, drivers price and volume. I supply the data, so skip research.` Then, in the same chat: `Build a War of the Worlds timeline app.` | 2.5 min |
-| 4 | `Frontier BYOW` | `One sprint for a leave portal. Backlog is ready, skip the backlog step: story 1 "see my leave balance", story 2 "request leave". Sprint 1 takes both stories, UI design only: run sprint-design, skip sprint-build and release, then hold the sprint review and stop.` | 2 min |
+| 3 | `Frontier HVE Auto` | `Create a one-page executive memo for the board on the FY27 revenue forecast: base 120m, upside 135m, downside 104m, drivers price and volume. I supply the data, so skip research.` Then, in the same chat: `Build a War of the Worlds timeline app.` | 2.5 min |
+| 4 | `Frontier HVE Collab` | `One sprint for a leave portal. Backlog is ready, skip the backlog step: story 1 "see my leave balance", story 2 "request leave". Sprint 1 takes both stories, UI design only: run sprint-design, skip sprint-build and release, then hold the sprint review and stop.` | 2 min |
 
 What to check after each chat:
 
@@ -192,13 +192,13 @@ What to check after each chat:
 | `.hve/asks/` and `.hve/project/` | One timestamped folder per ask with `request.md`, `contract.json`, `plan.md`; the prototype in its `prototype/` with screenshots in `loop/evidence/prototype/`; creator's `evidence/` in its `loop/`; the feature list, progress, tracker and state in `.hve/project/`. Nothing new in the workspace root except product files |
 | Continuation | The copy-to-clipboard prompt in chat 2's second chat: the agent asks continue / new ask / new workspace (recommended: continue or new ask), and on continue works from the same `plan.md` without searching for it; on new ask the feature joins `.hve/project/feature_list.json` through `loop.py amend` |
 | Skills | Over the guideline, each agent writes `.hve/asks/skill-scores.json`, runs `lifecycle.py skills score` and asks you suggested/all/named with the scores shown; `plan.md` shows each skill with its score and why. `.hve/runs/<session>.skills.json` lists what loaded and was read |
-| Briefs | BYOW's call to `Frontier Prototype Creator` and creator's sub-agents start with "Frontier HVE brief"; `contract.json` → `delegations` and `reported` filled |
-| Hooks | `.hve/runs/<session>.skills.json` for creator, E2E and BYOW (skill loader); creator's `loop/tool_log.jsonl` has pre and post rows (loop guard); `.hve/user_profile.json` exists (profile detector); `.hve/runs/<session>.interventions.jsonl` only if a guard tripped |
+| Briefs | Collab's call to `Frontier Prototype Creator` and creator's sub-agents start with "Frontier HVE brief"; `contract.json` → `delegations` and `reported` filled |
+| Hooks | `.hve/runs/<session>.skills.json` for creator, Auto and Collab (skill loader); creator's `loop/tool_log.jsonl` has pre and post rows (loop guard); `.hve/user_profile.json` exists (profile detector); `.hve/runs/<session>.interventions.jsonl` only if a guard tripped |
 | Topic switch | The War of the Worlds prompt in chat 3 is recommended a new workspace (in the where form, or as a one-line message) |
 | Git | `git log` shows `[init] scaffold` with the locked checks in its body and one `[progress]` commit per feature |
 | Provenance | `provenance.py` per agent file is `ok` or names what failed; `provenance.md` in each ask gives pillars, sign-off checklist, skill load, recommended against used and decisions |
 | Checklist | `plan.md` ends with the sign-off checklist: options, one milestone per stage with its persona, tasks with evidence folders. Each milestone was followed by a sign-off form; ticking an item in `plan.md` then running `lifecycle.py checklist` shows it as signed off |
-| Evaluation | Automatic for creator and E2E; BYOW and Prototype Creator ask for it in their first form and run it only when ticked |
+| Evaluation | Automatic for creator and Auto; Collab and Prototype Creator ask for it in their first form and run it only when ticked |
 | Parallel chats | Starting a second agent in the same folder while the first ask is open: the second gets its own ask folder and reports `previous_open`; the first chat is told once, before its next tool call, to reopen its ask |
 | Agents | `provenance.md` → Agents lists every sub-agent with its parent, brief skills, reported skills and model (or "not measured") |
 | Pillars | Quality always; with `opt:telemetry` ticked and research telemetry on, cost, tokens, latency and cache too. The status bar shows "Research telemetry on" until you turn it off |

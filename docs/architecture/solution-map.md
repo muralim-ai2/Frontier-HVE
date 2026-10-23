@@ -2,17 +2,17 @@
 
 Enterprise AI harness on GitHub Copilot, also exported to Claude Code, Cursor and Codex: agents, guard hooks, delivery lifecycles, a verified feature loop, skills, expertise packs, output evaluation and telemetry.
 
-Map of commit `a946b2b` built 2026-10-23. Size **medium** (91 code files, 15,915 code lines; 253 mapped files, 519,595 tokens).
+Map of commit `a4c899b` built 2026-10-23. Size **medium** (94 code files, 16,205 code lines; 277 mapped files, 541,442 tokens).
 Read this first. Ask `solution_map.py explain "<topic>"` for a concept, `impact --seeds` before a change, `open` for the explorer.
 
 ## Concepts
 
-- **Agents** (`concept:agents`, 37 files): Agents are Markdown prompt files with YAML front matter: name, description, model list, tools and hooks.
+- **Agents** (`concept:agents`, 58 files): Agents are Markdown prompt files with YAML front matter: name, description, model list, tools and hooks.
 - **Skills and loading** (`concept:skills`, 61 files): Skills are folders with a SKILL.md (name and description in front matter) that agents load when a task matches.
 - **Skill evaluation and onboarding** (`concept:skill-gate`, 11 files): A skill enters the library only through a gate.
 - **Expertise packs (plugins)** (`concept:packs`, 28 files): An expertise pack is a plugin that carries one practice's knowledge: agents, skills, templates, a lifecycle, knowledge documents and rubrics, declared in hve-plugin.json (schema in schemas/).
 - **Telemetry and metrics** (`concept:telemetry`, 11 files): Telemetry has two sources.
-- **Asks and delivery lifecycles** (`concept:asks`, 20 files): An ask is one piece of work run through a delivery lifecycle.
+- **Asks and delivery lifecycles** (`concept:asks`, 22 files): An ask is one piece of work run through a delivery lifecycle.
 - **Verified feature loop** (`concept:feature-loop`, 10 files): Code is built one verified feature at a time.
 - **Guards and hooks** (`concept:guards`, 13 files): Hooks run before or after every tool call, prompt and sub-agent, as middleware between the model and the workspace.
 - **Deliverable templates and backlog** (`concept:deliverables`, 11 files): Documents such as a PRD, a technical design and a test strategy are created from versioned templates.
@@ -30,7 +30,7 @@ What the harness must do and where it stands: the original request, hypotheses a
 
 | Module | Purpose | Files | Tokens |
 |---|---|---|---|
-| `requirements:tracker` | Next actions, phases and validation state; only the user marks items validated. | 2 | 18,382 |
+| `requirements:tracker` | Next actions, phases and validation state; only the user marks items validated. | 2 | 18,646 |
 | `requirements:request` | The user's original request and design rules. | 1 | 1,689 |
 | `requirements:hypothesis` | The research hypotheses the benchmarks test. | 1 | 509 |
 
@@ -43,7 +43,7 @@ Why it is built this way: decisions with evidence, designs, plans, findings and 
 | `solution-design:designs` | Technical design specifications. | 1 | 7,704 |
 | `solution-design:plans` | Execution plans for larger features. | 1 | 734 |
 | `solution-design:blueprint` | The harness blueprint and implementation plan the design follows. | 3 | 21,413 |
-| `solution-design:decisions` | Every design decision with its evidence (D-001 onwards). | 1 | 25,462 |
+| `solution-design:decisions` | Every design decision with its evidence (D-001 onwards). | 1 | 26,014 |
 | `solution-design:findings` | Findings from benchmarks and investigations. | 13 | 43,801 |
 
 ## Agents
@@ -53,9 +53,10 @@ The agents users pick, the personas they delegate to, and the research arms; the
 | Module | Purpose | Files | Tokens |
 |---|---|---|---|
 | `agents:research-arms` | Benchmark agents with pinned models, budgets and metrics hooks. | 12 | 8,327 |
-| `agents:frontier` | The agents users pick: E2E Delivery, BYOW, Prototype Creator and HVE creator. | 4 | 13,582 |
+| `agents:frontier` | The agents users pick: Frontier HVE Auto, Frontier HVE Collab, Prototype Creator and HVE creator. | 4 | 14,512 |
+| `agents:modes` | Hidden harness modes (creator-flow, creator-github, single, minimal) and creator-flow stage agents. | 26 | 16,978 |
 | `agents:personas` | Sub-agents the Frontier agents delegate to: engineer, product manager, reviewers, judges and workers. | 9 | 6,046 |
-| `agents:modes` | Hidden harness modes (creator-flow, creator-github, single, minimal) and creator-flow stage agents. | 10 | 7,831 |
+| `agents:persona-catalog` | The 18 personas (TPM, architects, engineers, testers, DevOps, data scientist, reviewers) and the templates their agents are rendered from. | 5 | 5,443 |
 
 ## Orchestration
 
@@ -64,9 +65,9 @@ Delivery lifecycles, ask contracts and plans, the verified feature loop, the gra
 | Module | Purpose | Files | Tokens |
 |---|---|---|---|
 | `orchestration:feature-loop` | Locked features with checks, verify and commit, attempt ledger and recovery rules. | 4 | 7,296 |
-| `orchestration:lifecycle-defs` | sdlc, agile-scrum, consulting-delivery, document and direct. | 5 | 2,081 |
+| `orchestration:lifecycle-defs` | sdlc, agile-scrum, consulting-delivery, document and direct. | 6 | 3,694 |
 | `orchestration:git` | Stacked feature branches, PR records, push queue and parallel options in worktrees. | 2 | 3,182 |
-| `orchestration:asks` | Lifecycle routing and ask contracts: plan, checklist, stages, skills, briefs, evidence, rework and the provenance report. | 7 | 21,161 |
+| `orchestration:asks` | Lifecycle routing and ask contracts: scope, plan, checklist and gates, stages, skills, briefs, evidence, rework, the project ledger and the provenance report. | 8 | 22,503 |
 | `orchestration:flow` | The creator-flow state machine with evidence-gated stage transitions. | 1 | 2,588 |
 
 ## Guards and hooks
@@ -129,7 +130,7 @@ The VSIX: activation, agent rendering, pack commands, exports to other harnesses
 | Module | Purpose | Files | Tokens |
 |---|---|---|---|
 | `extension:workspace-settings` | VS Code settings and MCP servers for working on this repository. | 2 | 95 |
-| `extension:build` | Assemble the runtime and skills and package the VSIX. | 2 | 1,523 |
+| `extension:build` | Assemble the runtime and skills and package the VSIX. | 2 | 1,606 |
 | `extension:host` | VS Code activation, agent and pack rendering, pack and telemetry commands, set-up. | 3 | 8,371 |
 | `extension:adapters` | Export agents, skills and hooks to Copilot CLI, Claude Code, Codex, Cursor and the cloud agent. | 1 | 4,628 |
 | `extension:prototype-check` | Lint clickable prototypes and capture screenshots. | 1 | 1,181 |
@@ -158,7 +159,7 @@ Unit and integration tests, one file per area. Roles: qa-lead.
 
 | Module | Purpose | Files | Tokens |
 |---|---|---|---|
-| `tests:suite` | Unit and integration tests, one file per area. | 14 | 60,967 |
+| `tests:suite` | Unit and integration tests, one file per area. | 15 | 62,574 |
 
 ## Documentation
 
@@ -168,7 +169,7 @@ The wiki, the README and the always-on instructions. Roles: tech-writer.
 |---|---|---|---|
 | `docs:instructions` | The README and the instructions every agent loads. | 3 | 11,979 |
 | `docs:learnings` | Learnings captured after a delivery. | 1 | 223 |
-| `docs:wiki` | How-to pages for users and agents. | 11 | 34,096 |
+| `docs:wiki` | How-to pages for users and agents. | 11 | 34,962 |
 
 ## Conventions
 
@@ -177,7 +178,7 @@ The wiki, the README and the always-on instructions. Roles: tech-writer.
 - Every design choice gets a decision (D-nnn) in research/decisions/decision_log.md and a tracker entry; only the user marks a tracker item validated.
 - Tests: python tests/test_<area>.py; extension: node --check extension/*.js; release: bump extension/package.json, build, package, install.
 
-**Flow: Ask lifecycle (E2E Delivery and BYOW)**
+**Flow: Ask lifecycle (Frontier HVE Auto and Collab)**
 
 1. `extension/agents/hve-e2e.agent.md`: user asks; agent routes a lifecycle and packs
 2. `tools/loop/lifecycle.py`: route, then contract writes the ask contract

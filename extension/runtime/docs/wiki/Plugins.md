@@ -1,6 +1,6 @@
 # Expertise packs (plugins)
 
-An **expertise pack** puts one practice's tribal knowledge into a form the Frontier agents can use: how the practice works (its process), what it knows (process maps, runbooks, common fixes), who does the work (personas), how it writes things down (templates), and how its work is judged (rubrics). When a request is about that practice, **Frontier E2E Delivery** and **Frontier BYOW** find the pack, offer it, and run the ask with it.
+An **expertise pack** puts one practice's tribal knowledge into a form the Frontier agents can use: how the practice works (its process), what it knows (process maps, runbooks, common fixes), who does the work (personas), how it writes things down (templates), and how its work is judged (rubrics). When a request is about that practice, **Frontier HVE Auto** and **Frontier HVE Collab** find the pack, offer it, and run the ask with it.
 
 The idea in one line: **the agent reads the pack's manifest, never the whole folder.** The manifest holds the routing rules and an index of everything in the pack, with a one-line "use when" for each knowledge document. Only what a stage needs is opened, and the plan and provenance show how many tokens each pack added.
 
@@ -9,13 +9,13 @@ Packs are the product name for the plugin architecture planned on branch `plugin
 - [Why packs](#why-packs)
 - [What is in a pack](#what-is-in-a-pack)
 - [How it works: the flows](#how-it-works-the-flows)
-- [Worked example: an Oracle migration with Frontier BYOW](#worked-example-an-oracle-migration-with-frontier-byow)
+- [Worked example: an Oracle migration with Frontier HVE Collab](#worked-example-an-oracle-migration-with-frontier-hve-collab)
 - [More examples](#more-examples)
 - [Token load: what a pack costs in context](#token-load-what-a-pack-costs-in-context)
 - [Writing a pack](#writing-a-pack)
 - [Sharing and installing packs](#sharing-and-installing-packs)
 - [Trust and governance](#trust-and-governance)
-- [E2E and BYOW compared](#e2e-and-byow-compared)
+- [Auto and Collab compared](#auto-and-collab-compared)
 - [Troubleshooting](#troubleshooting)
 - [Reference](#reference)
 - [Not yet](#not-yet)
@@ -167,7 +167,7 @@ Paths are workspace-relative; `{ask}` stands for the ask folder (`.hve/asks/<id>
 ```mermaid
 sequenceDiagram
     actor U as User
-    participant A as Frontier BYOW / E2E
+    participant A as Frontier HVE Collab / Auto
     participant L as lifecycle.py
     participant S as Pack store and workspace plugins/
     participant P as Pack agent
@@ -273,7 +273,7 @@ flowchart LR
 
 On every start the extension cleans up the store, disables packs revoked in the index or changed on disk, offers missing required packs, renders the agents of every available pack and offers a reload when they changed.
 
-## Worked example: an Oracle migration with Frontier BYOW
+## Worked example: an Oracle migration with Frontier HVE Collab
 
 The workspace has the sample committed as `plugins/oracle-offering/`. The request:
 
@@ -281,7 +281,7 @@ The workspace has the sample committed as `plugins/oracle-offering/`. The reques
 
 ### 1. Route
 
-BYOW writes the request to `.hve/asks/request.md` and runs `lifecycle.py route .hve/asks/request.md`:
+Collab writes the request to `.hve/asks/request.md` and runs `lifecycle.py route .hve/asks/request.md`:
 
 ```json
 {
@@ -303,7 +303,7 @@ BYOW writes the request to `.hve/asks/request.md` and runs `lifecycle.py route .
 
 ### 2. The form
 
-BYOW shows the top two overlays and a stage table from `lifecycle.py show oracle-offering:oracle-migration`, then asks once:
+Collab shows the top two overlays and a stage table from `lifecycle.py show oracle-offering:oracle-migration`, then asks once:
 
 | Question | Options |
 |---|---|
@@ -323,7 +323,7 @@ ValueError: packs ['oracle-offering'] match this ask: ask the user and pass @<pa
 With the user's choice recorded:
 
 ```text
-lifecycle.py contract oracle-offering:oracle-migration ora "Frontier BYOW" .hve/asks/request.md @oracle-offering
+lifecycle.py contract oracle-offering:oracle-migration ora "Frontier HVE Collab" .hve/asks/request.md @oracle-offering
 ```
 
 `contract.json` now holds the pack record:
@@ -365,7 +365,7 @@ Expertise packs (1,664 tokens always loaded, 15.0% of this ask's 11,092-token co
 
 ### 5. A stage brief
 
-For the assess stage BYOW runs `lifecycle.py brief "oracle-offering:oracle-db-architect" stage=assess` and passes it verbatim:
+For the assess stage Collab runs `lifecycle.py brief "oracle-offering:oracle-db-architect" stage=assess` and passes it verbatim:
 
 ```text
 Frontier HVE brief: ask 20261023-0302-ora, stage assess
@@ -394,7 +394,7 @@ The architect writes it through the template manager (`manage.py init oracle-off
 
 ### 7. Rework
 
-At validate the row counts differ. BYOW runs `lifecycle.py rework validate "row counts differ"`:
+At validate the row counts differ. Collab runs `lifecycle.py rework validate "row counts differ"`:
 
 ```json
 {"current": "build", "rework": 1, "cap": 2}
@@ -570,9 +570,9 @@ The organization index (setting `frontierHve.pluginIndex`, a path or https URL):
 | Unrecorded choices | The contract refuses an offered pack choice that was not recorded |
 | Guards | Pack agents run with the core template guard and skill loader hooks |
 
-## E2E and BYOW compared
+## Auto and Collab compared
 
-| | Frontier E2E Delivery | Frontier BYOW |
+| | Frontier HVE Auto | Frontier HVE Collab |
 |---|---|---|
 | Routing | `lifecycle.py route` | `lifecycle.py route` |
 | Lifecycle shown | Top two, pack overlays first | Top two; prefers an overlay from a matched pack, a plugin or the workspace |

@@ -10,14 +10,15 @@ import ask_packs
 Json = dict[str, Any]
 SKILLS_BLOCK = re.compile(r"<!-- hve:skills -->.*?<!-- /hve:skills -->\n?", re.S)
 CHECKLIST_BLOCK = re.compile(r"<!-- hve:checklist -->.*?<!-- /hve:checklist -->\n?", re.S)
-TICK = re.compile(r"^- \[([ xX])\] ((?:opt|stage|task):[\w.-]+)", re.M)
+TICK = re.compile(r"^- \[([ xX])\] ((?:opt|stage|task|gate):[\w.-]+)", re.M)
 OPTIONS = {
     "opt:evaluation": "Output evaluation when the work is done: rubrics, validation and a council of three models",
     "opt:telemetry": "Research telemetry for this ask: tokens, cost, cache and latency in provenance.md. It records full chat content: run "
                      "**Frontier HVE: Turn on research telemetry** before the next chat, and **Frontier HVE: Turn off research telemetry** "
                      "at the end",
 }
-VALUES = {"opt": ("on", "off", "done"), "stage": ("accepted", "changes", "skipped"), "task": ("accepted", "changes", "skipped")}
+VALUES = {"opt": ("on", "off", "done"), "stage": ("accepted", "changes", "skipped"), "task": ("accepted", "changes", "skipped"),
+          "gate": ("on", "off")}
 TICKED = {"on", "done", "accepted", "skipped"}
 SHOWN = {"skipped": "continued without review", "changes": "needs changes"}
 DECK = re.compile(r"\b(presentations?|decks?|slides?|slideware|pptx|powerpoint)\b", re.I)
@@ -64,8 +65,10 @@ def skills_block(data: Json) -> str:
 
 
 def items(data: Json) -> list[str]:
-    """Return the ids of the ask's checklist items: options, milestones (stages not skipped) and tasks."""
-    return [*OPTIONS, *(f"stage:{s['name']}" for s in data["stages"] if s["status"] != "skipped"), *(f"task:{t['name']}" for t in data["tasks"])]
+    """Return the ids of the ask's checklist items: options, review gates (asks with gates=ticked), milestones (stages not skipped) and tasks."""
+    open_stages = [s["name"] for s in data["stages"] if s["status"] != "skipped"]
+    gates = [f"gate:{s}" for s in open_stages] if data.get("gates") == "ticked" else []
+    return [*OPTIONS, *gates, *(f"stage:{s}" for s in open_stages), *(f"task:{t['name']}" for t in data["tasks"])]
 
 
 def ticked(data: Json, item: str) -> bool:
@@ -111,6 +114,10 @@ def checklist_block(data: Json) -> str:
              "Tick an item here, or answer the agent's form; `lifecycle.py tick <item> <value>` records it. Open items stay unticked.", "",
              "**Options**"]
     lines += [f"- [{box[ticked(data, i)]}] {i} — {label}{state(data, i)}" for i, label in OPTIONS.items()]
+    if data.get("gates") == "ticked":
+        lines += ["", "**Pause for my review after** (unticked milestones run on without stopping)"]
+        lines += [f"- [{box[ticked(data, 'gate:' + s['name'])]}] gate:{s['name']}{state(data, 'gate:' + s['name'])}"
+                  for s in data["stages"] if s["status"] != "skipped"]
     lines += ["", "**Milestones**"]
     for s in data["stages"]:
         if s["status"] == "skipped":
@@ -138,7 +145,7 @@ def refresh(folder: Path, data: Json) -> list[Json]:
         now_ticked = mark != " "
         if item in items(data) and now_ticked != data["checklist_rendered"].get(item, False):
             kind = item.split(":", 1)[0]
-            value = ("on" if now_ticked else "off") if kind == "opt" else ("accepted" if now_ticked else "changes")
+            value = ("on" if now_ticked else "off") if kind in ("opt", "gate") else ("accepted" if now_ticked else "changes")
             applied.append(record(data, item, value, "", "plan.md"))
     data["pack_load"] = ask_packs.load(data)
     for pattern, block in ((SKILLS_BLOCK, skills_block(data)), (CHECKLIST_BLOCK, checklist_block(data))):

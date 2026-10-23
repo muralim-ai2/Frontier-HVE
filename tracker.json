@@ -151,6 +151,11 @@
       "id": "N44",
       "issue": "Built (D-061), extension 0.17.0: solution map for any repository (tools/map: extract, map_build, solution_map; config docs/architecture/solution-map.config.json with 16 concepts for this repo); explorer page with Concepts and Architecture grouping, Tree, Circles and Force views, concept cards, fuzzy search, Cypher subset, filter banner with Back and Show whole map; solution-map plugin skill (/solution-map create, help me understand <topic>) followed by E2E, BYOW and HVE creator; release snapshot in docs/architecture/. Unit-tested and browser-checked; chat path not verified live.",
       "action": "User: install 0.17.0; in a new chat type /solution-map create, then ask 'help me understand the telemetry implementation' and check the ask-first question, the concept answer and the explorer offer; review the 16 concept explanations in the config; try /solution-map in Claude Code and $solution-map in Codex after exporting. Decide M1 next (size flag in the contract)."
+    },
+    {
+      "id": "N45",
+      "issue": "Built (D-062), extension 0.18.0: Frontier HVE Auto (was E2E Delivery; pauses only after milestones ticked in the plan) and Frontier HVE Collab (was BYOW; come in at any stage of team-delivery, each visit its own ask, project ledger, pack lifecycle in place of a stage); 18 personas from templates/personas/catalog.json (16 rendered agents: builders, designers, reviewers); model order Claude Opus 5.5, Claude Fable 5, GPT-6 Astra, Gemini 4 Argon. Unit-tested; not verified live.",
+      "action": "User: install 0.18.0; confirm the picker shows Frontier HVE Auto and Collab and which model they start on; in a project ask Collab for only data architecture and data build of an Oracle migration and check the ledger, the pack lifecycle offer and the db-architect brief; come back for a design review and check the ledger shows both asks; ask Auto for a small app, tick one gate and check it runs the other stages without stopping. Decide which personas get their own skills, MCP servers or packs first."
     }
   ],
   "wiki_topics": {

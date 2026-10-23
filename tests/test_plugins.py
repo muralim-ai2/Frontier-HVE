@@ -213,11 +213,11 @@ def test_routing_contract_and_load() -> None:
         assert [m["name"] for m in routed["packs"]["matched"]] == ["oracle-offering", "postgres-offering"], routed["packs"]
         assert routed["lifecycles"][0]["pack"] in ("oracle-offering", "postgres-offering")
         assert "oracle-migration" not in [r["name"] for r in routed["lifecycles"]], "a pack's lifecycles folder is not a plain overlay"
-        refused = lifecycle(ws, "contract", "oracle-offering:oracle-migration", "ora", "Frontier BYOW", "req.md")
+        refused = lifecycle(ws, "contract", "oracle-offering:oracle-migration", "ora", "Frontier HVE Collab", "req.md")
         assert refused.returncode != 0 and "pass @<pack>" in refused.stderr
-        mixed = lifecycle(ws, "contract", "oracle-offering:oracle-migration", "ora", "Frontier BYOW", "req.md", "@core")
+        mixed = lifecycle(ws, "contract", "oracle-offering:oracle-migration", "ora", "Frontier HVE Collab", "req.md", "@core")
         assert mixed.returncode != 0 and "belongs to pack oracle-offering" in mixed.stderr
-        data = ok(lifecycle(ws, "contract", "oracle-offering:oracle-migration", "ora", "Frontier BYOW", "req.md", "@oracle-offering"))
+        data = ok(lifecycle(ws, "contract", "oracle-offering:oracle-migration", "ora", "Frontier HVE Collab", "req.md", "@oracle-offering"))
         pack = data["packs"][0]
         assert pack["name"] == "oracle-offering" and pack["source"] == "workspace" and pack["lifecycle"] == "oracle-offering:oracle-migration"
         assert any("task pattern" in w for w in pack["routed"]) and pack["agents"] == ["oracle-db-architect", "oracle-engineer"]

@@ -1,6 +1,6 @@
 ---
 name: HVE creator
-model: ['GPT-6 Astra (copilot)', 'Gemini 4 Argon (copilot)', 'Claude Fable 5 (copilot)', 'Claude Opus 5.5 (copilot)']
+model: ['Claude Opus 5.5 (copilot)', 'Claude Fable 5 (copilot)', 'GPT-6 Astra (copilot)', 'Gemini 4 Argon (copilot)']
 reasoning-effort: high
 description: Frontier HVE full harness. Verified feature loop with fresh sub-agents, deterministic retry rules and guards.
 hooks:

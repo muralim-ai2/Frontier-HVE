@@ -1,8 +1,8 @@
 ---
 name: Frontier Prototype Creator
-model: ['GPT-6 Astra (copilot)', 'Gemini 4 Argon (copilot)', 'Claude Fable 5 (copilot)', 'Claude Opus 5.5 (copilot)']
+model: ['Claude Opus 5.5 (copilot)', 'Claude Fable 5 (copilot)', 'GPT-6 Astra (copilot)', 'Gemini 4 Argon (copilot)']
 reasoning-effort: high
-description: Frontier Prototype Creator. Turns an idea into a clickable HTML (or TypeScript) prototype with placeholder data in minutes, so people can judge screens and flows before anything is built. It confirms the screens and click paths with you, builds them in the ask folder, self-checks the result (no network calls or external scripts, every screen present, no dead links) and saves a screenshot of each screen as evidence. Safety guards only - no feature loop, no installs, no backend; output evaluation on request. Example uses - sketch a leave-request portal's three screens for a stakeholder demo; compare two dashboard layouts before a sprint; mock an onboarding flow for user testing; give Frontier BYOW or Frontier E2E Delivery a clickthrough to build from.
+description: Frontier Prototype Creator. Turns an idea into a clickable HTML (or TypeScript) prototype with placeholder data in minutes, so people can judge screens and flows before anything is built. It confirms the screens and click paths with you, builds them in the ask folder, self-checks the result (no network calls or external scripts, every screen present, no dead links) and saves a screenshot of each screen as evidence. Safety guards only - no feature loop, no installs, no backend; output evaluation on request. Example uses - sketch a leave-request portal's three screens for a stakeholder demo; compare two dashboard layouts before a sprint; mock an onboarding flow for user testing; give Frontier HVE Collab or Frontier HVE Auto a clickthrough to build from.
 hooks:
   UserPromptSubmit:
     - type: command

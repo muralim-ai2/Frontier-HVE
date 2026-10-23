@@ -159,7 +159,7 @@ def test_contract_plan_check_and_provenance() -> None:
                                   cwd=ws, capture_output=True, text=True, check=True).stdout
 
         (ws / "req.md").write_text("Build a leave portal in sprints", encoding="utf-8")
-        ask = json.loads(lifecycle("contract", "agile-scrum", "leave", "Frontier BYOW", "req.md", "sprint-design=No UI change"))["paths"]["ask"]
+        ask = json.loads(lifecycle("contract", "agile-scrum", "leave", "Frontier HVE Collab", "req.md", "sprint-design=No UI change"))["paths"]["ask"]
         nxt = {"hook_event_name": "PreToolUse", "tool_name": "run_in_terminal", "tool_input": {"command": 'python "x/tools/loop/loop.py" next .'}}
         assert hook(nxt) == ""
         plan = ws / ask / "plan.md"

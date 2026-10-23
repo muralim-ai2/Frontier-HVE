@@ -52,12 +52,13 @@ def test_extension_js_parses() -> None:
 
 
 def test_rendered_plugin_shape() -> None:
-    """The plugin has its manifest, 17 skills, guardrail scripts and 23 HVE agents with every runtime path filled in; only the three
+    """The plugin has its manifest, 17 skills, guardrail scripts and 39 HVE agents (16 rendered from the persona catalog) with every runtime
+    path filled in; only the three
     Frontier agents are user-invocable and they, with the uplift judge, pin top models."""
     with tempfile.TemporaryDirectory() as tmp:
         out = Path(tmp) / "plugin"
         agents = render(out)
-        assert len(agents) == 23, agents
+        assert len(agents) == 39, agents
         assert json.loads((out / "plugin.json").read_text(encoding="utf-8"))["name"] == "frontier-hve"
         assert len(list((out / "skills").glob("*/SKILL.md"))) == 17
         assert (EXTENSION / "runtime" / "tools" / "map" / "explorer" / "app.js").is_file()
@@ -121,7 +122,7 @@ def test_rerender_updates_in_place() -> None:
         stale = out / "com.github.copilot" / "agents" / "old.agent.md"
         stale.write_text("old", encoding="utf-8")
         (out / "skills" / "old-skill").mkdir()
-        assert len(render(out, "0.1.1")) == 23
+        assert len(render(out, "0.1.1")) == 39
         assert json.loads((out / "plugin.json").read_text(encoding="utf-8"))["version"] == "0.1.1"
         assert not stale.exists() and not (out / "skills" / "old-skill").exists()
 

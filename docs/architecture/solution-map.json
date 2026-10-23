@@ -1,17 +1,17 @@
 {
  "version": 1,
- "commit": "a946b2b",
- "built": "2026-10-23T08:57:32+00:00",
+ "commit": "a4c899b",
+ "built": "2026-10-23T10:06:30+00:00",
  "root": "enterprise-harness",
  "size": {
   "class": "medium",
-  "code_files": 91,
-  "code_lines": 15915,
-  "files": 253,
-  "tokens": 519595,
+  "code_files": 94,
+  "code_lines": 16205,
+  "files": 277,
+  "tokens": 541442,
   "why": [
-   "91 code files",
-   "15,915 code lines",
+   "94 code files",
+   "16,205 code lines",
    "thresholds medium 50 files or 5,000 lines, large 300 or 50,000"
   ]
  },
@@ -23,7 +23,7 @@
  ],
  "flows": [
   {
-   "name": "Ask lifecycle (E2E Delivery and BYOW)",
+   "name": "Ask lifecycle (Frontier HVE Auto and Collab)",
    "steps": [
     [
      "extension/agents/hve-e2e.agent.md",
@@ -73,7 +73,7 @@
   {
    "id": "concept:agents",
    "name": "Agents",
-   "explain": "Agents are Markdown prompt files with YAML front matter: name, description, model list, tools and hooks. The product agents in extension/agents are templates; on activation the extension renders them (render.js fills in the runtime path and Python launcher) into a Copilot plugin folder, so only the three Frontier agents appear in the picker and the rest are personas they delegate to. The research arms in .github/agents are benchmark modes with pinned models and metrics hooks. Each agent's hooks run guard and context scripts from hooks/, and its instructions call tools such as lifecycle.py and loop.py. To add an agent, write extension/agents/hve-<name>.agent.md with its hooks, run extension/build.py and extend tests/test_extension.py.",
+   "explain": "Agents are Markdown prompt files with YAML front matter: name, description, model list, tools and hooks. The product agents in extension/agents are templates; on activation the extension renders them (render.js fills in the runtime path and Python launcher) into a Copilot plugin folder, so only the three Frontier agents appear in the picker and the rest are personas they delegate to. The research arms in .github/agents are benchmark modes with pinned models and metrics hooks. Each agent's hooks run guard and context scripts from hooks/, and its instructions call tools such as lifecycle.py and loop.py. Persona agents (architects, engineers, testers, DevOps, data scientist, reviewers) are not written by hand: templates/personas/catalog.json lists each persona's kind (builder, designer or reviewer), goal, focus, skills and keywords, and personas.py renders them from the kind's template during extension/build.py. To add a persona, add it to the catalog and rebuild; to add any other agent, write extension/agents/hve-<name>.agent.md with its hooks, run extension/build.py and extend tests/test_extension.py.",
    "keywords": [
     "agent",
     "persona",
@@ -98,11 +98,17 @@
     "file:.github/agents/minimal.agent.md",
     "file:.github/agents/single.agent.md",
     "file:extension/agents/hve-agile.agent.md",
+    "file:extension/agents/hve-architecture-reviewer.agent.md",
     "file:extension/agents/hve-azure-devops.agent.md",
+    "file:extension/agents/hve-code-reviewer.agent.md",
     "file:extension/agents/hve-council.agent.md",
     "file:extension/agents/hve-creator-flow.agent.md",
     "file:extension/agents/hve-creator-github.agent.md",
     "file:extension/agents/hve-creator.agent.md",
+    "file:extension/agents/hve-data-scientist.agent.md",
+    "file:extension/agents/hve-db-architect.agent.md",
+    "file:extension/agents/hve-db-engineer.agent.md",
+    "file:extension/agents/hve-devops-engineer.agent.md",
     "file:extension/agents/hve-e2e.agent.md",
     "file:extension/agents/hve-engineer.agent.md",
     "file:extension/agents/hve-evaluation-reviewer.agent.md",
@@ -114,18 +120,34 @@
     "file:extension/agents/hve-flow-sweeper.agent.md",
     "file:extension/agents/hve-minimal.agent.md",
     "file:extension/agents/hve-product-manager.agent.md",
+    "file:extension/agents/hve-product-reviewer.agent.md",
     "file:extension/agents/hve-prototype.agent.md",
+    "file:extension/agents/hve-security-architect.agent.md",
+    "file:extension/agents/hve-security-reviewer.agent.md",
     "file:extension/agents/hve-single.agent.md",
     "file:extension/agents/hve-skill-evaluator.agent.md",
     "file:extension/agents/hve-skill-judge.agent.md",
     "file:extension/agents/hve-skill-worker.agent.md",
+    "file:extension/agents/hve-solution-architect.agent.md",
+    "file:extension/agents/hve-test-architect.agent.md",
+    "file:extension/agents/hve-test-engineer.agent.md",
+    "file:extension/agents/hve-test-reviewer.agent.md",
+    "file:extension/agents/hve-ui-engineer.agent.md",
     "file:extension/agents/hve-uplift-judge.agent.md",
+    "file:extension/agents/hve-ux-designer.agent.md",
+    "file:extension/agents/hve-ux-reviewer.agent.md",
     "file:extension/render.js",
-    "file:hooks/agent_ledger.py"
+    "file:hooks/agent_ledger.py",
+    "file:templates/personas/builder.agent.md",
+    "file:templates/personas/catalog.json",
+    "file:templates/personas/designer.agent.md",
+    "file:templates/personas/reviewer.agent.md",
+    "file:tools/loop/personas.py"
    ],
    "derived": false,
    "questions": [
     "How do I add a new agent?",
+    "How do I add a persona?",
     "Which hooks guard an agent?",
     "Which persona does a lifecycle stage delegate to?"
    ]
@@ -346,7 +368,7 @@
   {
    "id": "concept:asks",
    "name": "Asks and delivery lifecycles",
-   "explain": "An ask is one piece of work run through a delivery lifecycle. lifecycle.py picks a lifecycle (built in under templates/lifecycles, a workspace overlay or a pack) and writes the ask's contract.json: stages, skills, personas, packs, milestones and tasks. ask_plan.py renders plan.md with a sign-off checklist, and plan_check.py holds work until plan edits are synced back. During the ask lifecycle.py briefs sub-agents and tracks used skills and tasks; ask_report.py compares the contract with what happened and writes provenance.md. E2E Delivery and BYOW drive this; environment.py records the harness, MCP servers and hooks the contract runs with.",
+   "explain": "An ask is one piece of work run through a delivery lifecycle. lifecycle.py picks a lifecycle (built in under templates/lifecycles, a workspace overlay or a pack) and writes the ask's contract.json: stages, skills, personas, packs, milestones and tasks. ask_plan.py renders plan.md with a sign-off checklist, and plan_check.py holds work until plan edits are synced back. During the ask lifecycle.py briefs sub-agents and tracks used skills and tasks; ask_report.py compares the contract with what happened and writes provenance.md. Frontier HVE Auto and Frontier HVE Collab drive this; environment.py records the harness, MCP servers and hooks the contract runs with.",
    "keywords": [
     "ask",
     "lifecycle",
@@ -370,8 +392,10 @@
     "file:templates/lifecycles/direct.json",
     "file:templates/lifecycles/document.json",
     "file:templates/lifecycles/sdlc.json",
+    "file:templates/lifecycles/team-delivery.json",
     "file:tools/loop/ask_packs.py",
     "file:tools/loop/ask_plan.py",
+    "file:tools/loop/ask_project.py",
     "file:tools/loop/ask_report.py",
     "file:tools/loop/environment.py",
     "file:tools/loop/lifecycle.py",
@@ -1310,7 +1334,7 @@
     "docs/wiki/Templates.md",
     "docs/wiki/Ways-of-Working.md"
    ],
-   "tokens": 34096,
+   "tokens": 34962,
    "placed": true
   },
   {
@@ -1338,9 +1362,9 @@
    "name": "Agents.md",
    "purpose": "Agents: Pick these in a new chat.",
    "source": "docs/wiki/Agents.md",
-   "tokens": 4498,
-   "lines": 114,
-   "hash": "d5c5f936b2e53b74",
+   "tokens": 5345,
+   "lines": 139,
+   "hash": "52a923795d435819",
    "external": []
   },
   {
@@ -1398,9 +1422,9 @@
    "name": "Plugins.md",
    "purpose": "Expertise packs (plugins): An expertise pack puts one practice's tribal knowledge into a form the Frontier agents can use: how the practice works (its process), what it knows (process maps, runbooks, common fixes), who does the work (personas), how it writes things down (templates), and how its work is judged (rubrics).",
    "source": "docs/wiki/Plugins.md",
-   "tokens": 9687,
+   "tokens": 9700,
    "lines": 652,
-   "hash": "c5892adf8b1be321",
+   "hash": "6b22e2009efa9ee1",
    "external": []
   },
   {
@@ -1443,9 +1467,9 @@
    "name": "Solution-Map.md",
    "purpose": "Solution map: The solution map lets people and agents understand a codebase without reading all of it.",
    "source": "docs/wiki/Solution-Map.md",
-   "tokens": 2034,
+   "tokens": 2039,
    "lines": 141,
-   "hash": "37b52fb0b37ff650",
+   "hash": "03fd3cfdfd6b63da",
    "external": []
   },
   {
@@ -1473,9 +1497,9 @@
    "name": "Ways-of-Working.md",
    "purpose": "Ways of working: How a piece of work runs through the HVE agents since extension 0.13.0 (project level since 0.15.0), what you are asked and when, where the files go, and how to check it worked.",
    "source": "docs/wiki/Ways-of-Working.md",
-   "tokens": 5879,
+   "tokens": 5880,
    "lines": 205,
-   "hash": "e21c17a4f694fb54",
+   "hash": "1439aa822f32c96d",
    "external": []
   },
   {
@@ -1785,7 +1809,7 @@
    "level": "module",
    "view": "agents",
    "name": "Frontier agents",
-   "purpose": "The agents users pick: E2E Delivery, BYOW, Prototype Creator and HVE creator.",
+   "purpose": "The agents users pick: Frontier HVE Auto, Frontier HVE Collab, Prototype Creator and HVE creator.",
    "roles": [
     "prompt-engineer",
     "harness-engineer"
@@ -1796,7 +1820,7 @@
     "extension/agents/hve-e2e.agent.md",
     "extension/agents/hve-prototype.agent.md"
    ],
-   "tokens": 13582,
+   "tokens": 14512,
    "placed": true
   },
   {
@@ -1806,12 +1830,68 @@
    "module": "agents:frontier",
    "kind": "agent",
    "lang": "markdown",
-   "name": "Frontier BYOW",
-   "purpose": "Frontier BYOW (Bring your own way of working).",
+   "name": "Frontier HVE Collab",
+   "purpose": "Frontier HVE Collab (collaborative).",
    "source": "extension/agents/hve-agile.agent.md",
-   "tokens": 4114,
-   "lines": 129,
-   "hash": "12959b3672559d6d",
+   "tokens": 4801,
+   "lines": 127,
+   "hash": "92d80a433f6feb71",
+   "external": []
+  },
+  {
+   "id": "agents:modes",
+   "level": "module",
+   "view": "agents",
+   "name": "Harness modes",
+   "purpose": "Hidden harness modes (creator-flow, creator-github, single, minimal) and creator-flow stage agents.",
+   "roles": [
+    "prompt-engineer",
+    "harness-engineer"
+   ],
+   "files": [
+    "extension/agents/hve-architecture-reviewer.agent.md",
+    "extension/agents/hve-code-reviewer.agent.md",
+    "extension/agents/hve-creator-flow.agent.md",
+    "extension/agents/hve-creator-github.agent.md",
+    "extension/agents/hve-data-scientist.agent.md",
+    "extension/agents/hve-db-architect.agent.md",
+    "extension/agents/hve-db-engineer.agent.md",
+    "extension/agents/hve-devops-engineer.agent.md",
+    "extension/agents/hve-flow-architect.agent.md",
+    "extension/agents/hve-flow-designer.agent.md",
+    "extension/agents/hve-flow-grower.agent.md",
+    "extension/agents/hve-flow-maintainer.agent.md",
+    "extension/agents/hve-flow-prototyper.agent.md",
+    "extension/agents/hve-flow-sweeper.agent.md",
+    "extension/agents/hve-minimal.agent.md",
+    "extension/agents/hve-product-reviewer.agent.md",
+    "extension/agents/hve-security-architect.agent.md",
+    "extension/agents/hve-security-reviewer.agent.md",
+    "extension/agents/hve-single.agent.md",
+    "extension/agents/hve-solution-architect.agent.md",
+    "extension/agents/hve-test-architect.agent.md",
+    "extension/agents/hve-test-engineer.agent.md",
+    "extension/agents/hve-test-reviewer.agent.md",
+    "extension/agents/hve-ui-engineer.agent.md",
+    "extension/agents/hve-ux-designer.agent.md",
+    "extension/agents/hve-ux-reviewer.agent.md"
+   ],
+   "tokens": 16978,
+   "placed": true
+  },
+  {
+   "id": "file:extension/agents/hve-architecture-reviewer.agent.md",
+   "level": "file",
+   "view": "agents",
+   "module": "agents:modes",
+   "kind": "agent",
+   "lang": "markdown",
+   "name": "HVE architecture-reviewer",
+   "purpose": "Frontier HVE architecture reviewer persona.",
+   "source": "extension/agents/hve-architecture-reviewer.agent.md",
+   "tokens": 523,
+   "lines": 25,
+   "hash": "95deafc9f2566c04",
    "external": []
   },
   {
@@ -1854,6 +1934,21 @@
    "external": []
   },
   {
+   "id": "file:extension/agents/hve-code-reviewer.agent.md",
+   "level": "file",
+   "view": "agents",
+   "module": "agents:modes",
+   "kind": "agent",
+   "lang": "markdown",
+   "name": "HVE code-reviewer",
+   "purpose": "Frontier HVE code reviewer persona.",
+   "source": "extension/agents/hve-code-reviewer.agent.md",
+   "tokens": 518,
+   "lines": 25,
+   "hash": "d9dbe9ce759f64bf",
+   "external": []
+  },
+  {
    "id": "file:extension/agents/hve-council.agent.md",
    "level": "file",
    "view": "agents",
@@ -1867,31 +1962,6 @@
    "lines": 16,
    "hash": "a26ceae8bf507be1",
    "external": []
-  },
-  {
-   "id": "agents:modes",
-   "level": "module",
-   "view": "agents",
-   "name": "Harness modes",
-   "purpose": "Hidden harness modes (creator-flow, creator-github, single, minimal) and creator-flow stage agents.",
-   "roles": [
-    "prompt-engineer",
-    "harness-engineer"
-   ],
-   "files": [
-    "extension/agents/hve-creator-flow.agent.md",
-    "extension/agents/hve-creator-github.agent.md",
-    "extension/agents/hve-flow-architect.agent.md",
-    "extension/agents/hve-flow-designer.agent.md",
-    "extension/agents/hve-flow-grower.agent.md",
-    "extension/agents/hve-flow-maintainer.agent.md",
-    "extension/agents/hve-flow-prototyper.agent.md",
-    "extension/agents/hve-flow-sweeper.agent.md",
-    "extension/agents/hve-minimal.agent.md",
-    "extension/agents/hve-single.agent.md"
-   ],
-   "tokens": 7831,
-   "placed": true
   },
   {
    "id": "file:extension/agents/hve-creator-flow.agent.md",
@@ -1935,7 +2005,67 @@
    "source": "extension/agents/hve-creator.agent.md",
    "tokens": 3452,
    "lines": 120,
-   "hash": "d26b0127b60b2c5f",
+   "hash": "23a4278807406333",
+   "external": []
+  },
+  {
+   "id": "file:extension/agents/hve-data-scientist.agent.md",
+   "level": "file",
+   "view": "agents",
+   "module": "agents:modes",
+   "kind": "agent",
+   "lang": "markdown",
+   "name": "HVE data-scientist",
+   "purpose": "Frontier HVE data scientist persona.",
+   "source": "extension/agents/hve-data-scientist.agent.md",
+   "tokens": 570,
+   "lines": 27,
+   "hash": "e447b3c4eba9c8a0",
+   "external": []
+  },
+  {
+   "id": "file:extension/agents/hve-db-architect.agent.md",
+   "level": "file",
+   "view": "agents",
+   "module": "agents:modes",
+   "kind": "agent",
+   "lang": "markdown",
+   "name": "HVE db-architect",
+   "purpose": "Frontier HVE database architect persona.",
+   "source": "extension/agents/hve-db-architect.agent.md",
+   "tokens": 582,
+   "lines": 27,
+   "hash": "7c707aec22d8af05",
+   "external": []
+  },
+  {
+   "id": "file:extension/agents/hve-db-engineer.agent.md",
+   "level": "file",
+   "view": "agents",
+   "module": "agents:modes",
+   "kind": "agent",
+   "lang": "markdown",
+   "name": "HVE db-engineer",
+   "purpose": "Frontier HVE database engineer persona.",
+   "source": "extension/agents/hve-db-engineer.agent.md",
+   "tokens": 639,
+   "lines": 33,
+   "hash": "39a12788eaec6dc3",
+   "external": []
+  },
+  {
+   "id": "file:extension/agents/hve-devops-engineer.agent.md",
+   "level": "file",
+   "view": "agents",
+   "module": "agents:modes",
+   "kind": "agent",
+   "lang": "markdown",
+   "name": "HVE devops-engineer",
+   "purpose": "Frontier HVE DevOps engineer persona.",
+   "source": "extension/agents/hve-devops-engineer.agent.md",
+   "tokens": 654,
+   "lines": 33,
+   "hash": "dbabeb259843625f",
    "external": []
   },
   {
@@ -1945,12 +2075,12 @@
    "module": "agents:frontier",
    "kind": "agent",
    "lang": "markdown",
-   "name": "Frontier E2E Delivery",
-   "purpose": "Frontier E2E Delivery.",
+   "name": "Frontier HVE Auto",
+   "purpose": "Frontier HVE Auto (autonomous).",
    "source": "extension/agents/hve-e2e.agent.md",
-   "tokens": 4133,
-   "lines": 124,
-   "hash": "7a83c66b92e892ab",
+   "tokens": 4376,
+   "lines": 125,
+   "hash": "3a045887b60e01e7",
    "external": []
   },
   {
@@ -2104,6 +2234,21 @@
    "external": []
   },
   {
+   "id": "file:extension/agents/hve-product-reviewer.agent.md",
+   "level": "file",
+   "view": "agents",
+   "module": "agents:modes",
+   "kind": "agent",
+   "lang": "markdown",
+   "name": "HVE product-reviewer",
+   "purpose": "Frontier HVE product reviewer persona.",
+   "source": "extension/agents/hve-product-reviewer.agent.md",
+   "tokens": 520,
+   "lines": 25,
+   "hash": "7c0c4d002c68fa10",
+   "external": []
+  },
+  {
    "id": "file:extension/agents/hve-prototype.agent.md",
    "level": "file",
    "view": "agents",
@@ -2115,7 +2260,37 @@
    "source": "extension/agents/hve-prototype.agent.md",
    "tokens": 1883,
    "lines": 53,
-   "hash": "783e0ff6f9fdfdb2",
+   "hash": "65ce0cf2e4d4bad5",
+   "external": []
+  },
+  {
+   "id": "file:extension/agents/hve-security-architect.agent.md",
+   "level": "file",
+   "view": "agents",
+   "module": "agents:modes",
+   "kind": "agent",
+   "lang": "markdown",
+   "name": "HVE security-architect",
+   "purpose": "Frontier HVE security architect persona.",
+   "source": "extension/agents/hve-security-architect.agent.md",
+   "tokens": 580,
+   "lines": 27,
+   "hash": "9e785065606d6b38",
+   "external": []
+  },
+  {
+   "id": "file:extension/agents/hve-security-reviewer.agent.md",
+   "level": "file",
+   "view": "agents",
+   "module": "agents:modes",
+   "kind": "agent",
+   "lang": "markdown",
+   "name": "HVE security-reviewer",
+   "purpose": "Frontier HVE security reviewer persona.",
+   "source": "extension/agents/hve-security-reviewer.agent.md",
+   "tokens": 515,
+   "lines": 25,
+   "hash": "f4557e7560d96b2b",
    "external": []
   },
   {
@@ -2179,6 +2354,81 @@
    "external": []
   },
   {
+   "id": "file:extension/agents/hve-solution-architect.agent.md",
+   "level": "file",
+   "view": "agents",
+   "module": "agents:modes",
+   "kind": "agent",
+   "lang": "markdown",
+   "name": "HVE solution-architect",
+   "purpose": "Frontier HVE solution architect persona.",
+   "source": "extension/agents/hve-solution-architect.agent.md",
+   "tokens": 584,
+   "lines": 27,
+   "hash": "5c5c2c593f06c848",
+   "external": []
+  },
+  {
+   "id": "file:extension/agents/hve-test-architect.agent.md",
+   "level": "file",
+   "view": "agents",
+   "module": "agents:modes",
+   "kind": "agent",
+   "lang": "markdown",
+   "name": "HVE test-architect",
+   "purpose": "Frontier HVE test architect persona.",
+   "source": "extension/agents/hve-test-architect.agent.md",
+   "tokens": 585,
+   "lines": 27,
+   "hash": "40e39e154ba26799",
+   "external": []
+  },
+  {
+   "id": "file:extension/agents/hve-test-engineer.agent.md",
+   "level": "file",
+   "view": "agents",
+   "module": "agents:modes",
+   "kind": "agent",
+   "lang": "markdown",
+   "name": "HVE test-engineer",
+   "purpose": "Frontier HVE test engineer persona.",
+   "source": "extension/agents/hve-test-engineer.agent.md",
+   "tokens": 656,
+   "lines": 33,
+   "hash": "cf2406adfdff8205",
+   "external": []
+  },
+  {
+   "id": "file:extension/agents/hve-test-reviewer.agent.md",
+   "level": "file",
+   "view": "agents",
+   "module": "agents:modes",
+   "kind": "agent",
+   "lang": "markdown",
+   "name": "HVE test-reviewer",
+   "purpose": "Frontier HVE test reviewer persona.",
+   "source": "extension/agents/hve-test-reviewer.agent.md",
+   "tokens": 504,
+   "lines": 25,
+   "hash": "f4e2782fabac7db3",
+   "external": []
+  },
+  {
+   "id": "file:extension/agents/hve-ui-engineer.agent.md",
+   "level": "file",
+   "view": "agents",
+   "module": "agents:modes",
+   "kind": "agent",
+   "lang": "markdown",
+   "name": "HVE ui-engineer",
+   "purpose": "Frontier HVE UI engineer persona.",
+   "source": "extension/agents/hve-ui-engineer.agent.md",
+   "tokens": 644,
+   "lines": 33,
+   "hash": "ee5a10b240766b9f",
+   "external": []
+  },
+  {
    "id": "file:extension/agents/hve-uplift-judge.agent.md",
    "level": "file",
    "view": "agents",
@@ -2191,6 +2441,36 @@
    "tokens": 474,
    "lines": 23,
    "hash": "35265d3b0ab4bfc9",
+   "external": []
+  },
+  {
+   "id": "file:extension/agents/hve-ux-designer.agent.md",
+   "level": "file",
+   "view": "agents",
+   "module": "agents:modes",
+   "kind": "agent",
+   "lang": "markdown",
+   "name": "HVE ux-designer",
+   "purpose": "Frontier HVE UX designer persona.",
+   "source": "extension/agents/hve-ux-designer.agent.md",
+   "tokens": 571,
+   "lines": 27,
+   "hash": "1967e314a626ce23",
+   "external": []
+  },
+  {
+   "id": "file:extension/agents/hve-ux-reviewer.agent.md",
+   "level": "file",
+   "view": "agents",
+   "module": "agents:modes",
+   "kind": "agent",
+   "lang": "markdown",
+   "name": "HVE ux-reviewer",
+   "purpose": "Frontier HVE UX reviewer persona.",
+   "source": "extension/agents/hve-ux-reviewer.agent.md",
+   "tokens": 502,
+   "lines": 25,
+   "hash": "f5f26d64199ea99d",
    "external": []
   },
   {
@@ -2207,7 +2487,7 @@
     "extension/build.py",
     "extension/package.json"
    ],
-   "tokens": 1523,
+   "tokens": 1606,
    "placed": true
   },
   {
@@ -2220,9 +2500,9 @@
    "name": "build.py",
    "purpose": "Assemble the extension's runtime/ (Python hooks, loop tools and the skill library) and skills/ from the repository, and check every agent template.",
    "source": "extension/build.py",
-   "tokens": 1062,
-   "lines": 78,
-   "hash": "e87575e60900b78f",
+   "tokens": 1145,
+   "lines": 82,
+   "hash": "2bc39e7db4a75550",
    "external": []
   },
   {
@@ -2233,7 +2513,7 @@
    "kind": "function",
    "name": "build",
    "purpose": "Recreate runtime/ and skills/, compile every Python file, and return the runtime files the agent templates reference.",
-   "source": "extension/build.py:39-70"
+   "source": "extension/build.py:39-74"
   },
   {
    "id": "extension:host",
@@ -2450,7 +2730,7 @@
    "source": "extension/package.json",
    "tokens": 461,
    "lines": 58,
-   "hash": "afa2ab7c667bf6d7",
+   "hash": "10d460fc92e3fd8c",
    "external": []
   },
   {
@@ -2636,7 +2916,7 @@
     "feature_list.json",
     "tracker.json"
    ],
-   "tokens": 18382,
+   "tokens": 18646,
    "placed": true
   },
   {
@@ -4681,7 +4961,7 @@
    "files": [
     "research/decisions/decision_log.md"
    ],
-   "tokens": 25462,
+   "tokens": 26014,
    "placed": true
   },
   {
@@ -4694,9 +4974,9 @@
    "name": "decision_log.md",
    "purpose": "Decision log: A valid backlog also reports uncovered PRD FR/NFR IDs.",
    "source": "research/decisions/decision_log.md",
-   "tokens": 25462,
-   "lines": 588,
-   "hash": "783978a5b69117bb",
+   "tokens": 26014,
+   "lines": 594,
+   "hash": "5e3c6e6e26f341a1",
    "external": []
   },
   {
@@ -5308,6 +5588,16 @@
    "name": "D-061",
    "purpose": "a solution map for any repository, read by concept in chat and in an offline explorer (2026-10-23).",
    "source": "research/decisions/decision_log.md:582"
+  },
+  {
+   "id": "decision:D-062",
+   "level": "symbol",
+   "view": "solution-design",
+   "module": "solution-design:decisions",
+   "kind": "decision",
+   "name": "D-062",
+   "purpose": "Frontier HVE Auto and Collab, 18 personas from a catalog, stage entry with a project ledger (2026-10-23).",
+   "source": "research/decisions/decision_log.md:589"
   },
   {
    "id": "solution-design:findings",
@@ -6341,9 +6631,10 @@
     "templates/lifecycles/consulting-delivery.json",
     "templates/lifecycles/direct.json",
     "templates/lifecycles/document.json",
-    "templates/lifecycles/sdlc.json"
+    "templates/lifecycles/sdlc.json",
+    "templates/lifecycles/team-delivery.json"
    ],
-   "tokens": 2081,
+   "tokens": 3694,
    "placed": true
   },
   {
@@ -6356,9 +6647,9 @@
    "name": "agile-scrum.json",
    "purpose": "Backlog, then sprints of design, build and review with persona agents; fits evolving products where direction changes.",
    "source": "templates/lifecycles/agile-scrum.json",
-   "tokens": 496,
+   "tokens": 499,
    "lines": 24,
-   "hash": "9b4ab1618dae21fc",
+   "hash": "7c1abbe3fab2b284",
    "external": []
   },
   {
@@ -6416,9 +6707,104 @@
    "name": "sdlc.json",
    "purpose": "Requirements, design, build, test and release with a gate after each stage; fits a defined product or service build.",
    "source": "templates/lifecycles/sdlc.json",
-   "tokens": 508,
+   "tokens": 516,
    "lines": 24,
-   "hash": "22310a6fff817285",
+   "hash": "8c8f64df5893788c",
+   "external": []
+  },
+  {
+   "id": "file:templates/lifecycles/team-delivery.json",
+   "level": "file",
+   "view": "orchestration",
+   "module": "orchestration:lifecycle-defs",
+   "kind": "config",
+   "lang": "json",
+   "name": "team-delivery.json",
+   "purpose": "One stage per persona (product, UX, architecture, security, data, build, test, DevOps, reviews); come in at any stage, run one, several or all, each as its own ask in the project.",
+   "source": "templates/lifecycles/team-delivery.json",
+   "tokens": 1602,
+   "lines": 63,
+   "hash": "24a071974a0eee0d",
+   "external": []
+  },
+  {
+   "id": "agents:persona-catalog",
+   "level": "module",
+   "view": "agents",
+   "name": "Persona catalog",
+   "purpose": "The 18 personas (TPM, architects, engineers, testers, DevOps, data scientist, reviewers) and the templates their agents are rendered from.",
+   "roles": [
+    "prompt-engineer",
+    "harness-engineer"
+   ],
+   "files": [
+    "templates/personas/builder.agent.md",
+    "templates/personas/catalog.json",
+    "templates/personas/designer.agent.md",
+    "templates/personas/reviewer.agent.md",
+    "tools/loop/personas.py"
+   ],
+   "tokens": 5443,
+   "placed": true
+  },
+  {
+   "id": "file:templates/personas/builder.agent.md",
+   "level": "file",
+   "view": "agents",
+   "module": "agents:persona-catalog",
+   "kind": "agent",
+   "lang": "markdown",
+   "name": "{{name}}",
+   "purpose": "{{description}}.",
+   "source": "templates/personas/builder.agent.md",
+   "tokens": 531,
+   "lines": 31,
+   "hash": "0f181db67982a81e",
+   "external": []
+  },
+  {
+   "id": "file:templates/personas/catalog.json",
+   "level": "file",
+   "view": "agents",
+   "module": "agents:persona-catalog",
+   "kind": "config",
+   "lang": "json",
+   "name": "catalog.json",
+   "purpose": "The 18 personas with kind, goal, focus, skills and routing keywords; 16 are rendered into agents at build.",
+   "source": "templates/personas/catalog.json",
+   "tokens": 2768,
+   "lines": 92,
+   "hash": "1d92979c1c002162",
+   "external": []
+  },
+  {
+   "id": "file:templates/personas/designer.agent.md",
+   "level": "file",
+   "view": "agents",
+   "module": "agents:persona-catalog",
+   "kind": "agent",
+   "lang": "markdown",
+   "name": "{{name}}",
+   "purpose": "{{description}}.",
+   "source": "templates/personas/designer.agent.md",
+   "tokens": 424,
+   "lines": 25,
+   "hash": "6e98bc8943df9822",
+   "external": []
+  },
+  {
+   "id": "file:templates/personas/reviewer.agent.md",
+   "level": "file",
+   "view": "agents",
+   "module": "agents:persona-catalog",
+   "kind": "agent",
+   "lang": "markdown",
+   "name": "{{name}}",
+   "purpose": "{{description}}.",
+   "source": "templates/personas/reviewer.agent.md",
+   "tokens": 395,
+   "lines": 23,
+   "hash": "ab698023b1dcd3fe",
    "external": []
   },
   {
@@ -6441,12 +6827,13 @@
     "tests/test_loop.py",
     "tests/test_map.py",
     "tests/test_metrics.py",
+    "tests/test_personas.py",
     "tests/test_plugins.py",
     "tests/test_skills.py",
     "tests/test_templates.py",
     "tests/test_trajectory.py"
    ],
-   "tokens": 60967,
+   "tokens": 62574,
    "placed": true
   },
   {
@@ -6749,9 +7136,9 @@
    "name": "test_collect.py",
    "purpose": "End-to-end test of tools/observe/collect.py on synthetic sessions in a temp folder.",
    "source": "tests/test_collect.py",
-   "tokens": 7080,
+   "tokens": 7082,
    "lines": 355,
-   "hash": "3af7a30671975af4",
+   "hash": "e4e4c38fd26d1be7",
    "external": []
   },
   {
@@ -6999,9 +7386,9 @@
    "name": "test_extension.py",
    "purpose": "Tests of the Frontier HVE extension: build, plugin rendering, and the rendered agents' hook commands run from a temp workspace.",
    "source": "tests/test_extension.py",
-   "tokens": 5068,
-   "lines": 287,
-   "hash": "1bad33096b705f32",
+   "tokens": 5079,
+   "lines": 288,
+   "hash": "e30250358ca8bb42",
    "external": []
   },
   {
@@ -7061,8 +7448,8 @@
    "module": "tests:suite",
    "kind": "function",
    "name": "test_rendered_plugin_shape",
-   "purpose": "The plugin has its manifest, 17 skills, guardrail scripts and 23 HVE agents with every runtime path filled in; only the three Frontier agents are user-invocable and they, with the uplift judge, pin top models.",
-   "source": "tests/test_extension.py:54-89"
+   "purpose": "The plugin has its manifest, 17 skills, guardrail scripts and 39 HVE agents (16 rendered from the persona catalog) with every runtime path filled in; only the three Frontier agents are user-invocable and they, with the uplift judge, pin top models.",
+   "source": "tests/test_extension.py:54-90"
   },
   {
    "id": "file:tests/test_extension.py#test_render_for_python_launcher_and_fresh_workspace",
@@ -7072,7 +7459,7 @@
    "kind": "function",
    "name": "test_render_for_python_launcher_and_fresh_workspace",
    "purpose": "Without Python, hooked agents lose their hooks and warn; python3 replaces python; hooks run in a workspace that was never set up.",
-   "source": "tests/test_extension.py:92-113"
+   "source": "tests/test_extension.py:93-114"
   },
   {
    "id": "file:tests/test_extension.py#test_rerender_updates_in_place",
@@ -7082,7 +7469,7 @@
    "kind": "function",
    "name": "test_rerender_updates_in_place",
    "purpose": "Rendering over an existing plugin (held open by VS Code) updates the version and agents and removes stale files.",
-   "source": "tests/test_extension.py:116-126"
+   "source": "tests/test_extension.py:117-127"
   },
   {
    "id": "file:tests/test_extension.py#test_packaged_template_guard",
@@ -7092,7 +7479,7 @@
    "kind": "function",
    "name": "test_packaged_template_guard",
    "purpose": "The packaged manager and guard enforce all authoring agents, but not minimal.",
-   "source": "tests/test_extension.py:129-151"
+   "source": "tests/test_extension.py:130-152"
   },
   {
    "id": "file:tests/test_extension.py#test_product_manager_agent",
@@ -7102,7 +7489,7 @@
    "kind": "function",
    "name": "test_product_manager_agent",
    "purpose": "The product manager registers only PRDs, names no fixed template, and its backlog validator runs from the runtime.",
-   "source": "tests/test_extension.py:154-202"
+   "source": "tests/test_extension.py:155-203"
   },
   {
    "id": "file:tests/test_extension.py#test_rendered_hooks_run_in_a_workspace",
@@ -7112,7 +7499,7 @@
    "kind": "function",
    "name": "test_rendered_hooks_run_in_a_workspace",
    "purpose": "The creator agent's rendered hooks run from a workspace: profile at start, guard, module and guardrail after tools.",
-   "source": "tests/test_extension.py:205-227"
+   "source": "tests/test_extension.py:206-228"
   },
   {
    "id": "file:tests/test_extension.py#test_rendered_flow_and_loop_tools_run",
@@ -7122,7 +7509,7 @@
    "kind": "function",
    "name": "test_rendered_flow_and_loop_tools_run",
    "purpose": "From a workspace that is already a git repo, flow.py starts the flow, the stage guard sends an unfinished stage back, and loop.py inits.",
-   "source": "tests/test_extension.py:230-252"
+   "source": "tests/test_extension.py:231-253"
   },
   {
    "id": "file:tests/test_extension.py#test_delivery_agents_and_lifecycles",
@@ -7132,7 +7519,7 @@
    "kind": "function",
    "name": "test_delivery_agents_and_lifecycles",
    "purpose": "Prototype keeps only the safety guard, engineer is a hidden persona, and e2e/agile contract a packaged lifecycle.",
-   "source": "tests/test_extension.py:255-273"
+   "source": "tests/test_extension.py:256-274"
   },
   {
    "id": "file:tests/test_flow_plugin.py",
@@ -7830,6 +8217,61 @@
    "source": "tests/test_metrics.py:134-149"
   },
   {
+   "id": "file:tests/test_personas.py",
+   "level": "file",
+   "view": "tests",
+   "module": "tests:suite",
+   "kind": "test",
+   "lang": "python",
+   "name": "test_personas.py",
+   "purpose": "Tests of the persona catalog, the team-delivery lifecycle, Collab's scoped asks with the project stage ledger, and Auto's ticked gates.",
+   "source": "tests/test_personas.py",
+   "tokens": 1559,
+   "lines": 96,
+   "hash": "84d26f3e2c559442",
+   "external": []
+  },
+  {
+   "id": "file:tests/test_personas.py#run",
+   "level": "symbol",
+   "view": "tests",
+   "module": "tests:suite",
+   "kind": "function",
+   "name": "run",
+   "purpose": "Run lifecycle.py in a workspace and return its output, failing with its error.",
+   "source": "tests/test_personas.py:21-26"
+  },
+  {
+   "id": "file:tests/test_personas.py#test_catalog_renders_every_persona_and_lifecycles_name_real_agents",
+   "level": "symbol",
+   "view": "tests",
+   "module": "tests:suite",
+   "kind": "function",
+   "name": "test_catalog_renders_every_persona_and_lifecycles_name_real_agents",
+   "purpose": "18 personas (16 rendered, 2 existing) are current in extension/agents with plain descriptions, and every built-in lifecycle stage names an agent that exists.",
+   "source": "tests/test_personas.py:29-44"
+  },
+  {
+   "id": "file:tests/test_personas.py#test_collab_scoped_asks_pack_stage_and_ledger",
+   "level": "symbol",
+   "view": "tests",
+   "module": "tests:suite",
+   "kind": "function",
+   "name": "test_collab_scoped_asks_pack_stage_and_ledger",
+   "purpose": "A Collab visit runs only its stages, a pack lifecycle can deliver a stage of team-delivery, briefs name the persona's role, and the ledger shows every stage across both asks.",
+   "source": "tests/test_personas.py:47-70"
+  },
+  {
+   "id": "file:tests/test_personas.py#test_auto_pauses_only_at_ticked_gates",
+   "level": "symbol",
+   "view": "tests",
+   "module": "tests:suite",
+   "kind": "function",
+   "name": "test_auto_pauses_only_at_ticked_gates",
+   "purpose": "With gates=ticked the checklist gets a gate per milestone that the user ticks in the form or plan.md; without it there are none.",
+   "source": "tests/test_personas.py:73-88"
+  },
+  {
    "id": "file:tests/test_plugins.py",
    "level": "file",
    "view": "tests",
@@ -7839,9 +8281,9 @@
    "name": "test_plugins.py",
    "purpose": "Tests of expertise packs: manifest validation, install lifecycle, archives and index, routing into the ask contract with its token load, stage evidence and rework, pack skills and templates, rubric composition, rendering and the author kit.",
    "source": "tests/test_plugins.py",
-   "tokens": 6081,
+   "tokens": 6086,
    "lines": 360,
-   "hash": "1d97e3c3f4dcb4b4",
+   "hash": "7657c54b8ebb60b5",
    "external": []
   },
   {
@@ -8034,9 +8476,9 @@
    "name": "test_skills.py",
    "purpose": "Tests of the Phase 9 skill gate: scan, triage, onboarding decision, eval report, and the skill_loader hook.",
    "source": "tests/test_skills.py",
-   "tokens": 8123,
-   "lines": 451,
-   "hash": "8b6b35a28ac965e9",
+   "tokens": 8153,
+   "lines": 452,
+   "hash": "3cb579ff51878f12",
    "external": []
   },
   {
@@ -8177,7 +8619,7 @@
    "kind": "function",
    "name": "library_root",
    "purpose": "Return a workspace with the loader, recommend.py, a 2-skill/1,000-token budget and five ux library skills (one admitted).",
-   "source": "tests/test_skills.py:230-259"
+   "source": "tests/test_skills.py:230-260"
   },
   {
    "id": "file:tests/test_skills.py#test_skill_loader_loads_all_relevant_flags_budget_and_scoped_deny",
@@ -8187,7 +8629,7 @@
    "kind": "function",
    "name": "test_skill_loader_loads_all_relevant_flags_budget_and_scoped_deny",
    "purpose": "Every category or keyword match loads, most relevant first whatever its status; a load over the guideline is flagged, not cut; only library skills outside the loadout are denied.",
-   "source": "tests/test_skills.py:262-290"
+   "source": "tests/test_skills.py:263-291"
   },
   {
    "id": "file:tests/test_skills.py#open_ask",
@@ -8197,7 +8639,7 @@
    "kind": "function",
    "name": "open_ask",
    "purpose": "Write an active ask in design (layout) with forms selected, the given request and skill choice, and its project.",
-   "source": "tests/test_skills.py:293-305"
+   "source": "tests/test_skills.py:294-306"
   },
   {
    "id": "file:tests/test_skills.py#test_lifecycle_stage_skills_load_and_are_allowed",
@@ -8207,7 +8649,7 @@
    "kind": "function",
    "name": "test_lifecycle_stage_skills_load_and_are_allowed",
    "purpose": "The active ask's current stage skills load as required, may be read from the library, and count as used.",
-   "source": "tests/test_skills.py:308-323"
+   "source": "tests/test_skills.py:309-324"
   },
   {
    "id": "file:tests/test_skills.py#test_skill_choice_stops_prompt_ranking_and_topic_shift_is_recommended_once",
@@ -8217,7 +8659,7 @@
    "kind": "function",
    "name": "test_skill_choice_stops_prompt_ranking_and_topic_shift_is_recommended_once",
    "purpose": "Once the user has chosen the ask's skills, prompts add only the ask's paths; a prompt starting another project gets one new-workspace recommendation.",
-   "source": "tests/test_skills.py:326-343"
+   "source": "tests/test_skills.py:327-344"
   },
   {
    "id": "file:tests/test_skills.py#test_chat_is_told_once_when_another_chat_opens_an_ask",
@@ -8227,7 +8669,7 @@
    "kind": "function",
    "name": "test_chat_is_told_once_when_another_chat_opens_an_ask",
    "purpose": "A chat that opened ask x is told once, before its next tool call, that another chat made ask y the open ask.",
-   "source": "tests/test_skills.py:346-361"
+   "source": "tests/test_skills.py:347-362"
   },
   {
    "id": "file:tests/test_skills.py#test_rank_suggests_most_relevant_per_token_within_guideline",
@@ -8237,7 +8679,7 @@
    "kind": "function",
    "name": "test_rank_suggests_most_relevant_per_token_within_guideline",
    "purpose": "Over the guideline, the suggested set keeps required skills and adds the most relevant per token that fit.",
-   "source": "tests/test_skills.py:364-374"
+   "source": "tests/test_skills.py:365-375"
   },
   {
    "id": "file:tests/test_skills.py#test_required_skills_load_first_and_outside_categories",
@@ -8247,7 +8689,7 @@
    "kind": "function",
    "name": "test_required_skills_load_first_and_outside_categories",
    "purpose": "Required skills load before matches even outside any category, fail explicitly when unavailable, and are never cut by the budget.",
-   "source": "tests/test_skills.py:377-416"
+   "source": "tests/test_skills.py:378-417"
   },
   {
    "id": "file:tests/test_skills.py#test_prd_skill_is_template_and_tracker_neutral",
@@ -8257,7 +8699,7 @@
    "kind": "function",
    "name": "test_prd_skill_is_template_and_tracker_neutral",
    "purpose": "The admitted prd skill names no fixed template, section numbers or AgentX paths, carries a modification notice, and its registry tokens match.",
-   "source": "tests/test_skills.py:419-429"
+   "source": "tests/test_skills.py:420-430"
   },
   {
    "id": "file:tests/test_templates.py",
@@ -9340,20 +9782,21 @@
    "level": "module",
    "view": "orchestration",
    "name": "Lifecycles and asks",
-   "purpose": "Lifecycle routing and ask contracts: plan, checklist, stages, skills, briefs, evidence, rework and the provenance report.",
+   "purpose": "Lifecycle routing and ask contracts: scope, plan, checklist and gates, stages, skills, briefs, evidence, rework, the project ledger and the provenance report.",
    "roles": [
     "harness-engineer"
    ],
    "files": [
     "tools/loop/ask_packs.py",
     "tools/loop/ask_plan.py",
+    "tools/loop/ask_project.py",
     "tools/loop/ask_report.py",
     "tools/loop/environment.py",
     "tools/loop/lifecycle.py",
     "tools/loop/lifecycle_catalog.py",
     "tools/loop/stage_evidence.py"
    ],
-   "tokens": 21161,
+   "tokens": 22503,
    "placed": true
   },
   {
@@ -9491,9 +9934,9 @@
    "name": "ask_plan.py",
    "purpose": "Generated plan.md blocks of an ask: its skills and tools, and a sign-off checklist of options, milestones and tasks the user ticks.",
    "source": "tools/loop/ask_plan.py",
-   "tokens": 2394,
-   "lines": 149,
-   "hash": "c401a757c7df0c38",
+   "tokens": 2534,
+   "lines": 156,
+   "hash": "dc4d52c22d7b13de",
    "external": []
   },
   {
@@ -9504,7 +9947,7 @@
    "kind": "function",
    "name": "plugin_skills",
    "purpose": "Return the plugin skills the ask must follow, each with the stages that name it; any deck request gets presentation-deck and frontend-slides.",
-   "source": "tools/loop/ask_plan.py:26-35"
+   "source": "tools/loop/ask_plan.py:27-36"
   },
   {
    "id": "file:tools/loop/ask_plan.py#now",
@@ -9514,7 +9957,7 @@
    "kind": "function",
    "name": "now",
    "purpose": "Return the current UTC time in ISO 8601 seconds.",
-   "source": "tools/loop/ask_plan.py:38-40"
+   "source": "tools/loop/ask_plan.py:39-41"
   },
   {
    "id": "file:tools/loop/ask_plan.py#skills_block",
@@ -9524,7 +9967,7 @@
    "kind": "function",
    "name": "skills_block",
    "purpose": "Return the generated plan.md block listing the ask's skills (with a set under the guideline) and MCP tool load.",
-   "source": "tools/loop/ask_plan.py:43-63"
+   "source": "tools/loop/ask_plan.py:44-64"
   },
   {
    "id": "file:tools/loop/ask_plan.py#items",
@@ -9533,8 +9976,8 @@
    "module": "orchestration:asks",
    "kind": "function",
    "name": "items",
-   "purpose": "Return the ids of the ask's checklist items: options, milestones (stages not skipped) and tasks.",
-   "source": "tools/loop/ask_plan.py:66-68"
+   "purpose": "Return the ids of the ask's checklist items: options, review gates (asks with gates=ticked), milestones (stages not skipped) and tasks.",
+   "source": "tools/loop/ask_plan.py:67-71"
   },
   {
    "id": "file:tools/loop/ask_plan.py#ticked",
@@ -9544,7 +9987,7 @@
    "kind": "function",
    "name": "ticked",
    "purpose": "Return whether the item is signed off (an option on or done, a milestone or task accepted or continued without review).",
-   "source": "tools/loop/ask_plan.py:71-73"
+   "source": "tools/loop/ask_plan.py:74-76"
   },
   {
    "id": "file:tools/loop/ask_plan.py#record",
@@ -9554,7 +9997,7 @@
    "kind": "function",
    "name": "record",
    "purpose": "Record a sign-off value for a checklist item and log it as a decision.",
-   "source": "tools/loop/ask_plan.py:76-86"
+   "source": "tools/loop/ask_plan.py:79-89"
   },
   {
    "id": "file:tools/loop/ask_plan.py#unfinished",
@@ -9564,7 +10007,7 @@
    "kind": "function",
    "name": "unfinished",
    "purpose": "Return why the ask is not finished: milestones not done, or an output evaluation the user asked for that has not run.",
-   "source": "tools/loop/ask_plan.py:89-95"
+   "source": "tools/loop/ask_plan.py:92-98"
   },
   {
    "id": "file:tools/loop/ask_plan.py#state",
@@ -9574,7 +10017,7 @@
    "kind": "function",
    "name": "state",
    "purpose": "Return the recorded sign-off of an item as a trailing note, or nothing when it is open.",
-   "source": "tools/loop/ask_plan.py:98-103"
+   "source": "tools/loop/ask_plan.py:101-106"
   },
   {
    "id": "file:tools/loop/ask_plan.py#checklist_block",
@@ -9584,7 +10027,7 @@
    "kind": "function",
    "name": "checklist_block",
    "purpose": "Return the generated plan.md sign-off checklist: options to opt into, then each milestone and task with persona and evidence.",
-   "source": "tools/loop/ask_plan.py:106-128"
+   "source": "tools/loop/ask_plan.py:109-135"
   },
   {
    "id": "file:tools/loop/ask_plan.py#refresh",
@@ -9594,7 +10037,112 @@
    "kind": "function",
    "name": "refresh",
    "purpose": "Apply ticks the user changed in plan.md since the last render, rewrite the skills and checklist blocks, and return the applied ticks.",
-   "source": "tools/loop/ask_plan.py:131-148"
+   "source": "tools/loop/ask_plan.py:138-155"
+  },
+  {
+   "id": "file:tools/loop/ask_project.py",
+   "level": "file",
+   "view": "orchestration",
+   "module": "orchestration:asks",
+   "kind": "code",
+   "lang": "python",
+   "name": "ask_project.py",
+   "purpose": "The workspace's project across asks: its record, what it is about, topic shifts, and the stage ledger of what every ask did.",
+   "source": "tools/loop/ask_project.py",
+   "tokens": 1849,
+   "lines": 119,
+   "hash": "db80a116471f6d26",
+   "external": []
+  },
+  {
+   "id": "file:tools/loop/ask_project.py#deliverable",
+   "level": "symbol",
+   "view": "orchestration",
+   "module": "orchestration:asks",
+   "kind": "function",
+   "name": "deliverable",
+   "purpose": "Return the lifecycle (kind of deliverable) whose fit words the text matches most, or None when none match.",
+   "source": "tools/loop/ask_project.py:22-25"
+  },
+  {
+   "id": "file:tools/loop/ask_project.py#subject",
+   "level": "symbol",
+   "view": "orchestration",
+   "module": "orchestration:asks",
+   "kind": "function",
+   "name": "subject",
+   "purpose": "Return the text's word stems without creation verbs and lifecycle fit words (app, report, deck), leaving what the work is about.",
+   "source": "tools/loop/ask_project.py:28-32"
+  },
+  {
+   "id": "file:tools/loop/ask_project.py#overlap",
+   "level": "symbol",
+   "view": "orchestration",
+   "module": "orchestration:asks",
+   "kind": "function",
+   "name": "overlap",
+   "purpose": "Return the share of the prompt's subject words that also appear in the previous text (1.0 for a prompt without subject words).",
+   "source": "tools/loop/ask_project.py:35-38"
+  },
+  {
+   "id": "file:tools/loop/ask_project.py#topic_shift",
+   "level": "symbol",
+   "view": "orchestration",
+   "module": "orchestration:asks",
+   "kind": "function",
+   "name": "topic_shift",
+   "purpose": "Return a new-workspace recommendation when a prompt starts a different project from the workspace's one (a different kind of deliverable, or new work sharing little with it); None for work on the same project.",
+   "source": "tools/loop/ask_project.py:41-52"
+  },
+  {
+   "id": "file:tools/loop/ask_project.py#shift_message",
+   "level": "symbol",
+   "view": "orchestration",
+   "module": "orchestration:asks",
+   "kind": "function",
+   "name": "shift_message",
+   "purpose": "Return the one-line recommendation to show the user for a prompt that starts a different project.",
+   "source": "tools/loop/ask_project.py:55-58"
+  },
+  {
+   "id": "file:tools/loop/ask_project.py#project_status",
+   "level": "symbol",
+   "view": "orchestration",
+   "module": "orchestration:asks",
+   "kind": "function",
+   "name": "project_status",
+   "purpose": "Return the workspace's project (name, goal, asks) with its feature count, passing count and whether the loop needs init or amend.",
+   "source": "tools/loop/ask_project.py:61-69"
+  },
+  {
+   "id": "file:tools/loop/ask_project.py#project_text",
+   "level": "symbol",
+   "view": "orchestration",
+   "module": "orchestration:asks",
+   "kind": "function",
+   "name": "project_text",
+   "purpose": "Return what the workspace's project is about: its goal, every ask's request and its feature names.",
+   "source": "tools/loop/ask_project.py:72-81"
+  },
+  {
+   "id": "file:tools/loop/ask_project.py#record_project",
+   "level": "symbol",
+   "view": "orchestration",
+   "module": "orchestration:asks",
+   "kind": "function",
+   "name": "record_project",
+   "purpose": "Add the ask to the workspace's project, starting the project from the first ask's request.",
+   "source": "tools/loop/ask_project.py:84-91"
+  },
+  {
+   "id": "file:tools/loop/ask_project.py#ledger",
+   "level": "symbol",
+   "view": "orchestration",
+   "module": "orchestration:asks",
+   "kind": "function",
+   "name": "ledger",
+   "purpose": "Return the project's stage ledger for a lifecycle: per stage, every ask that worked on it (directly, or through another lifecycle run for that stage) with its status, persona and note, plus the stages no ask has done yet.",
+   "source": "tools/loop/ask_project.py:94-118"
   },
   {
    "id": "file:tools/loop/ask_report.py",
@@ -10061,9 +10609,9 @@
    "name": "lifecycle.py",
    "purpose": "Find, pick and contract delivery lifecycles, track each ask's skills, personas, milestones and tasks, brief sub-agents, and report expected against actual.",
    "source": "tools/loop/lifecycle.py",
-   "tokens": 7564,
-   "lines": 498,
-   "hash": "6bb5ed69aa83e1ec",
+   "tokens": 6876,
+   "lines": 444,
+   "hash": "914a16c13af6a814",
    "external": []
   },
   {
@@ -10074,7 +10622,7 @@
    "kind": "function",
    "name": "ask_dir",
    "purpose": "Return the folder of an ask after checking its id (<YYYYMMDD>-<HHMM>-<slug>, UTC).",
-   "source": "tools/loop/lifecycle.py:38-42"
+   "source": "tools/loop/lifecycle.py:37-41"
   },
   {
    "id": "file:tools/loop/lifecycle.py#active",
@@ -10084,77 +10632,7 @@
    "kind": "function",
    "name": "active",
    "purpose": "Return the active ask's contract path and contract.",
-   "source": "tools/loop/lifecycle.py:45-57"
-  },
-  {
-   "id": "file:tools/loop/lifecycle.py#deliverable",
-   "level": "symbol",
-   "view": "orchestration",
-   "module": "orchestration:asks",
-   "kind": "function",
-   "name": "deliverable",
-   "purpose": "Return the lifecycle (kind of deliverable) whose fit words the text matches most, or None when none match.",
-   "source": "tools/loop/lifecycle.py:60-63"
-  },
-  {
-   "id": "file:tools/loop/lifecycle.py#subject",
-   "level": "symbol",
-   "view": "orchestration",
-   "module": "orchestration:asks",
-   "kind": "function",
-   "name": "subject",
-   "purpose": "Return the text's word stems without creation verbs and lifecycle fit words (app, report, deck), leaving what the work is about.",
-   "source": "tools/loop/lifecycle.py:66-70"
-  },
-  {
-   "id": "file:tools/loop/lifecycle.py#overlap",
-   "level": "symbol",
-   "view": "orchestration",
-   "module": "orchestration:asks",
-   "kind": "function",
-   "name": "overlap",
-   "purpose": "Return the share of the prompt's subject words that also appear in the previous text (1.0 for a prompt without subject words).",
-   "source": "tools/loop/lifecycle.py:73-76"
-  },
-  {
-   "id": "file:tools/loop/lifecycle.py#topic_shift",
-   "level": "symbol",
-   "view": "orchestration",
-   "module": "orchestration:asks",
-   "kind": "function",
-   "name": "topic_shift",
-   "purpose": "Return a new-workspace recommendation when a prompt starts a different project from the workspace's one (a different kind of deliverable, or new work sharing little with it); None for work on the same project.",
-   "source": "tools/loop/lifecycle.py:79-90"
-  },
-  {
-   "id": "file:tools/loop/lifecycle.py#shift_message",
-   "level": "symbol",
-   "view": "orchestration",
-   "module": "orchestration:asks",
-   "kind": "function",
-   "name": "shift_message",
-   "purpose": "Return the one-line recommendation to show the user for a prompt that starts a different project.",
-   "source": "tools/loop/lifecycle.py:93-96"
-  },
-  {
-   "id": "file:tools/loop/lifecycle.py#project_status",
-   "level": "symbol",
-   "view": "orchestration",
-   "module": "orchestration:asks",
-   "kind": "function",
-   "name": "project_status",
-   "purpose": "Return the workspace's project (name, goal, asks) with its feature count, passing count and whether the loop needs init or amend.",
-   "source": "tools/loop/lifecycle.py:99-107"
-  },
-  {
-   "id": "file:tools/loop/lifecycle.py#project_text",
-   "level": "symbol",
-   "view": "orchestration",
-   "module": "orchestration:asks",
-   "kind": "function",
-   "name": "project_text",
-   "purpose": "Return what the workspace's project is about: its goal, every ask's request and its feature names.",
-   "source": "tools/loop/lifecycle.py:110-119"
+   "source": "tools/loop/lifecycle.py:44-56"
   },
   {
    "id": "file:tools/loop/lifecycle.py#where",
@@ -10164,7 +10642,7 @@
    "kind": "function",
    "name": "where",
    "purpose": "Return the project, the open ask with its paths, and for a prompt the recommended step: continue the open ask, open a new ask in the project, start the project, or move to a new workspace.",
-   "source": "tools/loop/lifecycle.py:122-136"
+   "source": "tools/loop/lifecycle.py:59-73"
   },
   {
    "id": "file:tools/loop/lifecycle.py#install",
@@ -10174,7 +10652,7 @@
    "kind": "function",
    "name": "install",
    "purpose": "Copy skills into <workspace>/.hve/skills/<name>/ ('<pack>:<skill>' into '<pack>__<skill>') so every harness reads them in the workspace.",
-   "source": "tools/loop/lifecycle.py:139-143"
+   "source": "tools/loop/lifecycle.py:76-80"
   },
   {
    "id": "file:tools/loop/lifecycle.py#contract",
@@ -10184,17 +10662,7 @@
    "kind": "function",
    "name": "contract",
    "purpose": "Write a new timestamped ask from a lifecycle with its skills, expertise packs, personas, milestones, checklist and environment, install the skills, make it active, recommend a new session or workspace when it is different work, and record an ask it leaves open.",
-   "source": "tools/loop/lifecycle.py:146-209"
-  },
-  {
-   "id": "file:tools/loop/lifecycle.py#record_project",
-   "level": "symbol",
-   "view": "orchestration",
-   "module": "orchestration:asks",
-   "kind": "function",
-   "name": "record_project",
-   "purpose": "Add the ask to the workspace's project, starting the project from the first ask's request.",
-   "source": "tools/loop/lifecycle.py:212-219"
+   "source": "tools/loop/lifecycle.py:83-158"
   },
   {
    "id": "file:tools/loop/lifecycle.py#choose_skills",
@@ -10204,7 +10672,7 @@
    "kind": "function",
    "name": "choose_skills",
    "purpose": "Keep the suggested skill set, all skills, or the named ones (comma-separated), and record the choice and its token cost.",
-   "source": "tools/loop/lifecycle.py:222-239"
+   "source": "tools/loop/lifecycle.py:161-178"
   },
   {
    "id": "file:tools/loop/lifecycle.py#score_skills",
@@ -10214,7 +10682,7 @@
    "kind": "function",
    "name": "score_skills",
    "purpose": "Record the agent's 0-10 relevance score for this ask ({name: {score, why}}) on every shortlisted skill, rank the shortlist by it, and suggest the required skills plus the top-scored up to the loadout's skill count for the user to confirm.",
-   "source": "tools/loop/lifecycle.py:242-261"
+   "source": "tools/loop/lifecycle.py:181-200"
   },
   {
    "id": "file:tools/loop/lifecycle.py#set_stage",
@@ -10224,7 +10692,7 @@
    "kind": "function",
    "name": "set_stage",
    "purpose": "Record a stage's status with a one-line note in the active contract; an active stage becomes current, and a stage set back to planned (a new sprint, a change of direction) loses its sign-off.",
-   "source": "tools/loop/lifecycle.py:264-282"
+   "source": "tools/loop/lifecycle.py:203-221"
   },
   {
    "id": "file:tools/loop/lifecycle.py#rework",
@@ -10234,7 +10702,7 @@
    "kind": "function",
    "name": "rework",
    "purpose": "Take the stage's capped rework step back to its earlier stage and record it; past the cap the user decides.",
-   "source": "tools/loop/lifecycle.py:285-291"
+   "source": "tools/loop/lifecycle.py:224-230"
   },
   {
    "id": "file:tools/loop/lifecycle.py#tick",
@@ -10244,7 +10712,7 @@
    "kind": "function",
    "name": "tick",
    "purpose": "Record the user's sign-off of a checklist item (from the agent's form), after taking in any ticks they made in plan.md.",
-   "source": "tools/loop/lifecycle.py:294-301"
+   "source": "tools/loop/lifecycle.py:233-240"
   },
   {
    "id": "file:tools/loop/lifecycle.py#checklist",
@@ -10254,7 +10722,7 @@
    "kind": "function",
    "name": "checklist",
    "purpose": "Return the active ask's checklist after taking in ticks made in plan.md: each item's sign-off, and why the ask is not finished.",
-   "source": "tools/loop/lifecycle.py:304-310"
+   "source": "tools/loop/lifecycle.py:243-249"
   },
   {
    "id": "file:tools/loop/lifecycle.py#close",
@@ -10264,7 +10732,7 @@
    "kind": "function",
    "name": "close",
    "purpose": "Close the active ask so workspace and user-level hooks stop acting in this workspace; its files stay.",
-   "source": "tools/loop/lifecycle.py:313-317"
+   "source": "tools/loop/lifecycle.py:252-256"
   },
   {
    "id": "file:tools/loop/lifecycle.py#reopen",
@@ -10274,7 +10742,7 @@
    "kind": "function",
    "name": "reopen",
    "purpose": "Make an existing ask active again and return its paths, current milestone and unfinished items.",
-   "source": "tools/loop/lifecycle.py:320-326"
+   "source": "tools/loop/lifecycle.py:259-265"
   },
   {
    "id": "file:tools/loop/lifecycle.py#current_skills",
@@ -10284,7 +10752,7 @@
    "kind": "function",
    "name": "current_skills",
    "purpose": "Return the active ask's current stage skills and contract skills, or none when no ask is active.",
-   "source": "tools/loop/lifecycle.py:329-335"
+   "source": "tools/loop/lifecycle.py:268-274"
   },
   {
    "id": "file:tools/loop/lifecycle.py#plan_hash",
@@ -10294,7 +10762,7 @@
    "kind": "function",
    "name": "plan_hash",
    "purpose": "Return the SHA-256 of the ask's plan.md without its generated skills and checklist blocks, or None before the plan is written.",
-   "source": "tools/loop/lifecycle.py:338-342"
+   "source": "tools/loop/lifecycle.py:277-281"
   },
   {
    "id": "file:tools/loop/lifecycle.py#plan_sync",
@@ -10304,7 +10772,7 @@
    "kind": "function",
    "name": "plan_sync",
    "purpose": "Refresh the plan's generated blocks and record the current plan.md as a new plan revision with a one-line note of what changed.",
-   "source": "tools/loop/lifecycle.py:345-355"
+   "source": "tools/loop/lifecycle.py:284-294"
   },
   {
    "id": "file:tools/loop/lifecycle.py#plan_status",
@@ -10314,7 +10782,7 @@
    "kind": "function",
    "name": "plan_status",
    "purpose": "Return whether the active ask's plan.md changed since its last sync, or None when there is no active ask or plan.",
-   "source": "tools/loop/lifecycle.py:358-367"
+   "source": "tools/loop/lifecycle.py:297-306"
   },
   {
    "id": "file:tools/loop/lifecycle.py#stage_row",
@@ -10324,7 +10792,7 @@
    "kind": "function",
    "name": "stage_row",
    "purpose": "Return the named stage, else the current one, else the first stage that is not skipped.",
-   "source": "tools/loop/lifecycle.py:370-376"
+   "source": "tools/loop/lifecycle.py:309-315"
   },
   {
    "id": "file:tools/loop/lifecycle.py#tasks_sync",
@@ -10334,7 +10802,7 @@
    "kind": "function",
    "name": "tasks_sync",
    "purpose": "Map the features this ask added to the project's feature list as its tasks: new ones get the current milestone, its persona and skills; all get their pass state.",
-   "source": "tools/loop/lifecycle.py:379-393"
+   "source": "tools/loop/lifecycle.py:318-332"
   },
   {
    "id": "file:tools/loop/lifecycle.py#brief",
@@ -10344,7 +10812,7 @@
    "kind": "function",
    "name": "brief",
    "purpose": "Return the delegation brief for a sub-agent (skills, plugin skills, MCP servers, rules, reply format) and log the delegation.",
-   "source": "tools/loop/lifecycle.py:396-417"
+   "source": "tools/loop/lifecycle.py:335-359"
   },
   {
    "id": "file:tools/loop/lifecycle.py#used",
@@ -10354,7 +10822,7 @@
    "kind": "function",
    "name": "used",
    "purpose": "Record the skills a sub-agent reported in its SKILLS-USED line (self-reported evidence).",
-   "source": "tools/loop/lifecycle.py:420-426"
+   "source": "tools/loop/lifecycle.py:362-368"
   },
   {
    "id": "file:tools/loop/lifecycle.py#main",
@@ -10364,7 +10832,7 @@
    "kind": "function",
    "name": "main",
    "purpose": "CLI: list | pick <request> | route <request-file> | show <name> | contract <name> <slug> <agent> <request-file> [stage=why ...] [+skill ...] [@pack .",
-   "source": "tools/loop/lifecycle.py:429-493"
+   "source": "tools/loop/lifecycle.py:371-439"
   },
   {
    "id": "file:tools/loop/lifecycle_catalog.py",
@@ -10376,9 +10844,9 @@
    "name": "lifecycle_catalog.py",
    "purpose": "Find and pick delivery lifecycles: built-in, repository plugin folders, the workspace's overlays, and expertise packs routed by request.",
    "source": "tools/loop/lifecycle_catalog.py",
-   "tokens": 960,
-   "lines": 72,
-   "hash": "ffec65a7058c4536",
+   "tokens": 1001,
+   "lines": 74,
+   "hash": "4d65c67101fcdc28",
    "external": []
   },
   {
@@ -10389,7 +10857,7 @@
    "kind": "function",
    "name": "validate",
    "purpose": "Return the lifecycle after checking its fields, stages, optional stage evidence and rework steps, or raise naming the source.",
-   "source": "tools/loop/lifecycle_catalog.py:27-41"
+   "source": "tools/loop/lifecycle_catalog.py:27-43"
   },
   {
    "id": "file:tools/loop/lifecycle_catalog.py#catalog",
@@ -10399,7 +10867,7 @@
    "kind": "function",
    "name": "catalog",
    "purpose": "Return every lifecycle by name: built-in, plugin folders and workspace overlays (a later one overrides the same name), then the lifecycles of every available expertise pack as '<pack>:<name>'.",
-   "source": "tools/loop/lifecycle_catalog.py:44-55"
+   "source": "tools/loop/lifecycle_catalog.py:46-57"
   },
   {
    "id": "file:tools/loop/lifecycle_catalog.py#pick",
@@ -10409,7 +10877,7 @@
    "kind": "function",
    "name": "pick",
    "purpose": "Return lifecycles ranked by the request words they fit (the matched words are the reason); lifecycles of the packs in first lead.",
-   "source": "tools/loop/lifecycle_catalog.py:58-63"
+   "source": "tools/loop/lifecycle_catalog.py:60-65"
   },
   {
    "id": "file:tools/loop/lifecycle_catalog.py#route",
@@ -10419,7 +10887,7 @@
    "kind": "function",
    "name": "route",
    "purpose": "Return the expertise packs for a request (named, named but missing, matched with why) and the lifecycles, matched packs' first.",
-   "source": "tools/loop/lifecycle_catalog.py:66-71"
+   "source": "tools/loop/lifecycle_catalog.py:68-73"
   },
   {
    "id": "file:tools/loop/loop.py",
@@ -10650,6 +11118,101 @@
    "name": "ask_evidence",
    "purpose": "Return the evidence folder of the ask that added a feature (None: a loop run without an ask).",
    "source": "tools/loop/loop_paths.py:50-56"
+  },
+  {
+   "id": "file:tools/loop/personas.py",
+   "level": "file",
+   "view": "agents",
+   "module": "agents:persona-catalog",
+   "kind": "code",
+   "lang": "python",
+   "name": "personas.py",
+   "purpose": "Persona catalog: validate it, render persona agents from their kind's template, and find the personas a stage or request needs.",
+   "source": "tools/loop/personas.py",
+   "tokens": 1325,
+   "lines": 114,
+   "hash": "38aa743684214de7",
+   "external": []
+  },
+  {
+   "id": "file:tools/loop/personas.py#load",
+   "level": "symbol",
+   "view": "agents",
+   "module": "agents:persona-catalog",
+   "kind": "function",
+   "name": "load",
+   "purpose": "Return the validated personas of a catalog.",
+   "source": "tools/loop/personas.py:23-38"
+  },
+  {
+   "id": "file:tools/loop/personas.py#description",
+   "level": "symbol",
+   "view": "agents",
+   "module": "agents:persona-catalog",
+   "kind": "function",
+   "name": "description",
+   "purpose": "Return a persona's agent description as a plain YAML scalar.",
+   "source": "tools/loop/personas.py:41-46"
+  },
+  {
+   "id": "file:tools/loop/personas.py#render",
+   "level": "symbol",
+   "view": "agents",
+   "module": "agents:persona-catalog",
+   "kind": "function",
+   "name": "render",
+   "purpose": "Return the agent file of a rendered persona from its kind's template.",
+   "source": "tools/loop/personas.py:49-55"
+  },
+  {
+   "id": "file:tools/loop/personas.py#write",
+   "level": "symbol",
+   "view": "agents",
+   "module": "agents:persona-catalog",
+   "kind": "function",
+   "name": "write",
+   "purpose": "Write every rendered persona's agent file into a folder and return the file names.",
+   "source": "tools/loop/personas.py:58-67"
+  },
+  {
+   "id": "file:tools/loop/personas.py#stale",
+   "level": "symbol",
+   "view": "agents",
+   "module": "agents:persona-catalog",
+   "kind": "function",
+   "name": "stale",
+   "purpose": "Return the rendered persona files that are missing or differ from the catalog.",
+   "source": "tools/loop/personas.py:70-74"
+  },
+  {
+   "id": "file:tools/loop/personas.py#match",
+   "level": "symbol",
+   "view": "agents",
+   "module": "agents:persona-catalog",
+   "kind": "function",
+   "name": "match",
+   "purpose": "Return the personas whose keywords appear in a text, best first, with the words that matched.",
+   "source": "tools/loop/personas.py:77-85"
+  },
+  {
+   "id": "file:tools/loop/personas.py#by_agent",
+   "level": "symbol",
+   "view": "agents",
+   "module": "agents:persona-catalog",
+   "kind": "function",
+   "name": "by_agent",
+   "purpose": "Return the personas keyed by agent name.",
+   "source": "tools/loop/personas.py:88-90"
+  },
+  {
+   "id": "file:tools/loop/personas.py#main",
+   "level": "symbol",
+   "view": "agents",
+   "module": "agents:persona-catalog",
+   "kind": "function",
+   "name": "main",
+   "purpose": "CLI: list | show <id> | match <text> | render [folder] | check [folder].",
+   "source": "tools/loop/personas.py:93-109"
   },
   {
    "id": "file:tools/loop/stage_evidence.py",
@@ -14070,9 +14633,9 @@
    "name": "tracker.json",
    "purpose": "Scaffold.",
    "source": "tracker.json",
-   "tokens": 18381,
-   "lines": 961,
-   "hash": "8eba57395b58629d",
+   "tokens": 18645,
+   "lines": 966,
+   "hash": "5bf5f1fa98b27aeb",
    "external": []
   },
   {
@@ -14190,7 +14753,7 @@
    "level": "concept",
    "name": "Agents",
    "purpose": "Agents are Markdown prompt files with YAML front matter: name, description, model list, tools and hooks.",
-   "explain": "Agents are Markdown prompt files with YAML front matter: name, description, model list, tools and hooks. The product agents in extension/agents are templates; on activation the extension renders them (render.js fills in the runtime path and Python launcher) into a Copilot plugin folder, so only the three Frontier agents appear in the picker and the rest are personas they delegate to. The research arms in .github/agents are benchmark modes with pinned models and metrics hooks. Each agent's hooks run guard and context scripts from hooks/, and its instructions call tools such as lifecycle.py and loop.py. To add an agent, write extension/agents/hve-<name>.agent.md with its hooks, run extension/build.py and extend tests/test_extension.py.",
+   "explain": "Agents are Markdown prompt files with YAML front matter: name, description, model list, tools and hooks. The product agents in extension/agents are templates; on activation the extension renders them (render.js fills in the runtime path and Python launcher) into a Copilot plugin folder, so only the three Frontier agents appear in the picker and the rest are personas they delegate to. The research arms in .github/agents are benchmark modes with pinned models and metrics hooks. Each agent's hooks run guard and context scripts from hooks/, and its instructions call tools such as lifecycle.py and loop.py. Persona agents (architects, engineers, testers, DevOps, data scientist, reviewers) are not written by hand: templates/personas/catalog.json lists each persona's kind (builder, designer or reviewer), goal, focus, skills and keywords, and personas.py renders them from the kind's template during extension/build.py. To add a persona, add it to the catalog and rebuild; to add any other agent, write extension/agents/hve-<name>.agent.md with its hooks, run extension/build.py and extend tests/test_extension.py.",
    "keywords": [
     "agent",
     "persona",
@@ -14285,7 +14848,7 @@
    "level": "concept",
    "name": "Asks and delivery lifecycles",
    "purpose": "An ask is one piece of work run through a delivery lifecycle.",
-   "explain": "An ask is one piece of work run through a delivery lifecycle. lifecycle.py picks a lifecycle (built in under templates/lifecycles, a workspace overlay or a pack) and writes the ask's contract.json: stages, skills, personas, packs, milestones and tasks. ask_plan.py renders plan.md with a sign-off checklist, and plan_check.py holds work until plan edits are synced back. During the ask lifecycle.py briefs sub-agents and tracks used skills and tasks; ask_report.py compares the contract with what happened and writes provenance.md. E2E Delivery and BYOW drive this; environment.py records the harness, MCP servers and hooks the contract runs with.",
+   "explain": "An ask is one piece of work run through a delivery lifecycle. lifecycle.py picks a lifecycle (built in under templates/lifecycles, a workspace overlay or a pack) and writes the ask's contract.json: stages, skills, personas, packs, milestones and tasks. ask_plan.py renders plan.md with a sign-off checklist, and plan_check.py holds work until plan edits are synced back. During the ask lifecycle.py briefs sub-agents and tracks used skills and tasks; ask_report.py compares the contract with what happened and writes provenance.md. Frontier HVE Auto and Frontier HVE Collab drive this; environment.py records the harness, MCP servers and hooks the contract runs with.",
    "keywords": [
     "ask",
     "lifecycle",
@@ -14925,6 +15488,18 @@
   },
   {
    "from": "view:agents",
+   "to": "agents:modes",
+   "type": "contains",
+   "evidence": "map placement"
+  },
+  {
+   "from": "agents:modes",
+   "to": "file:extension/agents/hve-architecture-reviewer.agent.md",
+   "type": "contains",
+   "evidence": "extension/agents/hve-architecture-reviewer.agent.md"
+  },
+  {
+   "from": "view:agents",
    "to": "agents:personas",
    "type": "contains",
    "evidence": "map placement"
@@ -14936,16 +15511,16 @@
    "evidence": "extension/agents/hve-azure-devops.agent.md"
   },
   {
+   "from": "agents:modes",
+   "to": "file:extension/agents/hve-code-reviewer.agent.md",
+   "type": "contains",
+   "evidence": "extension/agents/hve-code-reviewer.agent.md"
+  },
+  {
    "from": "agents:personas",
    "to": "file:extension/agents/hve-council.agent.md",
    "type": "contains",
    "evidence": "extension/agents/hve-council.agent.md"
-  },
-  {
-   "from": "view:agents",
-   "to": "agents:modes",
-   "type": "contains",
-   "evidence": "map placement"
   },
   {
    "from": "agents:modes",
@@ -14964,6 +15539,30 @@
    "to": "file:extension/agents/hve-creator.agent.md",
    "type": "contains",
    "evidence": "extension/agents/hve-creator.agent.md"
+  },
+  {
+   "from": "agents:modes",
+   "to": "file:extension/agents/hve-data-scientist.agent.md",
+   "type": "contains",
+   "evidence": "extension/agents/hve-data-scientist.agent.md"
+  },
+  {
+   "from": "agents:modes",
+   "to": "file:extension/agents/hve-db-architect.agent.md",
+   "type": "contains",
+   "evidence": "extension/agents/hve-db-architect.agent.md"
+  },
+  {
+   "from": "agents:modes",
+   "to": "file:extension/agents/hve-db-engineer.agent.md",
+   "type": "contains",
+   "evidence": "extension/agents/hve-db-engineer.agent.md"
+  },
+  {
+   "from": "agents:modes",
+   "to": "file:extension/agents/hve-devops-engineer.agent.md",
+   "type": "contains",
+   "evidence": "extension/agents/hve-devops-engineer.agent.md"
   },
   {
    "from": "agents:frontier",
@@ -15032,10 +15631,28 @@
    "evidence": "extension/agents/hve-product-manager.agent.md"
   },
   {
+   "from": "agents:modes",
+   "to": "file:extension/agents/hve-product-reviewer.agent.md",
+   "type": "contains",
+   "evidence": "extension/agents/hve-product-reviewer.agent.md"
+  },
+  {
    "from": "agents:frontier",
    "to": "file:extension/agents/hve-prototype.agent.md",
    "type": "contains",
    "evidence": "extension/agents/hve-prototype.agent.md"
+  },
+  {
+   "from": "agents:modes",
+   "to": "file:extension/agents/hve-security-architect.agent.md",
+   "type": "contains",
+   "evidence": "extension/agents/hve-security-architect.agent.md"
+  },
+  {
+   "from": "agents:modes",
+   "to": "file:extension/agents/hve-security-reviewer.agent.md",
+   "type": "contains",
+   "evidence": "extension/agents/hve-security-reviewer.agent.md"
   },
   {
    "from": "agents:modes",
@@ -15062,10 +15679,52 @@
    "evidence": "extension/agents/hve-skill-worker.agent.md"
   },
   {
+   "from": "agents:modes",
+   "to": "file:extension/agents/hve-solution-architect.agent.md",
+   "type": "contains",
+   "evidence": "extension/agents/hve-solution-architect.agent.md"
+  },
+  {
+   "from": "agents:modes",
+   "to": "file:extension/agents/hve-test-architect.agent.md",
+   "type": "contains",
+   "evidence": "extension/agents/hve-test-architect.agent.md"
+  },
+  {
+   "from": "agents:modes",
+   "to": "file:extension/agents/hve-test-engineer.agent.md",
+   "type": "contains",
+   "evidence": "extension/agents/hve-test-engineer.agent.md"
+  },
+  {
+   "from": "agents:modes",
+   "to": "file:extension/agents/hve-test-reviewer.agent.md",
+   "type": "contains",
+   "evidence": "extension/agents/hve-test-reviewer.agent.md"
+  },
+  {
+   "from": "agents:modes",
+   "to": "file:extension/agents/hve-ui-engineer.agent.md",
+   "type": "contains",
+   "evidence": "extension/agents/hve-ui-engineer.agent.md"
+  },
+  {
    "from": "agents:personas",
    "to": "file:extension/agents/hve-uplift-judge.agent.md",
    "type": "contains",
    "evidence": "extension/agents/hve-uplift-judge.agent.md"
+  },
+  {
+   "from": "agents:modes",
+   "to": "file:extension/agents/hve-ux-designer.agent.md",
+   "type": "contains",
+   "evidence": "extension/agents/hve-ux-designer.agent.md"
+  },
+  {
+   "from": "agents:modes",
+   "to": "file:extension/agents/hve-ux-reviewer.agent.md",
+   "type": "contains",
+   "evidence": "extension/agents/hve-ux-reviewer.agent.md"
   },
   {
    "from": "view:extension",
@@ -15083,7 +15742,7 @@
    "from": "file:extension/build.py",
    "to": "file:extension/build.py#build",
    "type": "contains",
-   "evidence": "extension/build.py:39-70"
+   "evidence": "extension/build.py:39-74"
   },
   {
    "from": "view:extension",
@@ -16706,6 +17365,12 @@
    "evidence": "research/decisions/decision_log.md:582"
   },
   {
+   "from": "file:research/decisions/decision_log.md",
+   "to": "decision:D-062",
+   "type": "contains",
+   "evidence": "research/decisions/decision_log.md:589"
+  },
+  {
    "from": "view:solution-design",
    "to": "solution-design:findings",
    "type": "contains",
@@ -17126,6 +17791,42 @@
    "evidence": "templates/lifecycles/sdlc.json"
   },
   {
+   "from": "orchestration:lifecycle-defs",
+   "to": "file:templates/lifecycles/team-delivery.json",
+   "type": "contains",
+   "evidence": "templates/lifecycles/team-delivery.json"
+  },
+  {
+   "from": "view:agents",
+   "to": "agents:persona-catalog",
+   "type": "contains",
+   "evidence": "map placement"
+  },
+  {
+   "from": "agents:persona-catalog",
+   "to": "file:templates/personas/builder.agent.md",
+   "type": "contains",
+   "evidence": "templates/personas/builder.agent.md"
+  },
+  {
+   "from": "agents:persona-catalog",
+   "to": "file:templates/personas/catalog.json",
+   "type": "contains",
+   "evidence": "templates/personas/catalog.json"
+  },
+  {
+   "from": "agents:persona-catalog",
+   "to": "file:templates/personas/designer.agent.md",
+   "type": "contains",
+   "evidence": "templates/personas/designer.agent.md"
+  },
+  {
+   "from": "agents:persona-catalog",
+   "to": "file:templates/personas/reviewer.agent.md",
+   "type": "contains",
+   "evidence": "templates/personas/reviewer.agent.md"
+  },
+  {
    "from": "view:tests",
    "to": "tests:suite",
    "type": "contains",
@@ -17483,49 +18184,49 @@
    "from": "file:tests/test_extension.py",
    "to": "file:tests/test_extension.py#test_rendered_plugin_shape",
    "type": "contains",
-   "evidence": "tests/test_extension.py:54-89"
+   "evidence": "tests/test_extension.py:54-90"
   },
   {
    "from": "file:tests/test_extension.py",
    "to": "file:tests/test_extension.py#test_render_for_python_launcher_and_fresh_workspace",
    "type": "contains",
-   "evidence": "tests/test_extension.py:92-113"
+   "evidence": "tests/test_extension.py:93-114"
   },
   {
    "from": "file:tests/test_extension.py",
    "to": "file:tests/test_extension.py#test_rerender_updates_in_place",
    "type": "contains",
-   "evidence": "tests/test_extension.py:116-126"
+   "evidence": "tests/test_extension.py:117-127"
   },
   {
    "from": "file:tests/test_extension.py",
    "to": "file:tests/test_extension.py#test_packaged_template_guard",
    "type": "contains",
-   "evidence": "tests/test_extension.py:129-151"
+   "evidence": "tests/test_extension.py:130-152"
   },
   {
    "from": "file:tests/test_extension.py",
    "to": "file:tests/test_extension.py#test_product_manager_agent",
    "type": "contains",
-   "evidence": "tests/test_extension.py:154-202"
+   "evidence": "tests/test_extension.py:155-203"
   },
   {
    "from": "file:tests/test_extension.py",
    "to": "file:tests/test_extension.py#test_rendered_hooks_run_in_a_workspace",
    "type": "contains",
-   "evidence": "tests/test_extension.py:205-227"
+   "evidence": "tests/test_extension.py:206-228"
   },
   {
    "from": "file:tests/test_extension.py",
    "to": "file:tests/test_extension.py#test_rendered_flow_and_loop_tools_run",
    "type": "contains",
-   "evidence": "tests/test_extension.py:230-252"
+   "evidence": "tests/test_extension.py:231-253"
   },
   {
    "from": "file:tests/test_extension.py",
    "to": "file:tests/test_extension.py#test_delivery_agents_and_lifecycles",
    "type": "contains",
-   "evidence": "tests/test_extension.py:255-273"
+   "evidence": "tests/test_extension.py:256-274"
   },
   {
    "from": "tests:suite",
@@ -17931,6 +18632,36 @@
   },
   {
    "from": "tests:suite",
+   "to": "file:tests/test_personas.py",
+   "type": "contains",
+   "evidence": "tests/test_personas.py"
+  },
+  {
+   "from": "file:tests/test_personas.py",
+   "to": "file:tests/test_personas.py#run",
+   "type": "contains",
+   "evidence": "tests/test_personas.py:21-26"
+  },
+  {
+   "from": "file:tests/test_personas.py",
+   "to": "file:tests/test_personas.py#test_catalog_renders_every_persona_and_lifecycles_name_real_agents",
+   "type": "contains",
+   "evidence": "tests/test_personas.py:29-44"
+  },
+  {
+   "from": "file:tests/test_personas.py",
+   "to": "file:tests/test_personas.py#test_collab_scoped_asks_pack_stage_and_ledger",
+   "type": "contains",
+   "evidence": "tests/test_personas.py:47-70"
+  },
+  {
+   "from": "file:tests/test_personas.py",
+   "to": "file:tests/test_personas.py#test_auto_pauses_only_at_ticked_gates",
+   "type": "contains",
+   "evidence": "tests/test_personas.py:73-88"
+  },
+  {
+   "from": "tests:suite",
    "to": "file:tests/test_plugins.py",
    "type": "contains",
    "evidence": "tests/test_plugins.py"
@@ -18131,55 +18862,55 @@
    "from": "file:tests/test_skills.py",
    "to": "file:tests/test_skills.py#library_root",
    "type": "contains",
-   "evidence": "tests/test_skills.py:230-259"
+   "evidence": "tests/test_skills.py:230-260"
   },
   {
    "from": "file:tests/test_skills.py",
    "to": "file:tests/test_skills.py#test_skill_loader_loads_all_relevant_flags_budget_and_scoped_deny",
    "type": "contains",
-   "evidence": "tests/test_skills.py:262-290"
+   "evidence": "tests/test_skills.py:263-291"
   },
   {
    "from": "file:tests/test_skills.py",
    "to": "file:tests/test_skills.py#open_ask",
    "type": "contains",
-   "evidence": "tests/test_skills.py:293-305"
+   "evidence": "tests/test_skills.py:294-306"
   },
   {
    "from": "file:tests/test_skills.py",
    "to": "file:tests/test_skills.py#test_lifecycle_stage_skills_load_and_are_allowed",
    "type": "contains",
-   "evidence": "tests/test_skills.py:308-323"
+   "evidence": "tests/test_skills.py:309-324"
   },
   {
    "from": "file:tests/test_skills.py",
    "to": "file:tests/test_skills.py#test_skill_choice_stops_prompt_ranking_and_topic_shift_is_recommended_once",
    "type": "contains",
-   "evidence": "tests/test_skills.py:326-343"
+   "evidence": "tests/test_skills.py:327-344"
   },
   {
    "from": "file:tests/test_skills.py",
    "to": "file:tests/test_skills.py#test_chat_is_told_once_when_another_chat_opens_an_ask",
    "type": "contains",
-   "evidence": "tests/test_skills.py:346-361"
+   "evidence": "tests/test_skills.py:347-362"
   },
   {
    "from": "file:tests/test_skills.py",
    "to": "file:tests/test_skills.py#test_rank_suggests_most_relevant_per_token_within_guideline",
    "type": "contains",
-   "evidence": "tests/test_skills.py:364-374"
+   "evidence": "tests/test_skills.py:365-375"
   },
   {
    "from": "file:tests/test_skills.py",
    "to": "file:tests/test_skills.py#test_required_skills_load_first_and_outside_categories",
    "type": "contains",
-   "evidence": "tests/test_skills.py:377-416"
+   "evidence": "tests/test_skills.py:378-417"
   },
   {
    "from": "file:tests/test_skills.py",
    "to": "file:tests/test_skills.py#test_prd_skill_is_template_and_tracker_neutral",
    "type": "contains",
-   "evidence": "tests/test_skills.py:419-429"
+   "evidence": "tests/test_skills.py:420-430"
   },
   {
    "from": "tests:suite",
@@ -18869,61 +19600,121 @@
    "from": "file:tools/loop/ask_plan.py",
    "to": "file:tools/loop/ask_plan.py#plugin_skills",
    "type": "contains",
-   "evidence": "tools/loop/ask_plan.py:26-35"
+   "evidence": "tools/loop/ask_plan.py:27-36"
   },
   {
    "from": "file:tools/loop/ask_plan.py",
    "to": "file:tools/loop/ask_plan.py#now",
    "type": "contains",
-   "evidence": "tools/loop/ask_plan.py:38-40"
+   "evidence": "tools/loop/ask_plan.py:39-41"
   },
   {
    "from": "file:tools/loop/ask_plan.py",
    "to": "file:tools/loop/ask_plan.py#skills_block",
    "type": "contains",
-   "evidence": "tools/loop/ask_plan.py:43-63"
+   "evidence": "tools/loop/ask_plan.py:44-64"
   },
   {
    "from": "file:tools/loop/ask_plan.py",
    "to": "file:tools/loop/ask_plan.py#items",
    "type": "contains",
-   "evidence": "tools/loop/ask_plan.py:66-68"
+   "evidence": "tools/loop/ask_plan.py:67-71"
   },
   {
    "from": "file:tools/loop/ask_plan.py",
    "to": "file:tools/loop/ask_plan.py#ticked",
    "type": "contains",
-   "evidence": "tools/loop/ask_plan.py:71-73"
+   "evidence": "tools/loop/ask_plan.py:74-76"
   },
   {
    "from": "file:tools/loop/ask_plan.py",
    "to": "file:tools/loop/ask_plan.py#record",
    "type": "contains",
-   "evidence": "tools/loop/ask_plan.py:76-86"
+   "evidence": "tools/loop/ask_plan.py:79-89"
   },
   {
    "from": "file:tools/loop/ask_plan.py",
    "to": "file:tools/loop/ask_plan.py#unfinished",
    "type": "contains",
-   "evidence": "tools/loop/ask_plan.py:89-95"
+   "evidence": "tools/loop/ask_plan.py:92-98"
   },
   {
    "from": "file:tools/loop/ask_plan.py",
    "to": "file:tools/loop/ask_plan.py#state",
    "type": "contains",
-   "evidence": "tools/loop/ask_plan.py:98-103"
+   "evidence": "tools/loop/ask_plan.py:101-106"
   },
   {
    "from": "file:tools/loop/ask_plan.py",
    "to": "file:tools/loop/ask_plan.py#checklist_block",
    "type": "contains",
-   "evidence": "tools/loop/ask_plan.py:106-128"
+   "evidence": "tools/loop/ask_plan.py:109-135"
   },
   {
    "from": "file:tools/loop/ask_plan.py",
    "to": "file:tools/loop/ask_plan.py#refresh",
    "type": "contains",
-   "evidence": "tools/loop/ask_plan.py:131-148"
+   "evidence": "tools/loop/ask_plan.py:138-155"
+  },
+  {
+   "from": "orchestration:asks",
+   "to": "file:tools/loop/ask_project.py",
+   "type": "contains",
+   "evidence": "tools/loop/ask_project.py"
+  },
+  {
+   "from": "file:tools/loop/ask_project.py",
+   "to": "file:tools/loop/ask_project.py#deliverable",
+   "type": "contains",
+   "evidence": "tools/loop/ask_project.py:22-25"
+  },
+  {
+   "from": "file:tools/loop/ask_project.py",
+   "to": "file:tools/loop/ask_project.py#subject",
+   "type": "contains",
+   "evidence": "tools/loop/ask_project.py:28-32"
+  },
+  {
+   "from": "file:tools/loop/ask_project.py",
+   "to": "file:tools/loop/ask_project.py#overlap",
+   "type": "contains",
+   "evidence": "tools/loop/ask_project.py:35-38"
+  },
+  {
+   "from": "file:tools/loop/ask_project.py",
+   "to": "file:tools/loop/ask_project.py#topic_shift",
+   "type": "contains",
+   "evidence": "tools/loop/ask_project.py:41-52"
+  },
+  {
+   "from": "file:tools/loop/ask_project.py",
+   "to": "file:tools/loop/ask_project.py#shift_message",
+   "type": "contains",
+   "evidence": "tools/loop/ask_project.py:55-58"
+  },
+  {
+   "from": "file:tools/loop/ask_project.py",
+   "to": "file:tools/loop/ask_project.py#project_status",
+   "type": "contains",
+   "evidence": "tools/loop/ask_project.py:61-69"
+  },
+  {
+   "from": "file:tools/loop/ask_project.py",
+   "to": "file:tools/loop/ask_project.py#project_text",
+   "type": "contains",
+   "evidence": "tools/loop/ask_project.py:72-81"
+  },
+  {
+   "from": "file:tools/loop/ask_project.py",
+   "to": "file:tools/loop/ask_project.py#record_project",
+   "type": "contains",
+   "evidence": "tools/loop/ask_project.py:84-91"
+  },
+  {
+   "from": "file:tools/loop/ask_project.py",
+   "to": "file:tools/loop/ask_project.py#ledger",
+   "type": "contains",
+   "evidence": "tools/loop/ask_project.py:94-118"
   },
   {
    "from": "orchestration:asks",
@@ -19193,181 +19984,133 @@
    "from": "file:tools/loop/lifecycle.py",
    "to": "file:tools/loop/lifecycle.py#ask_dir",
    "type": "contains",
-   "evidence": "tools/loop/lifecycle.py:38-42"
+   "evidence": "tools/loop/lifecycle.py:37-41"
   },
   {
    "from": "file:tools/loop/lifecycle.py",
    "to": "file:tools/loop/lifecycle.py#active",
    "type": "contains",
-   "evidence": "tools/loop/lifecycle.py:45-57"
-  },
-  {
-   "from": "file:tools/loop/lifecycle.py",
-   "to": "file:tools/loop/lifecycle.py#deliverable",
-   "type": "contains",
-   "evidence": "tools/loop/lifecycle.py:60-63"
-  },
-  {
-   "from": "file:tools/loop/lifecycle.py",
-   "to": "file:tools/loop/lifecycle.py#subject",
-   "type": "contains",
-   "evidence": "tools/loop/lifecycle.py:66-70"
-  },
-  {
-   "from": "file:tools/loop/lifecycle.py",
-   "to": "file:tools/loop/lifecycle.py#overlap",
-   "type": "contains",
-   "evidence": "tools/loop/lifecycle.py:73-76"
-  },
-  {
-   "from": "file:tools/loop/lifecycle.py",
-   "to": "file:tools/loop/lifecycle.py#topic_shift",
-   "type": "contains",
-   "evidence": "tools/loop/lifecycle.py:79-90"
-  },
-  {
-   "from": "file:tools/loop/lifecycle.py",
-   "to": "file:tools/loop/lifecycle.py#shift_message",
-   "type": "contains",
-   "evidence": "tools/loop/lifecycle.py:93-96"
-  },
-  {
-   "from": "file:tools/loop/lifecycle.py",
-   "to": "file:tools/loop/lifecycle.py#project_status",
-   "type": "contains",
-   "evidence": "tools/loop/lifecycle.py:99-107"
-  },
-  {
-   "from": "file:tools/loop/lifecycle.py",
-   "to": "file:tools/loop/lifecycle.py#project_text",
-   "type": "contains",
-   "evidence": "tools/loop/lifecycle.py:110-119"
+   "evidence": "tools/loop/lifecycle.py:44-56"
   },
   {
    "from": "file:tools/loop/lifecycle.py",
    "to": "file:tools/loop/lifecycle.py#where",
    "type": "contains",
-   "evidence": "tools/loop/lifecycle.py:122-136"
+   "evidence": "tools/loop/lifecycle.py:59-73"
   },
   {
    "from": "file:tools/loop/lifecycle.py",
    "to": "file:tools/loop/lifecycle.py#install",
    "type": "contains",
-   "evidence": "tools/loop/lifecycle.py:139-143"
+   "evidence": "tools/loop/lifecycle.py:76-80"
   },
   {
    "from": "file:tools/loop/lifecycle.py",
    "to": "file:tools/loop/lifecycle.py#contract",
    "type": "contains",
-   "evidence": "tools/loop/lifecycle.py:146-209"
-  },
-  {
-   "from": "file:tools/loop/lifecycle.py",
-   "to": "file:tools/loop/lifecycle.py#record_project",
-   "type": "contains",
-   "evidence": "tools/loop/lifecycle.py:212-219"
+   "evidence": "tools/loop/lifecycle.py:83-158"
   },
   {
    "from": "file:tools/loop/lifecycle.py",
    "to": "file:tools/loop/lifecycle.py#choose_skills",
    "type": "contains",
-   "evidence": "tools/loop/lifecycle.py:222-239"
+   "evidence": "tools/loop/lifecycle.py:161-178"
   },
   {
    "from": "file:tools/loop/lifecycle.py",
    "to": "file:tools/loop/lifecycle.py#score_skills",
    "type": "contains",
-   "evidence": "tools/loop/lifecycle.py:242-261"
+   "evidence": "tools/loop/lifecycle.py:181-200"
   },
   {
    "from": "file:tools/loop/lifecycle.py",
    "to": "file:tools/loop/lifecycle.py#set_stage",
    "type": "contains",
-   "evidence": "tools/loop/lifecycle.py:264-282"
+   "evidence": "tools/loop/lifecycle.py:203-221"
   },
   {
    "from": "file:tools/loop/lifecycle.py",
    "to": "file:tools/loop/lifecycle.py#rework",
    "type": "contains",
-   "evidence": "tools/loop/lifecycle.py:285-291"
+   "evidence": "tools/loop/lifecycle.py:224-230"
   },
   {
    "from": "file:tools/loop/lifecycle.py",
    "to": "file:tools/loop/lifecycle.py#tick",
    "type": "contains",
-   "evidence": "tools/loop/lifecycle.py:294-301"
+   "evidence": "tools/loop/lifecycle.py:233-240"
   },
   {
    "from": "file:tools/loop/lifecycle.py",
    "to": "file:tools/loop/lifecycle.py#checklist",
    "type": "contains",
-   "evidence": "tools/loop/lifecycle.py:304-310"
+   "evidence": "tools/loop/lifecycle.py:243-249"
   },
   {
    "from": "file:tools/loop/lifecycle.py",
    "to": "file:tools/loop/lifecycle.py#close",
    "type": "contains",
-   "evidence": "tools/loop/lifecycle.py:313-317"
+   "evidence": "tools/loop/lifecycle.py:252-256"
   },
   {
    "from": "file:tools/loop/lifecycle.py",
    "to": "file:tools/loop/lifecycle.py#reopen",
    "type": "contains",
-   "evidence": "tools/loop/lifecycle.py:320-326"
+   "evidence": "tools/loop/lifecycle.py:259-265"
   },
   {
    "from": "file:tools/loop/lifecycle.py",
    "to": "file:tools/loop/lifecycle.py#current_skills",
    "type": "contains",
-   "evidence": "tools/loop/lifecycle.py:329-335"
+   "evidence": "tools/loop/lifecycle.py:268-274"
   },
   {
    "from": "file:tools/loop/lifecycle.py",
    "to": "file:tools/loop/lifecycle.py#plan_hash",
    "type": "contains",
-   "evidence": "tools/loop/lifecycle.py:338-342"
+   "evidence": "tools/loop/lifecycle.py:277-281"
   },
   {
    "from": "file:tools/loop/lifecycle.py",
    "to": "file:tools/loop/lifecycle.py#plan_sync",
    "type": "contains",
-   "evidence": "tools/loop/lifecycle.py:345-355"
+   "evidence": "tools/loop/lifecycle.py:284-294"
   },
   {
    "from": "file:tools/loop/lifecycle.py",
    "to": "file:tools/loop/lifecycle.py#plan_status",
    "type": "contains",
-   "evidence": "tools/loop/lifecycle.py:358-367"
+   "evidence": "tools/loop/lifecycle.py:297-306"
   },
   {
    "from": "file:tools/loop/lifecycle.py",
    "to": "file:tools/loop/lifecycle.py#stage_row",
    "type": "contains",
-   "evidence": "tools/loop/lifecycle.py:370-376"
+   "evidence": "tools/loop/lifecycle.py:309-315"
   },
   {
    "from": "file:tools/loop/lifecycle.py",
    "to": "file:tools/loop/lifecycle.py#tasks_sync",
    "type": "contains",
-   "evidence": "tools/loop/lifecycle.py:379-393"
+   "evidence": "tools/loop/lifecycle.py:318-332"
   },
   {
    "from": "file:tools/loop/lifecycle.py",
    "to": "file:tools/loop/lifecycle.py#brief",
    "type": "contains",
-   "evidence": "tools/loop/lifecycle.py:396-417"
+   "evidence": "tools/loop/lifecycle.py:335-359"
   },
   {
    "from": "file:tools/loop/lifecycle.py",
    "to": "file:tools/loop/lifecycle.py#used",
    "type": "contains",
-   "evidence": "tools/loop/lifecycle.py:420-426"
+   "evidence": "tools/loop/lifecycle.py:362-368"
   },
   {
    "from": "file:tools/loop/lifecycle.py",
    "to": "file:tools/loop/lifecycle.py#main",
    "type": "contains",
-   "evidence": "tools/loop/lifecycle.py:429-493"
+   "evidence": "tools/loop/lifecycle.py:371-439"
   },
   {
    "from": "orchestration:asks",
@@ -19379,25 +20122,25 @@
    "from": "file:tools/loop/lifecycle_catalog.py",
    "to": "file:tools/loop/lifecycle_catalog.py#validate",
    "type": "contains",
-   "evidence": "tools/loop/lifecycle_catalog.py:27-41"
+   "evidence": "tools/loop/lifecycle_catalog.py:27-43"
   },
   {
    "from": "file:tools/loop/lifecycle_catalog.py",
    "to": "file:tools/loop/lifecycle_catalog.py#catalog",
    "type": "contains",
-   "evidence": "tools/loop/lifecycle_catalog.py:44-55"
+   "evidence": "tools/loop/lifecycle_catalog.py:46-57"
   },
   {
    "from": "file:tools/loop/lifecycle_catalog.py",
    "to": "file:tools/loop/lifecycle_catalog.py#pick",
    "type": "contains",
-   "evidence": "tools/loop/lifecycle_catalog.py:58-63"
+   "evidence": "tools/loop/lifecycle_catalog.py:60-65"
   },
   {
    "from": "file:tools/loop/lifecycle_catalog.py",
    "to": "file:tools/loop/lifecycle_catalog.py#route",
    "type": "contains",
-   "evidence": "tools/loop/lifecycle_catalog.py:66-71"
+   "evidence": "tools/loop/lifecycle_catalog.py:68-73"
   },
   {
    "from": "orchestration:feature-loop",
@@ -19530,6 +20273,60 @@
    "to": "file:tools/loop/loop_paths.py#ask_evidence",
    "type": "contains",
    "evidence": "tools/loop/loop_paths.py:50-56"
+  },
+  {
+   "from": "agents:persona-catalog",
+   "to": "file:tools/loop/personas.py",
+   "type": "contains",
+   "evidence": "tools/loop/personas.py"
+  },
+  {
+   "from": "file:tools/loop/personas.py",
+   "to": "file:tools/loop/personas.py#load",
+   "type": "contains",
+   "evidence": "tools/loop/personas.py:23-38"
+  },
+  {
+   "from": "file:tools/loop/personas.py",
+   "to": "file:tools/loop/personas.py#description",
+   "type": "contains",
+   "evidence": "tools/loop/personas.py:41-46"
+  },
+  {
+   "from": "file:tools/loop/personas.py",
+   "to": "file:tools/loop/personas.py#render",
+   "type": "contains",
+   "evidence": "tools/loop/personas.py:49-55"
+  },
+  {
+   "from": "file:tools/loop/personas.py",
+   "to": "file:tools/loop/personas.py#write",
+   "type": "contains",
+   "evidence": "tools/loop/personas.py:58-67"
+  },
+  {
+   "from": "file:tools/loop/personas.py",
+   "to": "file:tools/loop/personas.py#stale",
+   "type": "contains",
+   "evidence": "tools/loop/personas.py:70-74"
+  },
+  {
+   "from": "file:tools/loop/personas.py",
+   "to": "file:tools/loop/personas.py#match",
+   "type": "contains",
+   "evidence": "tools/loop/personas.py:77-85"
+  },
+  {
+   "from": "file:tools/loop/personas.py",
+   "to": "file:tools/loop/personas.py#by_agent",
+   "type": "contains",
+   "evidence": "tools/loop/personas.py:88-90"
+  },
+  {
+   "from": "file:tools/loop/personas.py",
+   "to": "file:tools/loop/personas.py#main",
+   "type": "contains",
+   "evidence": "tools/loop/personas.py:93-109"
   },
   {
    "from": "orchestration:asks",
@@ -22424,6 +23221,12 @@
    "evidence": "docs/wiki/Agents.md names loop.py"
   },
   {
+   "from": "file:tools/loop/personas.py",
+   "to": "file:docs/wiki/Agents.md",
+   "type": "documented-in",
+   "evidence": "docs/wiki/Agents.md names tools/loop/personas.py"
+  },
+  {
    "from": "file:tools/observe/provenance.py",
    "to": "file:docs/wiki/Agents.md",
    "type": "documented-in",
@@ -22446,6 +23249,12 @@
    "to": "file:docs/wiki/Agents.md",
    "type": "documented-in",
    "evidence": "docs/wiki/Agents.md names skills/categories.json"
+  },
+  {
+   "from": "file:templates/personas/catalog.json",
+   "to": "file:docs/wiki/Agents.md",
+   "type": "documented-in",
+   "evidence": "docs/wiki/Agents.md names templates/personas/catalog.json"
   },
   {
    "from": "file:tests/test_extension.py",
@@ -23025,9 +23834,75 @@
   },
   {
    "from": "file:extension/agents/hve-agile.agent.md",
+   "to": "file:tools/loop/personas.py",
+   "type": "invokes",
+   "evidence": "extension/agents/hve-agile.agent.md names tools/loop/personas.py"
+  },
+  {
+   "from": "file:extension/agents/hve-agile.agent.md",
    "to": "file:extension/agents/hve-product-manager.agent.md",
    "type": "delegates-to",
    "evidence": "extension/agents/hve-agile.agent.md names `HVE product-manager`"
+  },
+  {
+   "from": "file:extension/agents/hve-agile.agent.md",
+   "to": "file:extension/agents/hve-data-scientist.agent.md",
+   "type": "delegates-to",
+   "evidence": "extension/agents/hve-agile.agent.md names `HVE data-scientist`"
+  },
+  {
+   "from": "file:extension/agents/hve-agile.agent.md",
+   "to": "file:extension/agents/hve-solution-architect.agent.md",
+   "type": "delegates-to",
+   "evidence": "extension/agents/hve-agile.agent.md names `HVE solution-architect`"
+  },
+  {
+   "from": "file:extension/agents/hve-agile.agent.md",
+   "to": "file:extension/agents/hve-db-architect.agent.md",
+   "type": "delegates-to",
+   "evidence": "extension/agents/hve-agile.agent.md names `HVE db-architect`"
+  },
+  {
+   "from": "file:extension/agents/hve-agile.agent.md",
+   "to": "file:extension/agents/hve-db-engineer.agent.md",
+   "type": "delegates-to",
+   "evidence": "extension/agents/hve-agile.agent.md names `HVE db-engineer`"
+  },
+  {
+   "from": "file:extension/agents/hve-agile.agent.md",
+   "to": "file:extension/agents/hve-devops-engineer.agent.md",
+   "type": "delegates-to",
+   "evidence": "extension/agents/hve-agile.agent.md names `HVE devops-engineer`"
+  },
+  {
+   "from": "file:extension/agents/hve-agile.agent.md",
+   "to": "file:extension/agents/hve-security-architect.agent.md",
+   "type": "delegates-to",
+   "evidence": "extension/agents/hve-agile.agent.md names `HVE security-architect`"
+  },
+  {
+   "from": "file:extension/agents/hve-agile.agent.md",
+   "to": "file:extension/agents/hve-engineer.agent.md",
+   "type": "delegates-to",
+   "evidence": "extension/agents/hve-agile.agent.md names `HVE engineer`"
+  },
+  {
+   "from": "file:extension/agents/hve-agile.agent.md",
+   "to": "file:extension/agents/hve-test-engineer.agent.md",
+   "type": "delegates-to",
+   "evidence": "extension/agents/hve-agile.agent.md names `HVE test-engineer`"
+  },
+  {
+   "from": "file:extension/agents/hve-agile.agent.md",
+   "to": "file:extension/agents/hve-test-architect.agent.md",
+   "type": "delegates-to",
+   "evidence": "extension/agents/hve-agile.agent.md names `HVE test-architect`"
+  },
+  {
+   "from": "file:extension/agents/hve-agile.agent.md",
+   "to": "file:extension/agents/hve-ux-designer.agent.md",
+   "type": "delegates-to",
+   "evidence": "extension/agents/hve-agile.agent.md names `HVE ux-designer`"
   },
   {
    "from": "file:extension/agents/hve-agile.agent.md",
@@ -23037,9 +23912,63 @@
   },
   {
    "from": "file:extension/agents/hve-agile.agent.md",
-   "to": "file:extension/agents/hve-engineer.agent.md",
+   "to": "file:extension/agents/hve-ui-engineer.agent.md",
    "type": "delegates-to",
-   "evidence": "extension/agents/hve-agile.agent.md names `HVE engineer`"
+   "evidence": "extension/agents/hve-agile.agent.md names `HVE ui-engineer`"
+  },
+  {
+   "from": "file:extension/agents/hve-agile.agent.md",
+   "to": "file:extension/agents/hve-code-reviewer.agent.md",
+   "type": "delegates-to",
+   "evidence": "extension/agents/hve-agile.agent.md names `HVE code-reviewer`"
+  },
+  {
+   "from": "file:extension/agents/hve-agile.agent.md",
+   "to": "file:extension/agents/hve-architecture-reviewer.agent.md",
+   "type": "delegates-to",
+   "evidence": "extension/agents/hve-agile.agent.md names `HVE architecture-reviewer`"
+  },
+  {
+   "from": "file:extension/agents/hve-agile.agent.md",
+   "to": "file:extension/agents/hve-security-reviewer.agent.md",
+   "type": "delegates-to",
+   "evidence": "extension/agents/hve-agile.agent.md names `HVE security-reviewer`"
+  },
+  {
+   "from": "file:extension/agents/hve-agile.agent.md",
+   "to": "file:extension/agents/hve-ux-reviewer.agent.md",
+   "type": "delegates-to",
+   "evidence": "extension/agents/hve-agile.agent.md names `HVE ux-reviewer`"
+  },
+  {
+   "from": "file:extension/agents/hve-agile.agent.md",
+   "to": "file:extension/agents/hve-test-reviewer.agent.md",
+   "type": "delegates-to",
+   "evidence": "extension/agents/hve-agile.agent.md names `HVE test-reviewer`"
+  },
+  {
+   "from": "file:extension/agents/hve-agile.agent.md",
+   "to": "file:extension/agents/hve-product-reviewer.agent.md",
+   "type": "delegates-to",
+   "evidence": "extension/agents/hve-agile.agent.md names `HVE product-reviewer`"
+  },
+  {
+   "from": "file:extension/agents/hve-architecture-reviewer.agent.md",
+   "to": "file:hooks/error_guard.py",
+   "type": "guarded-by",
+   "evidence": "extension/agents/hve-architecture-reviewer.agent.md hook runs error_guard.py"
+  },
+  {
+   "from": "file:extension/agents/hve-architecture-reviewer.agent.md",
+   "to": "file:hooks/error_guard.py",
+   "type": "invokes",
+   "evidence": "extension/agents/hve-architecture-reviewer.agent.md names hooks/error_guard.py"
+  },
+  {
+   "from": "file:extension/agents/hve-architecture-reviewer.agent.md",
+   "to": "file:tools/map/solution_map.py",
+   "type": "invokes",
+   "evidence": "extension/agents/hve-architecture-reviewer.agent.md names tools/map/solution_map.py"
   },
   {
    "from": "file:extension/agents/hve-azure-devops.agent.md",
@@ -23052,6 +23981,24 @@
    "to": "file:extension/agents/hve-product-manager.agent.md",
    "type": "delegates-to",
    "evidence": "extension/agents/hve-azure-devops.agent.md names `HVE product-manager`"
+  },
+  {
+   "from": "file:extension/agents/hve-code-reviewer.agent.md",
+   "to": "file:hooks/error_guard.py",
+   "type": "guarded-by",
+   "evidence": "extension/agents/hve-code-reviewer.agent.md hook runs error_guard.py"
+  },
+  {
+   "from": "file:extension/agents/hve-code-reviewer.agent.md",
+   "to": "file:hooks/error_guard.py",
+   "type": "invokes",
+   "evidence": "extension/agents/hve-code-reviewer.agent.md names hooks/error_guard.py"
+  },
+  {
+   "from": "file:extension/agents/hve-code-reviewer.agent.md",
+   "to": "file:tools/map/solution_map.py",
+   "type": "invokes",
+   "evidence": "extension/agents/hve-code-reviewer.agent.md names tools/map/solution_map.py"
   },
   {
    "from": "file:extension/agents/hve-creator-flow.agent.md",
@@ -23444,6 +24391,162 @@
    "evidence": "extension/agents/hve-creator.agent.md names `HVE evaluation-reviewer`"
   },
   {
+   "from": "file:extension/agents/hve-data-scientist.agent.md",
+   "to": "file:hooks/error_guard.py",
+   "type": "guarded-by",
+   "evidence": "extension/agents/hve-data-scientist.agent.md hook runs error_guard.py"
+  },
+  {
+   "from": "file:extension/agents/hve-data-scientist.agent.md",
+   "to": "file:hooks/module_guard.py",
+   "type": "guarded-by",
+   "evidence": "extension/agents/hve-data-scientist.agent.md hook runs module_guard.py"
+  },
+  {
+   "from": "file:extension/agents/hve-data-scientist.agent.md",
+   "to": "file:hooks/error_guard.py",
+   "type": "invokes",
+   "evidence": "extension/agents/hve-data-scientist.agent.md names hooks/error_guard.py"
+  },
+  {
+   "from": "file:extension/agents/hve-data-scientist.agent.md",
+   "to": "file:hooks/module_guard.py",
+   "type": "invokes",
+   "evidence": "extension/agents/hve-data-scientist.agent.md names hooks/module_guard.py"
+  },
+  {
+   "from": "file:extension/agents/hve-data-scientist.agent.md",
+   "to": "file:tools/map/solution_map.py",
+   "type": "invokes",
+   "evidence": "extension/agents/hve-data-scientist.agent.md names tools/map/solution_map.py"
+  },
+  {
+   "from": "file:extension/agents/hve-db-architect.agent.md",
+   "to": "file:hooks/error_guard.py",
+   "type": "guarded-by",
+   "evidence": "extension/agents/hve-db-architect.agent.md hook runs error_guard.py"
+  },
+  {
+   "from": "file:extension/agents/hve-db-architect.agent.md",
+   "to": "file:hooks/module_guard.py",
+   "type": "guarded-by",
+   "evidence": "extension/agents/hve-db-architect.agent.md hook runs module_guard.py"
+  },
+  {
+   "from": "file:extension/agents/hve-db-architect.agent.md",
+   "to": "file:hooks/error_guard.py",
+   "type": "invokes",
+   "evidence": "extension/agents/hve-db-architect.agent.md names hooks/error_guard.py"
+  },
+  {
+   "from": "file:extension/agents/hve-db-architect.agent.md",
+   "to": "file:hooks/module_guard.py",
+   "type": "invokes",
+   "evidence": "extension/agents/hve-db-architect.agent.md names hooks/module_guard.py"
+  },
+  {
+   "from": "file:extension/agents/hve-db-architect.agent.md",
+   "to": "file:tools/map/solution_map.py",
+   "type": "invokes",
+   "evidence": "extension/agents/hve-db-architect.agent.md names tools/map/solution_map.py"
+  },
+  {
+   "from": "file:extension/agents/hve-db-engineer.agent.md",
+   "to": "file:hooks/error_guard.py",
+   "type": "guarded-by",
+   "evidence": "extension/agents/hve-db-engineer.agent.md hook runs error_guard.py"
+  },
+  {
+   "from": "file:extension/agents/hve-db-engineer.agent.md",
+   "to": "file:hooks/loop_guard.py",
+   "type": "guarded-by",
+   "evidence": "extension/agents/hve-db-engineer.agent.md hook runs loop_guard.py"
+  },
+  {
+   "from": "file:extension/agents/hve-db-engineer.agent.md",
+   "to": "file:hooks/module_guard.py",
+   "type": "guarded-by",
+   "evidence": "extension/agents/hve-db-engineer.agent.md hook runs module_guard.py"
+  },
+  {
+   "from": "file:extension/agents/hve-db-engineer.agent.md",
+   "to": "file:hooks/error_guard.py",
+   "type": "invokes",
+   "evidence": "extension/agents/hve-db-engineer.agent.md names hooks/error_guard.py"
+  },
+  {
+   "from": "file:extension/agents/hve-db-engineer.agent.md",
+   "to": "file:hooks/loop_guard.py",
+   "type": "invokes",
+   "evidence": "extension/agents/hve-db-engineer.agent.md names hooks/loop_guard.py"
+  },
+  {
+   "from": "file:extension/agents/hve-db-engineer.agent.md",
+   "to": "file:hooks/module_guard.py",
+   "type": "invokes",
+   "evidence": "extension/agents/hve-db-engineer.agent.md names hooks/module_guard.py"
+  },
+  {
+   "from": "file:extension/agents/hve-db-engineer.agent.md",
+   "to": "file:tools/loop/loop.py",
+   "type": "invokes",
+   "evidence": "extension/agents/hve-db-engineer.agent.md names loop.py"
+  },
+  {
+   "from": "file:extension/agents/hve-db-engineer.agent.md",
+   "to": "file:tools/map/solution_map.py",
+   "type": "invokes",
+   "evidence": "extension/agents/hve-db-engineer.agent.md names tools/map/solution_map.py"
+  },
+  {
+   "from": "file:extension/agents/hve-devops-engineer.agent.md",
+   "to": "file:hooks/error_guard.py",
+   "type": "guarded-by",
+   "evidence": "extension/agents/hve-devops-engineer.agent.md hook runs error_guard.py"
+  },
+  {
+   "from": "file:extension/agents/hve-devops-engineer.agent.md",
+   "to": "file:hooks/loop_guard.py",
+   "type": "guarded-by",
+   "evidence": "extension/agents/hve-devops-engineer.agent.md hook runs loop_guard.py"
+  },
+  {
+   "from": "file:extension/agents/hve-devops-engineer.agent.md",
+   "to": "file:hooks/module_guard.py",
+   "type": "guarded-by",
+   "evidence": "extension/agents/hve-devops-engineer.agent.md hook runs module_guard.py"
+  },
+  {
+   "from": "file:extension/agents/hve-devops-engineer.agent.md",
+   "to": "file:hooks/error_guard.py",
+   "type": "invokes",
+   "evidence": "extension/agents/hve-devops-engineer.agent.md names hooks/error_guard.py"
+  },
+  {
+   "from": "file:extension/agents/hve-devops-engineer.agent.md",
+   "to": "file:hooks/loop_guard.py",
+   "type": "invokes",
+   "evidence": "extension/agents/hve-devops-engineer.agent.md names hooks/loop_guard.py"
+  },
+  {
+   "from": "file:extension/agents/hve-devops-engineer.agent.md",
+   "to": "file:hooks/module_guard.py",
+   "type": "invokes",
+   "evidence": "extension/agents/hve-devops-engineer.agent.md names hooks/module_guard.py"
+  },
+  {
+   "from": "file:extension/agents/hve-devops-engineer.agent.md",
+   "to": "file:tools/loop/loop.py",
+   "type": "invokes",
+   "evidence": "extension/agents/hve-devops-engineer.agent.md names loop.py"
+  },
+  {
+   "from": "file:extension/agents/hve-devops-engineer.agent.md",
+   "to": "file:tools/map/solution_map.py",
+   "type": "invokes",
+   "evidence": "extension/agents/hve-devops-engineer.agent.md names tools/map/solution_map.py"
+  },
+  {
    "from": "file:extension/agents/hve-e2e.agent.md",
    "to": "file:hooks/agent_ledger.py",
    "type": "guarded-by",
@@ -23592,6 +24695,30 @@
    "to": "file:extension/agents/hve-engineer.agent.md",
    "type": "delegates-to",
    "evidence": "extension/agents/hve-e2e.agent.md names `HVE engineer`"
+  },
+  {
+   "from": "file:extension/agents/hve-e2e.agent.md",
+   "to": "file:extension/agents/hve-db-engineer.agent.md",
+   "type": "delegates-to",
+   "evidence": "extension/agents/hve-e2e.agent.md names `HVE db-engineer`"
+  },
+  {
+   "from": "file:extension/agents/hve-e2e.agent.md",
+   "to": "file:extension/agents/hve-ui-engineer.agent.md",
+   "type": "delegates-to",
+   "evidence": "extension/agents/hve-e2e.agent.md names `HVE ui-engineer`"
+  },
+  {
+   "from": "file:extension/agents/hve-e2e.agent.md",
+   "to": "file:extension/agents/hve-test-engineer.agent.md",
+   "type": "delegates-to",
+   "evidence": "extension/agents/hve-e2e.agent.md names `HVE test-engineer`"
+  },
+  {
+   "from": "file:extension/agents/hve-e2e.agent.md",
+   "to": "file:extension/agents/hve-devops-engineer.agent.md",
+   "type": "delegates-to",
+   "evidence": "extension/agents/hve-e2e.agent.md names `HVE devops-engineer`"
   },
   {
    "from": "file:extension/agents/hve-engineer.agent.md",
@@ -23828,6 +24955,24 @@
    "evidence": "extension/agents/hve-product-manager.agent.md names `HVE council`"
   },
   {
+   "from": "file:extension/agents/hve-product-reviewer.agent.md",
+   "to": "file:hooks/error_guard.py",
+   "type": "guarded-by",
+   "evidence": "extension/agents/hve-product-reviewer.agent.md hook runs error_guard.py"
+  },
+  {
+   "from": "file:extension/agents/hve-product-reviewer.agent.md",
+   "to": "file:hooks/error_guard.py",
+   "type": "invokes",
+   "evidence": "extension/agents/hve-product-reviewer.agent.md names hooks/error_guard.py"
+  },
+  {
+   "from": "file:extension/agents/hve-product-reviewer.agent.md",
+   "to": "file:tools/map/solution_map.py",
+   "type": "invokes",
+   "evidence": "extension/agents/hve-product-reviewer.agent.md names tools/map/solution_map.py"
+  },
+  {
    "from": "file:extension/agents/hve-prototype.agent.md",
    "to": "file:hooks/error_guard.py",
    "type": "guarded-by",
@@ -23868,6 +25013,54 @@
    "to": "file:tools/loop/lifecycle.py",
    "type": "invokes",
    "evidence": "extension/agents/hve-prototype.agent.md names tools/loop/lifecycle.py"
+  },
+  {
+   "from": "file:extension/agents/hve-security-architect.agent.md",
+   "to": "file:hooks/error_guard.py",
+   "type": "guarded-by",
+   "evidence": "extension/agents/hve-security-architect.agent.md hook runs error_guard.py"
+  },
+  {
+   "from": "file:extension/agents/hve-security-architect.agent.md",
+   "to": "file:hooks/module_guard.py",
+   "type": "guarded-by",
+   "evidence": "extension/agents/hve-security-architect.agent.md hook runs module_guard.py"
+  },
+  {
+   "from": "file:extension/agents/hve-security-architect.agent.md",
+   "to": "file:hooks/error_guard.py",
+   "type": "invokes",
+   "evidence": "extension/agents/hve-security-architect.agent.md names hooks/error_guard.py"
+  },
+  {
+   "from": "file:extension/agents/hve-security-architect.agent.md",
+   "to": "file:hooks/module_guard.py",
+   "type": "invokes",
+   "evidence": "extension/agents/hve-security-architect.agent.md names hooks/module_guard.py"
+  },
+  {
+   "from": "file:extension/agents/hve-security-architect.agent.md",
+   "to": "file:tools/map/solution_map.py",
+   "type": "invokes",
+   "evidence": "extension/agents/hve-security-architect.agent.md names tools/map/solution_map.py"
+  },
+  {
+   "from": "file:extension/agents/hve-security-reviewer.agent.md",
+   "to": "file:hooks/error_guard.py",
+   "type": "guarded-by",
+   "evidence": "extension/agents/hve-security-reviewer.agent.md hook runs error_guard.py"
+  },
+  {
+   "from": "file:extension/agents/hve-security-reviewer.agent.md",
+   "to": "file:hooks/error_guard.py",
+   "type": "invokes",
+   "evidence": "extension/agents/hve-security-reviewer.agent.md names hooks/error_guard.py"
+  },
+  {
+   "from": "file:extension/agents/hve-security-reviewer.agent.md",
+   "to": "file:tools/map/solution_map.py",
+   "type": "invokes",
+   "evidence": "extension/agents/hve-security-reviewer.agent.md names tools/map/solution_map.py"
   },
   {
    "from": "file:extension/agents/hve-single.agent.md",
@@ -23912,6 +25105,234 @@
    "evidence": "extension/agents/hve-skill-evaluator.agent.md names `HVE skill-judge`"
   },
   {
+   "from": "file:extension/agents/hve-solution-architect.agent.md",
+   "to": "file:hooks/error_guard.py",
+   "type": "guarded-by",
+   "evidence": "extension/agents/hve-solution-architect.agent.md hook runs error_guard.py"
+  },
+  {
+   "from": "file:extension/agents/hve-solution-architect.agent.md",
+   "to": "file:hooks/module_guard.py",
+   "type": "guarded-by",
+   "evidence": "extension/agents/hve-solution-architect.agent.md hook runs module_guard.py"
+  },
+  {
+   "from": "file:extension/agents/hve-solution-architect.agent.md",
+   "to": "file:hooks/error_guard.py",
+   "type": "invokes",
+   "evidence": "extension/agents/hve-solution-architect.agent.md names hooks/error_guard.py"
+  },
+  {
+   "from": "file:extension/agents/hve-solution-architect.agent.md",
+   "to": "file:hooks/module_guard.py",
+   "type": "invokes",
+   "evidence": "extension/agents/hve-solution-architect.agent.md names hooks/module_guard.py"
+  },
+  {
+   "from": "file:extension/agents/hve-solution-architect.agent.md",
+   "to": "file:tools/map/solution_map.py",
+   "type": "invokes",
+   "evidence": "extension/agents/hve-solution-architect.agent.md names tools/map/solution_map.py"
+  },
+  {
+   "from": "file:extension/agents/hve-test-architect.agent.md",
+   "to": "file:hooks/error_guard.py",
+   "type": "guarded-by",
+   "evidence": "extension/agents/hve-test-architect.agent.md hook runs error_guard.py"
+  },
+  {
+   "from": "file:extension/agents/hve-test-architect.agent.md",
+   "to": "file:hooks/module_guard.py",
+   "type": "guarded-by",
+   "evidence": "extension/agents/hve-test-architect.agent.md hook runs module_guard.py"
+  },
+  {
+   "from": "file:extension/agents/hve-test-architect.agent.md",
+   "to": "file:hooks/error_guard.py",
+   "type": "invokes",
+   "evidence": "extension/agents/hve-test-architect.agent.md names hooks/error_guard.py"
+  },
+  {
+   "from": "file:extension/agents/hve-test-architect.agent.md",
+   "to": "file:hooks/module_guard.py",
+   "type": "invokes",
+   "evidence": "extension/agents/hve-test-architect.agent.md names hooks/module_guard.py"
+  },
+  {
+   "from": "file:extension/agents/hve-test-architect.agent.md",
+   "to": "file:tools/map/solution_map.py",
+   "type": "invokes",
+   "evidence": "extension/agents/hve-test-architect.agent.md names tools/map/solution_map.py"
+  },
+  {
+   "from": "file:extension/agents/hve-test-engineer.agent.md",
+   "to": "file:hooks/error_guard.py",
+   "type": "guarded-by",
+   "evidence": "extension/agents/hve-test-engineer.agent.md hook runs error_guard.py"
+  },
+  {
+   "from": "file:extension/agents/hve-test-engineer.agent.md",
+   "to": "file:hooks/loop_guard.py",
+   "type": "guarded-by",
+   "evidence": "extension/agents/hve-test-engineer.agent.md hook runs loop_guard.py"
+  },
+  {
+   "from": "file:extension/agents/hve-test-engineer.agent.md",
+   "to": "file:hooks/module_guard.py",
+   "type": "guarded-by",
+   "evidence": "extension/agents/hve-test-engineer.agent.md hook runs module_guard.py"
+  },
+  {
+   "from": "file:extension/agents/hve-test-engineer.agent.md",
+   "to": "file:hooks/error_guard.py",
+   "type": "invokes",
+   "evidence": "extension/agents/hve-test-engineer.agent.md names hooks/error_guard.py"
+  },
+  {
+   "from": "file:extension/agents/hve-test-engineer.agent.md",
+   "to": "file:hooks/loop_guard.py",
+   "type": "invokes",
+   "evidence": "extension/agents/hve-test-engineer.agent.md names hooks/loop_guard.py"
+  },
+  {
+   "from": "file:extension/agents/hve-test-engineer.agent.md",
+   "to": "file:hooks/module_guard.py",
+   "type": "invokes",
+   "evidence": "extension/agents/hve-test-engineer.agent.md names hooks/module_guard.py"
+  },
+  {
+   "from": "file:extension/agents/hve-test-engineer.agent.md",
+   "to": "file:tools/loop/loop.py",
+   "type": "invokes",
+   "evidence": "extension/agents/hve-test-engineer.agent.md names loop.py"
+  },
+  {
+   "from": "file:extension/agents/hve-test-engineer.agent.md",
+   "to": "file:tools/map/solution_map.py",
+   "type": "invokes",
+   "evidence": "extension/agents/hve-test-engineer.agent.md names tools/map/solution_map.py"
+  },
+  {
+   "from": "file:extension/agents/hve-test-reviewer.agent.md",
+   "to": "file:hooks/error_guard.py",
+   "type": "guarded-by",
+   "evidence": "extension/agents/hve-test-reviewer.agent.md hook runs error_guard.py"
+  },
+  {
+   "from": "file:extension/agents/hve-test-reviewer.agent.md",
+   "to": "file:hooks/error_guard.py",
+   "type": "invokes",
+   "evidence": "extension/agents/hve-test-reviewer.agent.md names hooks/error_guard.py"
+  },
+  {
+   "from": "file:extension/agents/hve-test-reviewer.agent.md",
+   "to": "file:tools/map/solution_map.py",
+   "type": "invokes",
+   "evidence": "extension/agents/hve-test-reviewer.agent.md names tools/map/solution_map.py"
+  },
+  {
+   "from": "file:extension/agents/hve-ui-engineer.agent.md",
+   "to": "file:hooks/error_guard.py",
+   "type": "guarded-by",
+   "evidence": "extension/agents/hve-ui-engineer.agent.md hook runs error_guard.py"
+  },
+  {
+   "from": "file:extension/agents/hve-ui-engineer.agent.md",
+   "to": "file:hooks/loop_guard.py",
+   "type": "guarded-by",
+   "evidence": "extension/agents/hve-ui-engineer.agent.md hook runs loop_guard.py"
+  },
+  {
+   "from": "file:extension/agents/hve-ui-engineer.agent.md",
+   "to": "file:hooks/module_guard.py",
+   "type": "guarded-by",
+   "evidence": "extension/agents/hve-ui-engineer.agent.md hook runs module_guard.py"
+  },
+  {
+   "from": "file:extension/agents/hve-ui-engineer.agent.md",
+   "to": "file:hooks/error_guard.py",
+   "type": "invokes",
+   "evidence": "extension/agents/hve-ui-engineer.agent.md names hooks/error_guard.py"
+  },
+  {
+   "from": "file:extension/agents/hve-ui-engineer.agent.md",
+   "to": "file:hooks/loop_guard.py",
+   "type": "invokes",
+   "evidence": "extension/agents/hve-ui-engineer.agent.md names hooks/loop_guard.py"
+  },
+  {
+   "from": "file:extension/agents/hve-ui-engineer.agent.md",
+   "to": "file:hooks/module_guard.py",
+   "type": "invokes",
+   "evidence": "extension/agents/hve-ui-engineer.agent.md names hooks/module_guard.py"
+  },
+  {
+   "from": "file:extension/agents/hve-ui-engineer.agent.md",
+   "to": "file:tools/loop/loop.py",
+   "type": "invokes",
+   "evidence": "extension/agents/hve-ui-engineer.agent.md names loop.py"
+  },
+  {
+   "from": "file:extension/agents/hve-ui-engineer.agent.md",
+   "to": "file:tools/map/solution_map.py",
+   "type": "invokes",
+   "evidence": "extension/agents/hve-ui-engineer.agent.md names tools/map/solution_map.py"
+  },
+  {
+   "from": "file:extension/agents/hve-ux-designer.agent.md",
+   "to": "file:hooks/error_guard.py",
+   "type": "guarded-by",
+   "evidence": "extension/agents/hve-ux-designer.agent.md hook runs error_guard.py"
+  },
+  {
+   "from": "file:extension/agents/hve-ux-designer.agent.md",
+   "to": "file:hooks/module_guard.py",
+   "type": "guarded-by",
+   "evidence": "extension/agents/hve-ux-designer.agent.md hook runs module_guard.py"
+  },
+  {
+   "from": "file:extension/agents/hve-ux-designer.agent.md",
+   "to": "file:hooks/error_guard.py",
+   "type": "invokes",
+   "evidence": "extension/agents/hve-ux-designer.agent.md names hooks/error_guard.py"
+  },
+  {
+   "from": "file:extension/agents/hve-ux-designer.agent.md",
+   "to": "file:hooks/module_guard.py",
+   "type": "invokes",
+   "evidence": "extension/agents/hve-ux-designer.agent.md names hooks/module_guard.py"
+  },
+  {
+   "from": "file:extension/agents/hve-ux-designer.agent.md",
+   "to": "file:tools/map/solution_map.py",
+   "type": "invokes",
+   "evidence": "extension/agents/hve-ux-designer.agent.md names tools/map/solution_map.py"
+  },
+  {
+   "from": "file:extension/agents/hve-ux-reviewer.agent.md",
+   "to": "file:hooks/error_guard.py",
+   "type": "guarded-by",
+   "evidence": "extension/agents/hve-ux-reviewer.agent.md hook runs error_guard.py"
+  },
+  {
+   "from": "file:extension/agents/hve-ux-reviewer.agent.md",
+   "to": "file:hooks/error_guard.py",
+   "type": "invokes",
+   "evidence": "extension/agents/hve-ux-reviewer.agent.md names hooks/error_guard.py"
+  },
+  {
+   "from": "file:extension/agents/hve-ux-reviewer.agent.md",
+   "to": "file:tools/map/solution_map.py",
+   "type": "invokes",
+   "evidence": "extension/agents/hve-ux-reviewer.agent.md names tools/map/solution_map.py"
+  },
+  {
+   "from": "file:extension/build.py",
+   "to": "file:tools/loop/personas.py",
+   "type": "imports",
+   "evidence": "extension/build.py imports personas"
+  },
+  {
    "from": "file:extension/build.py",
    "to": "file:hooks/agent_compat.py",
    "type": "invokes",
@@ -23940,6 +25361,12 @@
    "to": "file:tools/loop/ask_plan.py",
    "type": "invokes",
    "evidence": "extension/build.py names ask_plan.py"
+  },
+  {
+   "from": "file:extension/build.py",
+   "to": "file:tools/loop/ask_project.py",
+   "type": "invokes",
+   "evidence": "extension/build.py names ask_project.py"
   },
   {
    "from": "file:extension/build.py",
@@ -24168,6 +25595,12 @@
    "to": "file:tools/git/parallel_options.py",
    "type": "invokes",
    "evidence": "extension/build.py names parallel_options.py"
+  },
+  {
+   "from": "file:extension/build.py",
+   "to": "file:tools/loop/personas.py",
+   "type": "invokes",
+   "evidence": "extension/build.py names personas.py"
   },
   {
    "from": "file:extension/build.py",
@@ -26018,6 +27451,30 @@
    "evidence": "D-061 names tools/map/extract.py"
   },
   {
+   "from": "file:tools/loop/lifecycle.py",
+   "to": "decision:D-062",
+   "type": "decided-in",
+   "evidence": "D-062 names lifecycle.py"
+  },
+  {
+   "from": "file:tests/test_personas.py",
+   "to": "decision:D-062",
+   "type": "decided-in",
+   "evidence": "D-062 names tests/test_personas.py"
+  },
+  {
+   "from": "file:tools/loop/ask_project.py",
+   "to": "decision:D-062",
+   "type": "decided-in",
+   "evidence": "D-062 names tools/loop/ask_project.py"
+  },
+  {
+   "from": "file:tools/loop/personas.py",
+   "to": "decision:D-062",
+   "type": "decided-in",
+   "evidence": "D-062 names tools/loop/personas.py"
+  },
+  {
    "from": "file:extension/build.py",
    "to": "file:research/findings/2026-10-13-evaluation-review-and-distribution.md",
    "type": "documented-in",
@@ -26439,9 +27896,327 @@
   },
   {
    "from": "file:templates/lifecycles/sdlc.json",
+   "to": "file:extension/agents/hve-solution-architect.agent.md",
+   "type": "delegates-to",
+   "evidence": "templates/lifecycles/sdlc.json names `HVE solution-architect`"
+  },
+  {
+   "from": "file:templates/lifecycles/sdlc.json",
    "to": "file:extension/agents/hve-engineer.agent.md",
    "type": "delegates-to",
    "evidence": "templates/lifecycles/sdlc.json names `HVE engineer`"
+  },
+  {
+   "from": "file:templates/lifecycles/team-delivery.json",
+   "to": "file:extension/agents/hve-product-manager.agent.md",
+   "type": "delegates-to",
+   "evidence": "templates/lifecycles/team-delivery.json names `HVE product-manager`"
+  },
+  {
+   "from": "file:templates/lifecycles/team-delivery.json",
+   "to": "file:extension/agents/hve-ux-designer.agent.md",
+   "type": "delegates-to",
+   "evidence": "templates/lifecycles/team-delivery.json names `HVE ux-designer`"
+  },
+  {
+   "from": "file:templates/lifecycles/team-delivery.json",
+   "to": "file:extension/agents/hve-solution-architect.agent.md",
+   "type": "delegates-to",
+   "evidence": "templates/lifecycles/team-delivery.json names `HVE solution-architect`"
+  },
+  {
+   "from": "file:templates/lifecycles/team-delivery.json",
+   "to": "file:extension/agents/hve-security-architect.agent.md",
+   "type": "delegates-to",
+   "evidence": "templates/lifecycles/team-delivery.json names `HVE security-architect`"
+  },
+  {
+   "from": "file:templates/lifecycles/team-delivery.json",
+   "to": "file:extension/agents/hve-db-architect.agent.md",
+   "type": "delegates-to",
+   "evidence": "templates/lifecycles/team-delivery.json names `HVE db-architect`"
+  },
+  {
+   "from": "file:templates/lifecycles/team-delivery.json",
+   "to": "file:extension/agents/hve-architecture-reviewer.agent.md",
+   "type": "delegates-to",
+   "evidence": "templates/lifecycles/team-delivery.json names `HVE architecture-reviewer`"
+  },
+  {
+   "from": "file:templates/lifecycles/team-delivery.json",
+   "to": "file:extension/agents/hve-db-engineer.agent.md",
+   "type": "delegates-to",
+   "evidence": "templates/lifecycles/team-delivery.json names `HVE db-engineer`"
+  },
+  {
+   "from": "file:templates/lifecycles/team-delivery.json",
+   "to": "file:extension/agents/hve-engineer.agent.md",
+   "type": "delegates-to",
+   "evidence": "templates/lifecycles/team-delivery.json names `HVE engineer`"
+  },
+  {
+   "from": "file:templates/lifecycles/team-delivery.json",
+   "to": "file:extension/agents/hve-ui-engineer.agent.md",
+   "type": "delegates-to",
+   "evidence": "templates/lifecycles/team-delivery.json names `HVE ui-engineer`"
+  },
+  {
+   "from": "file:templates/lifecycles/team-delivery.json",
+   "to": "file:extension/agents/hve-data-scientist.agent.md",
+   "type": "delegates-to",
+   "evidence": "templates/lifecycles/team-delivery.json names `HVE data-scientist`"
+  },
+  {
+   "from": "file:templates/lifecycles/team-delivery.json",
+   "to": "file:extension/agents/hve-test-architect.agent.md",
+   "type": "delegates-to",
+   "evidence": "templates/lifecycles/team-delivery.json names `HVE test-architect`"
+  },
+  {
+   "from": "file:templates/lifecycles/team-delivery.json",
+   "to": "file:extension/agents/hve-test-engineer.agent.md",
+   "type": "delegates-to",
+   "evidence": "templates/lifecycles/team-delivery.json names `HVE test-engineer`"
+  },
+  {
+   "from": "file:templates/lifecycles/team-delivery.json",
+   "to": "file:extension/agents/hve-devops-engineer.agent.md",
+   "type": "delegates-to",
+   "evidence": "templates/lifecycles/team-delivery.json names `HVE devops-engineer`"
+  },
+  {
+   "from": "file:templates/lifecycles/team-delivery.json",
+   "to": "file:extension/agents/hve-code-reviewer.agent.md",
+   "type": "delegates-to",
+   "evidence": "templates/lifecycles/team-delivery.json names `HVE code-reviewer`"
+  },
+  {
+   "from": "file:templates/lifecycles/team-delivery.json",
+   "to": "file:extension/agents/hve-security-reviewer.agent.md",
+   "type": "delegates-to",
+   "evidence": "templates/lifecycles/team-delivery.json names `HVE security-reviewer`"
+  },
+  {
+   "from": "file:templates/lifecycles/team-delivery.json",
+   "to": "file:extension/agents/hve-ux-reviewer.agent.md",
+   "type": "delegates-to",
+   "evidence": "templates/lifecycles/team-delivery.json names `HVE ux-reviewer`"
+  },
+  {
+   "from": "file:templates/lifecycles/team-delivery.json",
+   "to": "file:extension/agents/hve-test-reviewer.agent.md",
+   "type": "delegates-to",
+   "evidence": "templates/lifecycles/team-delivery.json names `HVE test-reviewer`"
+  },
+  {
+   "from": "file:templates/lifecycles/team-delivery.json",
+   "to": "file:extension/agents/hve-product-reviewer.agent.md",
+   "type": "delegates-to",
+   "evidence": "templates/lifecycles/team-delivery.json names `HVE product-reviewer`"
+  },
+  {
+   "from": "file:templates/personas/builder.agent.md",
+   "to": "file:hooks/error_guard.py",
+   "type": "guarded-by",
+   "evidence": "templates/personas/builder.agent.md hook runs error_guard.py"
+  },
+  {
+   "from": "file:templates/personas/builder.agent.md",
+   "to": "file:hooks/loop_guard.py",
+   "type": "guarded-by",
+   "evidence": "templates/personas/builder.agent.md hook runs loop_guard.py"
+  },
+  {
+   "from": "file:templates/personas/builder.agent.md",
+   "to": "file:hooks/module_guard.py",
+   "type": "guarded-by",
+   "evidence": "templates/personas/builder.agent.md hook runs module_guard.py"
+  },
+  {
+   "from": "file:templates/personas/builder.agent.md",
+   "to": "file:hooks/error_guard.py",
+   "type": "invokes",
+   "evidence": "templates/personas/builder.agent.md names hooks/error_guard.py"
+  },
+  {
+   "from": "file:templates/personas/builder.agent.md",
+   "to": "file:hooks/loop_guard.py",
+   "type": "invokes",
+   "evidence": "templates/personas/builder.agent.md names hooks/loop_guard.py"
+  },
+  {
+   "from": "file:templates/personas/builder.agent.md",
+   "to": "file:hooks/module_guard.py",
+   "type": "invokes",
+   "evidence": "templates/personas/builder.agent.md names hooks/module_guard.py"
+  },
+  {
+   "from": "file:templates/personas/builder.agent.md",
+   "to": "file:tools/loop/loop.py",
+   "type": "invokes",
+   "evidence": "templates/personas/builder.agent.md names loop.py"
+  },
+  {
+   "from": "file:templates/personas/builder.agent.md",
+   "to": "file:tools/map/solution_map.py",
+   "type": "invokes",
+   "evidence": "templates/personas/builder.agent.md names tools/map/solution_map.py"
+  },
+  {
+   "from": "file:templates/personas/catalog.json",
+   "to": "file:extension/agents/hve-product-manager.agent.md",
+   "type": "delegates-to",
+   "evidence": "templates/personas/catalog.json names `HVE product-manager`"
+  },
+  {
+   "from": "file:templates/personas/catalog.json",
+   "to": "file:extension/agents/hve-data-scientist.agent.md",
+   "type": "delegates-to",
+   "evidence": "templates/personas/catalog.json names `HVE data-scientist`"
+  },
+  {
+   "from": "file:templates/personas/catalog.json",
+   "to": "file:extension/agents/hve-solution-architect.agent.md",
+   "type": "delegates-to",
+   "evidence": "templates/personas/catalog.json names `HVE solution-architect`"
+  },
+  {
+   "from": "file:templates/personas/catalog.json",
+   "to": "file:extension/agents/hve-db-architect.agent.md",
+   "type": "delegates-to",
+   "evidence": "templates/personas/catalog.json names `HVE db-architect`"
+  },
+  {
+   "from": "file:templates/personas/catalog.json",
+   "to": "file:extension/agents/hve-db-engineer.agent.md",
+   "type": "delegates-to",
+   "evidence": "templates/personas/catalog.json names `HVE db-engineer`"
+  },
+  {
+   "from": "file:templates/personas/catalog.json",
+   "to": "file:extension/agents/hve-devops-engineer.agent.md",
+   "type": "delegates-to",
+   "evidence": "templates/personas/catalog.json names `HVE devops-engineer`"
+  },
+  {
+   "from": "file:templates/personas/catalog.json",
+   "to": "file:extension/agents/hve-security-architect.agent.md",
+   "type": "delegates-to",
+   "evidence": "templates/personas/catalog.json names `HVE security-architect`"
+  },
+  {
+   "from": "file:templates/personas/catalog.json",
+   "to": "file:extension/agents/hve-engineer.agent.md",
+   "type": "delegates-to",
+   "evidence": "templates/personas/catalog.json names `HVE engineer`"
+  },
+  {
+   "from": "file:templates/personas/catalog.json",
+   "to": "file:extension/agents/hve-test-engineer.agent.md",
+   "type": "delegates-to",
+   "evidence": "templates/personas/catalog.json names `HVE test-engineer`"
+  },
+  {
+   "from": "file:templates/personas/catalog.json",
+   "to": "file:extension/agents/hve-test-architect.agent.md",
+   "type": "delegates-to",
+   "evidence": "templates/personas/catalog.json names `HVE test-architect`"
+  },
+  {
+   "from": "file:templates/personas/catalog.json",
+   "to": "file:extension/agents/hve-ux-designer.agent.md",
+   "type": "delegates-to",
+   "evidence": "templates/personas/catalog.json names `HVE ux-designer`"
+  },
+  {
+   "from": "file:templates/personas/catalog.json",
+   "to": "file:extension/agents/hve-ui-engineer.agent.md",
+   "type": "delegates-to",
+   "evidence": "templates/personas/catalog.json names `HVE ui-engineer`"
+  },
+  {
+   "from": "file:templates/personas/catalog.json",
+   "to": "file:extension/agents/hve-code-reviewer.agent.md",
+   "type": "delegates-to",
+   "evidence": "templates/personas/catalog.json names `HVE code-reviewer`"
+  },
+  {
+   "from": "file:templates/personas/catalog.json",
+   "to": "file:extension/agents/hve-architecture-reviewer.agent.md",
+   "type": "delegates-to",
+   "evidence": "templates/personas/catalog.json names `HVE architecture-reviewer`"
+  },
+  {
+   "from": "file:templates/personas/catalog.json",
+   "to": "file:extension/agents/hve-security-reviewer.agent.md",
+   "type": "delegates-to",
+   "evidence": "templates/personas/catalog.json names `HVE security-reviewer`"
+  },
+  {
+   "from": "file:templates/personas/catalog.json",
+   "to": "file:extension/agents/hve-ux-reviewer.agent.md",
+   "type": "delegates-to",
+   "evidence": "templates/personas/catalog.json names `HVE ux-reviewer`"
+  },
+  {
+   "from": "file:templates/personas/catalog.json",
+   "to": "file:extension/agents/hve-test-reviewer.agent.md",
+   "type": "delegates-to",
+   "evidence": "templates/personas/catalog.json names `HVE test-reviewer`"
+  },
+  {
+   "from": "file:templates/personas/catalog.json",
+   "to": "file:extension/agents/hve-product-reviewer.agent.md",
+   "type": "delegates-to",
+   "evidence": "templates/personas/catalog.json names `HVE product-reviewer`"
+  },
+  {
+   "from": "file:templates/personas/designer.agent.md",
+   "to": "file:hooks/error_guard.py",
+   "type": "guarded-by",
+   "evidence": "templates/personas/designer.agent.md hook runs error_guard.py"
+  },
+  {
+   "from": "file:templates/personas/designer.agent.md",
+   "to": "file:hooks/module_guard.py",
+   "type": "guarded-by",
+   "evidence": "templates/personas/designer.agent.md hook runs module_guard.py"
+  },
+  {
+   "from": "file:templates/personas/designer.agent.md",
+   "to": "file:hooks/error_guard.py",
+   "type": "invokes",
+   "evidence": "templates/personas/designer.agent.md names hooks/error_guard.py"
+  },
+  {
+   "from": "file:templates/personas/designer.agent.md",
+   "to": "file:hooks/module_guard.py",
+   "type": "invokes",
+   "evidence": "templates/personas/designer.agent.md names hooks/module_guard.py"
+  },
+  {
+   "from": "file:templates/personas/designer.agent.md",
+   "to": "file:tools/map/solution_map.py",
+   "type": "invokes",
+   "evidence": "templates/personas/designer.agent.md names tools/map/solution_map.py"
+  },
+  {
+   "from": "file:templates/personas/reviewer.agent.md",
+   "to": "file:hooks/error_guard.py",
+   "type": "guarded-by",
+   "evidence": "templates/personas/reviewer.agent.md hook runs error_guard.py"
+  },
+  {
+   "from": "file:templates/personas/reviewer.agent.md",
+   "to": "file:hooks/error_guard.py",
+   "type": "invokes",
+   "evidence": "templates/personas/reviewer.agent.md names hooks/error_guard.py"
+  },
+  {
+   "from": "file:templates/personas/reviewer.agent.md",
+   "to": "file:tools/map/solution_map.py",
+   "type": "invokes",
+   "evidence": "templates/personas/reviewer.agent.md names tools/map/solution_map.py"
   },
   {
    "from": "file:.vscode/mcp.json",
@@ -27056,6 +28831,36 @@
    "evidence": "tests/test_metrics.py names hve_paths.py"
   },
   {
+   "from": "file:tools/loop/personas.py",
+   "to": "file:tests/test_personas.py",
+   "type": "tested-by",
+   "evidence": "tests/test_personas.py names personas.py"
+  },
+  {
+   "from": "file:tools/loop/lifecycle_catalog.py",
+   "to": "file:tests/test_personas.py",
+   "type": "tested-by",
+   "evidence": "tests/test_personas.py imports lifecycle_catalog"
+  },
+  {
+   "from": "file:extension/build.py",
+   "to": "file:tests/test_personas.py",
+   "type": "tested-by",
+   "evidence": "tests/test_personas.py names extension/build.py"
+  },
+  {
+   "from": "file:tools/loop/lifecycle.py",
+   "to": "file:tests/test_personas.py",
+   "type": "tested-by",
+   "evidence": "tests/test_personas.py names lifecycle.py"
+  },
+  {
+   "from": "file:templates/personas/catalog.json",
+   "to": "file:tests/test_personas.py",
+   "type": "tested-by",
+   "evidence": "tests/test_personas.py names templates/personas/catalog.json"
+  },
+  {
    "from": "file:tools/evaluation/compose.py",
    "to": "file:tests/test_plugins.py",
    "type": "tested-by",
@@ -27218,6 +29023,12 @@
    "evidence": "tests/test_skills.py names ask_plan.py"
   },
   {
+   "from": "file:tools/loop/ask_project.py",
+   "to": "file:tests/test_skills.py",
+   "type": "tested-by",
+   "evidence": "tests/test_skills.py names ask_project.py"
+  },
+  {
    "from": "file:tools/loop/environment.py",
    "to": "file:tests/test_skills.py",
    "type": "tested-by",
@@ -27270,6 +29081,12 @@
    "to": "file:tests/test_skills.py",
    "type": "tested-by",
    "evidence": "tests/test_skills.py names mcp.json"
+  },
+  {
+   "from": "file:tools/loop/personas.py",
+   "to": "file:tests/test_skills.py",
+   "type": "tested-by",
+   "evidence": "tests/test_skills.py names personas.py"
   },
   {
    "from": "file:tools/skills/recommend.py",
@@ -27428,6 +29245,24 @@
    "evidence": "tools/loop/ask_plan.py names lifecycle.py"
   },
   {
+   "from": "file:tools/loop/ask_project.py",
+   "to": "file:tools/loop/loop_paths.py",
+   "type": "imports",
+   "evidence": "tools/loop/ask_project.py imports loop_paths"
+  },
+  {
+   "from": "file:tools/loop/ask_project.py",
+   "to": "file:tools/loop/lifecycle_catalog.py",
+   "type": "imports",
+   "evidence": "tools/loop/ask_project.py imports lifecycle_catalog"
+  },
+  {
+   "from": "file:tools/loop/ask_project.py",
+   "to": "file:tools/skills/recommend.py",
+   "type": "imports",
+   "evidence": "tools/loop/ask_project.py imports recommend"
+  },
+  {
    "from": "file:tools/loop/ask_report.py",
    "to": "file:tools/loop/lifecycle.py",
    "type": "imports",
@@ -27531,9 +29366,21 @@
   },
   {
    "from": "file:tools/loop/lifecycle.py",
+   "to": "file:tools/loop/ask_project.py",
+   "type": "imports",
+   "evidence": "tools/loop/lifecycle.py imports ask_project"
+  },
+  {
+   "from": "file:tools/loop/lifecycle.py",
    "to": "file:tools/loop/ask_packs.py",
    "type": "imports",
    "evidence": "tools/loop/lifecycle.py imports ask_packs"
+  },
+  {
+   "from": "file:tools/loop/lifecycle.py",
+   "to": "file:tools/loop/personas.py",
+   "type": "imports",
+   "evidence": "tools/loop/lifecycle.py imports personas"
   },
   {
    "from": "file:tools/loop/lifecycle.py",
@@ -28016,10 +29863,16 @@
    "evidence": "tools/evaluation/workflow.py:153"
   },
   {
+   "from": "file:tools/loop/ask_project.py",
+   "to": "store:contract",
+   "type": "uses",
+   "evidence": "tools/loop/ask_project.py:102"
+  },
+  {
    "from": "file:tools/loop/lifecycle.py",
    "to": "store:contract",
    "type": "uses",
-   "evidence": "tools/loop/lifecycle.py:322"
+   "evidence": "tools/loop/lifecycle.py:261"
   },
   {
    "from": "file:tools/observe/provenance.py",
@@ -28073,7 +29926,7 @@
    "from": "file:tools/loop/ask_plan.py",
    "to": "store:plan",
    "type": "uses",
-   "evidence": "tools/loop/ask_plan.py:142"
+   "evidence": "tools/loop/ask_plan.py:149"
   },
   {
    "from": "file:tools/loop/ask_report.py",
@@ -28085,7 +29938,7 @@
    "from": "file:tools/loop/lifecycle.py",
    "to": "store:plan",
    "type": "uses",
-   "evidence": "tools/loop/lifecycle.py:366"
+   "evidence": "tools/loop/lifecycle.py:305"
   },
   {
    "from": "orchestration:asks",
@@ -28178,6 +30031,12 @@
    "evidence": "tools/evaluation/workflow.py:263"
   },
   {
+   "from": "file:tools/loop/ask_project.py",
+   "to": "store:feature-list",
+   "type": "uses",
+   "evidence": "tools/loop/ask_project.py:80"
+  },
+  {
    "from": "file:tools/loop/ask_report.py",
    "to": "store:feature-list",
    "type": "uses",
@@ -28193,7 +30052,7 @@
    "from": "file:tools/loop/lifecycle.py",
    "to": "store:feature-list",
    "type": "uses",
-   "evidence": "tools/loop/lifecycle.py:383"
+   "evidence": "tools/loop/lifecycle.py:322"
   },
   {
    "from": "file:tools/loop/loop.py",
@@ -28367,7 +30226,7 @@
    "from": "file:tools/loop/lifecycle.py",
    "to": "store:loaded-skills",
    "type": "uses",
-   "evidence": "tools/loop/lifecycle.py:412"
+   "evidence": "tools/loop/lifecycle.py:354"
   },
   {
    "from": "file:tools/skills/recommend.py",
@@ -28593,7 +30452,19 @@
   },
   {
    "from": "concept:agents",
+   "to": "file:extension/agents/hve-architecture-reviewer.agent.md",
+   "type": "includes",
+   "evidence": "concept members"
+  },
+  {
+   "from": "concept:agents",
    "to": "file:extension/agents/hve-azure-devops.agent.md",
+   "type": "includes",
+   "evidence": "concept members"
+  },
+  {
+   "from": "concept:agents",
+   "to": "file:extension/agents/hve-code-reviewer.agent.md",
    "type": "includes",
    "evidence": "concept members"
   },
@@ -28618,6 +30489,30 @@
   {
    "from": "concept:agents",
    "to": "file:extension/agents/hve-creator.agent.md",
+   "type": "includes",
+   "evidence": "concept members"
+  },
+  {
+   "from": "concept:agents",
+   "to": "file:extension/agents/hve-data-scientist.agent.md",
+   "type": "includes",
+   "evidence": "concept members"
+  },
+  {
+   "from": "concept:agents",
+   "to": "file:extension/agents/hve-db-architect.agent.md",
+   "type": "includes",
+   "evidence": "concept members"
+  },
+  {
+   "from": "concept:agents",
+   "to": "file:extension/agents/hve-db-engineer.agent.md",
+   "type": "includes",
+   "evidence": "concept members"
+  },
+  {
+   "from": "concept:agents",
+   "to": "file:extension/agents/hve-devops-engineer.agent.md",
    "type": "includes",
    "evidence": "concept members"
   },
@@ -28689,7 +30584,25 @@
   },
   {
    "from": "concept:agents",
+   "to": "file:extension/agents/hve-product-reviewer.agent.md",
+   "type": "includes",
+   "evidence": "concept members"
+  },
+  {
+   "from": "concept:agents",
    "to": "file:extension/agents/hve-prototype.agent.md",
+   "type": "includes",
+   "evidence": "concept members"
+  },
+  {
+   "from": "concept:agents",
+   "to": "file:extension/agents/hve-security-architect.agent.md",
+   "type": "includes",
+   "evidence": "concept members"
+  },
+  {
+   "from": "concept:agents",
+   "to": "file:extension/agents/hve-security-reviewer.agent.md",
    "type": "includes",
    "evidence": "concept members"
   },
@@ -28719,7 +30632,49 @@
   },
   {
    "from": "concept:agents",
+   "to": "file:extension/agents/hve-solution-architect.agent.md",
+   "type": "includes",
+   "evidence": "concept members"
+  },
+  {
+   "from": "concept:agents",
+   "to": "file:extension/agents/hve-test-architect.agent.md",
+   "type": "includes",
+   "evidence": "concept members"
+  },
+  {
+   "from": "concept:agents",
+   "to": "file:extension/agents/hve-test-engineer.agent.md",
+   "type": "includes",
+   "evidence": "concept members"
+  },
+  {
+   "from": "concept:agents",
+   "to": "file:extension/agents/hve-test-reviewer.agent.md",
+   "type": "includes",
+   "evidence": "concept members"
+  },
+  {
+   "from": "concept:agents",
+   "to": "file:extension/agents/hve-ui-engineer.agent.md",
+   "type": "includes",
+   "evidence": "concept members"
+  },
+  {
+   "from": "concept:agents",
    "to": "file:extension/agents/hve-uplift-judge.agent.md",
+   "type": "includes",
+   "evidence": "concept members"
+  },
+  {
+   "from": "concept:agents",
+   "to": "file:extension/agents/hve-ux-designer.agent.md",
+   "type": "includes",
+   "evidence": "concept members"
+  },
+  {
+   "from": "concept:agents",
+   "to": "file:extension/agents/hve-ux-reviewer.agent.md",
    "type": "includes",
    "evidence": "concept members"
   },
@@ -28732,6 +30687,36 @@
   {
    "from": "concept:agents",
    "to": "file:hooks/agent_ledger.py",
+   "type": "includes",
+   "evidence": "concept members"
+  },
+  {
+   "from": "concept:agents",
+   "to": "file:templates/personas/builder.agent.md",
+   "type": "includes",
+   "evidence": "concept members"
+  },
+  {
+   "from": "concept:agents",
+   "to": "file:templates/personas/catalog.json",
+   "type": "includes",
+   "evidence": "concept members"
+  },
+  {
+   "from": "concept:agents",
+   "to": "file:templates/personas/designer.agent.md",
+   "type": "includes",
+   "evidence": "concept members"
+  },
+  {
+   "from": "concept:agents",
+   "to": "file:templates/personas/reviewer.agent.md",
+   "type": "includes",
+   "evidence": "concept members"
+  },
+  {
+   "from": "concept:agents",
+   "to": "file:tools/loop/personas.py",
    "type": "includes",
    "evidence": "concept members"
   },
@@ -29451,6 +31436,12 @@
   },
   {
    "from": "concept:asks",
+   "to": "file:templates/lifecycles/team-delivery.json",
+   "type": "includes",
+   "evidence": "concept members"
+  },
+  {
+   "from": "concept:asks",
    "to": "file:tools/loop/ask_packs.py",
    "type": "includes",
    "evidence": "concept members"
@@ -29458,6 +31449,12 @@
   {
    "from": "concept:asks",
    "to": "file:tools/loop/ask_plan.py",
+   "type": "includes",
+   "evidence": "concept members"
+  },
+  {
+   "from": "concept:asks",
+   "to": "file:tools/loop/ask_project.py",
    "type": "includes",
    "evidence": "concept members"
   },
@@ -30180,16 +32177,16 @@
   "docs/design/TDS-solution-map.md": "1da9fbe90c416197",
   "docs/execution/plans/EXEC-PLAN-deliverable-templates.md": "6d44862b2d43f434",
   "docs/wiki/Adapters.md": "94f1ac7f3aef114a",
-  "docs/wiki/Agents.md": "d5c5f936b2e53b74",
+  "docs/wiki/Agents.md": "52a923795d435819",
   "docs/wiki/Evaluation.md": "cdfa9e26fb9a67f7",
   "docs/wiki/Home.md": "615e68eca6931cb2",
   "docs/wiki/Install.md": "07dd7f28db8afbea",
-  "docs/wiki/Plugins.md": "c5892adf8b1be321",
+  "docs/wiki/Plugins.md": "6b22e2009efa9ee1",
   "docs/wiki/Product-Manager.md": "076548b70e9464f4",
   "docs/wiki/Skills.md": "72f4813213e505ea",
-  "docs/wiki/Solution-Map.md": "37b52fb0b37ff650",
+  "docs/wiki/Solution-Map.md": "03fd3cfdfd6b63da",
   "docs/wiki/Templates.md": "069e72ad706ca062",
-  "docs/wiki/Ways-of-Working.md": "e21c17a4f694fb54",
+  "docs/wiki/Ways-of-Working.md": "1439aa822f32c96d",
   "evaluation/frontier.eval.json": "482a327d7553fb3a",
   "examples/plugins/oracle-offering/README.md": "ef01ef199ed3722d",
   "examples/plugins/oracle-offering/agents/oracle-db-architect.agent.md": "62432c2e57728884",
@@ -30207,13 +32204,19 @@
   "examples/plugins/oracle-offering/templates/oracle-migration-runbook-v1.md": "83910691d13a9e68",
   "examples/plugins/oracle-offering/templates/oracle-solution-design-v1.md": "fc10a9eb4818f4d6",
   "examples/plugins/oracle-offering/tests/routing.json": "f34cc6cba4530b17",
-  "extension/agents/hve-agile.agent.md": "12959b3672559d6d",
+  "extension/agents/hve-agile.agent.md": "92d80a433f6feb71",
+  "extension/agents/hve-architecture-reviewer.agent.md": "95deafc9f2566c04",
   "extension/agents/hve-azure-devops.agent.md": "26c6ddf05025aca8",
+  "extension/agents/hve-code-reviewer.agent.md": "d9dbe9ce759f64bf",
   "extension/agents/hve-council.agent.md": "a26ceae8bf507be1",
   "extension/agents/hve-creator-flow.agent.md": "cdebbdf7cd3832ad",
   "extension/agents/hve-creator-github.agent.md": "13dc8ac0948b923d",
-  "extension/agents/hve-creator.agent.md": "d26b0127b60b2c5f",
-  "extension/agents/hve-e2e.agent.md": "7a83c66b92e892ab",
+  "extension/agents/hve-creator.agent.md": "23a4278807406333",
+  "extension/agents/hve-data-scientist.agent.md": "e447b3c4eba9c8a0",
+  "extension/agents/hve-db-architect.agent.md": "7c707aec22d8af05",
+  "extension/agents/hve-db-engineer.agent.md": "39a12788eaec6dc3",
+  "extension/agents/hve-devops-engineer.agent.md": "dbabeb259843625f",
+  "extension/agents/hve-e2e.agent.md": "3a045887b60e01e7",
   "extension/agents/hve-engineer.agent.md": "2f8f1cfcf2305c10",
   "extension/agents/hve-evaluation-reviewer.agent.md": "f9df30715427b415",
   "extension/agents/hve-flow-architect.agent.md": "01b0efa1e1ba7fc0",
@@ -30224,15 +32227,25 @@
   "extension/agents/hve-flow-sweeper.agent.md": "ec20b76d61184a6f",
   "extension/agents/hve-minimal.agent.md": "78f38da8bc616f64",
   "extension/agents/hve-product-manager.agent.md": "c5693aa47b1a96b3",
-  "extension/agents/hve-prototype.agent.md": "783e0ff6f9fdfdb2",
+  "extension/agents/hve-product-reviewer.agent.md": "7c0c4d002c68fa10",
+  "extension/agents/hve-prototype.agent.md": "65ce0cf2e4d4bad5",
+  "extension/agents/hve-security-architect.agent.md": "9e785065606d6b38",
+  "extension/agents/hve-security-reviewer.agent.md": "f4557e7560d96b2b",
   "extension/agents/hve-single.agent.md": "83d8df93794d6e05",
   "extension/agents/hve-skill-evaluator.agent.md": "38f90fa714da4d1b",
   "extension/agents/hve-skill-judge.agent.md": "44ef025b21fa182a",
   "extension/agents/hve-skill-worker.agent.md": "d591b4bd24305784",
+  "extension/agents/hve-solution-architect.agent.md": "5c5c2c593f06c848",
+  "extension/agents/hve-test-architect.agent.md": "40e39e154ba26799",
+  "extension/agents/hve-test-engineer.agent.md": "cf2406adfdff8205",
+  "extension/agents/hve-test-reviewer.agent.md": "f4e2782fabac7db3",
+  "extension/agents/hve-ui-engineer.agent.md": "ee5a10b240766b9f",
   "extension/agents/hve-uplift-judge.agent.md": "35265d3b0ab4bfc9",
-  "extension/build.py": "e87575e60900b78f",
+  "extension/agents/hve-ux-designer.agent.md": "1967e314a626ce23",
+  "extension/agents/hve-ux-reviewer.agent.md": "f5f26d64199ea99d",
+  "extension/build.py": "2bc39e7db4a75550",
   "extension/extension.js": "b9ab3e8a179ad78a",
-  "extension/package.json": "afa2ab7c667bf6d7",
+  "extension/package.json": "10d460fc92e3fd8c",
   "extension/packs.js": "6b04f30306d780a7",
   "extension/render.js": "bfe130045d119b4f",
   "feature_list.json": "a5338d955b09046e",
@@ -30282,7 +32295,7 @@
   "reference/Harness Evaluation Layer.md": "f8d80b71156647b8",
   "reference/Implementation Plan Enterprise AI Harness v3.md": "0be2e119b9cdcf7d",
   "reference/initial_request.md": "5fd5965d66136ae3",
-  "research/decisions/decision_log.md": "783978a5b69117bb",
+  "research/decisions/decision_log.md": "5e3c6e6e26f341a1",
   "research/findings/2026-10-13-evaluation-review-and-distribution.md": "f749fc61dc86dbcc",
   "research/findings/2026-10-15-harness-refactor-plan.md": "e5ccb8438592efc4",
   "research/findings/2026-10-21-1856-feedback-project-level-continuation-renames.md": "ae0f36ee56c49c3e",
@@ -30342,23 +32355,29 @@
   "templates/deliverables/prd-v1.md": "78a976496cd89205",
   "templates/deliverables/technical-design-v1.md": "153f72ea2af41bad",
   "templates/deliverables/test-strategy-v1.md": "e7ea944e19ead1cc",
-  "templates/lifecycles/agile-scrum.json": "9b4ab1618dae21fc",
+  "templates/lifecycles/agile-scrum.json": "7c1abbe3fab2b284",
   "templates/lifecycles/consulting-delivery.json": "3314fcfa720047ee",
   "templates/lifecycles/direct.json": "ae791a4272350f97",
   "templates/lifecycles/document.json": "3e8e5468c152c99a",
-  "templates/lifecycles/sdlc.json": "22310a6fff817285",
+  "templates/lifecycles/sdlc.json": "8c8f64df5893788c",
+  "templates/lifecycles/team-delivery.json": "24a071974a0eee0d",
+  "templates/personas/builder.agent.md": "0f181db67982a81e",
+  "templates/personas/catalog.json": "1d92979c1c002162",
+  "templates/personas/designer.agent.md": "6e98bc8943df9822",
+  "templates/personas/reviewer.agent.md": "ab698023b1dcd3fe",
   "tests/test_adapters.py": "c2115ae966ca97b7",
   "tests/test_backlog.py": "3c2f7605b4c4b436",
-  "tests/test_collect.py": "3af7a30671975af4",
+  "tests/test_collect.py": "e4e4c38fd26d1be7",
   "tests/test_evaluation.py": "ee80b7339df543d9",
-  "tests/test_extension.py": "1bad33096b705f32",
+  "tests/test_extension.py": "e30250358ca8bb42",
   "tests/test_flow_plugin.py": "94bca0e9fda8d378",
   "tests/test_hooks.py": "6435aaf0afafd5c7",
   "tests/test_loop.py": "9931712f897e3d33",
   "tests/test_map.py": "704b66797257fc79",
   "tests/test_metrics.py": "a48f60714a202df9",
-  "tests/test_plugins.py": "1d97e3c3f4dcb4b4",
-  "tests/test_skills.py": "8b6b35a28ac965e9",
+  "tests/test_personas.py": "84d26f3e2c559442",
+  "tests/test_plugins.py": "7657c54b8ebb60b5",
+  "tests/test_skills.py": "3cb579ff51878f12",
   "tests/test_templates.py": "742ea9512dfa0334",
   "tests/test_trajectory.py": "143af458a2d30194",
   "tools/adapters/export.py": "cd7226fdde66a254",
@@ -30370,15 +32389,17 @@
   "tools/git/branch_workflow.py": "766c762a7db0ecca",
   "tools/git/parallel_options.py": "ca76cc756cd4d1a0",
   "tools/loop/ask_packs.py": "44d50c9d9ea30ac3",
-  "tools/loop/ask_plan.py": "c401a757c7df0c38",
+  "tools/loop/ask_plan.py": "dc4d52c22d7b13de",
+  "tools/loop/ask_project.py": "db80a116471f6d26",
   "tools/loop/ask_report.py": "37e67f968ba32053",
   "tools/loop/diagnose.py": "75857ccc7beeee24",
   "tools/loop/environment.py": "deb380237fc740a8",
   "tools/loop/flow.py": "8ca1d6e5acce2f76",
-  "tools/loop/lifecycle.py": "6bb5ed69aa83e1ec",
-  "tools/loop/lifecycle_catalog.py": "ffec65a7058c4536",
+  "tools/loop/lifecycle.py": "914a16c13af6a814",
+  "tools/loop/lifecycle_catalog.py": "4d65c67101fcdc28",
   "tools/loop/loop.py": "7719aa4f4a3974eb",
   "tools/loop/loop_paths.py": "f668c5f2259e2df7",
+  "tools/loop/personas.py": "38aa743684214de7",
   "tools/loop/stage_evidence.py": "0454dd9076eaed80",
   "tools/map/explorer/app.js": "33f557b6724c8690",
   "tools/map/explorer/graph.js": "51c74e26d3f49d32",
@@ -30411,6 +32432,6 @@
   "tools/skills/scan.py": "c21b14e08f26815f",
   "tools/skills/triage.py": "93f92362577a499e",
   "tools/templates/manage.py": "5bc35144084f575c",
-  "tracker.json": "8eba57395b58629d"
+  "tracker.json": "5bf5f1fa98b27aeb"
  }
 }

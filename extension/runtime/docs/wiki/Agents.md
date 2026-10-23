@@ -8,8 +8,8 @@ Since 0.15.0 the picker shows only the delivery agents (D-055), and since 0.15.3
 
 | Agent | Use it for | Guard hooks | Needs Python |
 |---|---|---|---|
-| `Frontier E2E Delivery` (`hve-e2e`) | End-to-end delivery along a lifecycle (SDLC, consulting or a plugin/workspace one) with a gate per stage; build stages run as feature loops. E.g. a leave app from discovery to release, or a consulting deliverable with signed-off stages | as creator | Yes |
-| `Frontier BYOW` (`hve-agile`, Bring your own way of working) | Sprints along your team's agile overlay (built-in Scrum, a plugin's or a workspace one) with product manager, UI/UX and engineer personas, a hand-off review per persona and a review per sprint. E.g. a Scrum sprint on a customer portal, or your team's Kanban overlay | as creator | Yes |
+| `Frontier HVE Auto` (`hve-e2e`, autonomous; formerly Frontier E2E Delivery) | End-to-end delivery along a lifecycle (SDLC, team delivery, consulting or a plugin/workspace one), pausing only after the milestones you tick in the plan; build stages run as feature loops with their persona. E.g. a leave app from discovery to release with one review after design | as creator | Yes |
+| `Frontier HVE Collab` (`hve-agile`, collaborative; formerly Frontier BYOW) | Come in at any stage and run one, several or all stages of `team-delivery` with the right persona, each visit its own ask with a project ledger; a pack lifecycle can run in place of a stage; or sprints along your team's agile overlay. E.g. data architecture and build with the Oracle pack now, a design review next week | as creator | Yes |
 | `Frontier Prototype Creator` (`hve-prototype`) | Fast UI/UX clickthrough (HTML or TypeScript) in the ask folder's `prototype/`, self-checked (`tools/prototype/check.py`) with a screenshot per screen; no loop; output evaluation on request. E.g. three screens of a leave request flow for a stakeholder demo | loop (safety only) | Yes |
 | `HVE creator` | Build software: verified feature loop, then output evaluation ([Evaluation](Evaluation.md)) | loop, module, error, prototype, template, skill, profile, compaction, choice | Yes |
 
@@ -19,7 +19,7 @@ Hidden in the extension (`user-invocable: false`): the agents below still ship a
 |---|---|---|---|
 | `HVE creator-flow` | Build through the graph workflow (Designer → ... → Maintainer) | as creator; stage agents add the stage guard | Yes |
 | `HVE creator-github` | Product work on GitHub: stacked branches, options you pick, PRs pushed only when you tick them | as creator | Yes |
-| `HVE product-manager` | Research, PRD in the configured template, backlog ([Product Manager](Product-Manager.md)); the product manager persona of E2E and BYOW | template (PRD only), skill (`prd` always loaded), profile, compaction | Yes |
+| `HVE product-manager` | Research, PRD in the configured template, backlog ([Product Manager](Product-Manager.md)); the product manager persona of Auto and Collab | template (PRD only), skill (`prd` always loaded), profile, compaction | Yes |
 | `HVE single` | One agent with file, search and terminal tools | template | Yes |
 | `HVE minimal` | Baseline answer, no tools | none | No |
 | `HVE skill-evaluator` | Onboard a skill with evidence ([Skills](Skills.md)) | none | Yes (tools) |
@@ -65,11 +65,11 @@ When another ask is still open (milestones not done, or an evaluation you asked 
 
 ## Lifecycles
 
-`Frontier E2E Delivery` and `Frontier BYOW` start with `tools/loop/lifecycle.py route <request-file>` (expertise packs routed by the request, then lifecycles with matched packs' overlays first), show the stages and ask which lifecycle, which stages to skip and, when packs match, which packs to use; the practitioner's call wins. A stage whose agent is `HVE engineer` is a feature loop the orchestrator runs itself, one engineer per feature. Lifecycles are JSON files with stages (goal, agent, library skills, plugin skills, templates, exit gate, when to skip, and optionally `evidence` checked before the stage is done and a capped `rework` step back):
+`Frontier HVE Auto` and `Frontier HVE Collab` start with `tools/loop/lifecycle.py route <request-file>` (expertise packs routed by the request, then lifecycles with matched packs' overlays first), show the stages and ask which lifecycle, which stages to skip and, when packs match, which packs to use; the practitioner's call wins. A stage with `loop: true` is a feature loop the orchestrator runs itself, each feature delegated to the stage's agent (`HVE engineer`, `HVE db-engineer`, `HVE ui-engineer`, `HVE test-engineer`, `HVE devops-engineer`). Lifecycles are JSON files with stages (goal, agent, library skills, plugin skills, templates, exit gate, when to skip, and optionally `loop`, `evidence` checked before the stage is done and a capped `rework` step back):
 
 | Source | Folder | Wins over |
 |---|---|---|
-| Built-in | `templates/lifecycles/` (`sdlc`, `agile-scrum`, `consulting-delivery`, `document`, `direct`) | - |
+| Built-in | `templates/lifecycles/` (`sdlc`, `agile-scrum`, `team-delivery`, `consulting-delivery`, `document`, `direct`) | - |
 | Plugin | `plugins/<name>/lifecycles/` (folders without `hve-plugin.json`) | built-in |
 | Workspace | `.hve/lifecycles/` | built-in and plugin |
 | Expertise pack | `<pack>/lifecycles/`, named `<pack>:<name>` ([Expertise packs](Plugins.md)) | - (own names) |
@@ -78,12 +78,37 @@ When another ask is still open (milestones not done, or an evaluation you asked 
 
 The repository's `.github/agents/` holds the research arms (`minimal`, `single`, `creator`, `creator-flow`, `creator-github`): pinned model, time budget, metrics and Graphify, working in `.hve/outputs/<mode>/current/`. They exist for `tools/observe/bench.py` and differ from the product agents on purpose.
 
+## Personas, Collab stage entry and Auto gates
+
+**Personas.** `templates/personas/catalog.json` lists 18 personas. Two are existing agents: TPM is `HVE product-manager` and Engineer is `HVE engineer`. The other 16 are rendered by `tools/loop/personas.py` from one template per kind when `extension/build.py` runs, so edit the catalog, not the generated `hve-<id>.agent.md` files:
+
+| Kind | Personas | Works how |
+|---|---|---|
+| builder | `HVE db-engineer`, `HVE devops-engineer`, `HVE test-engineer`, `HVE ui-engineer` | One feature at a time inside the feature loop, to its locked check |
+| designer | `HVE data-scientist`, `HVE solution-architect`, `HVE db-architect`, `HVE security-architect`, `HVE test-architect`, `HVE ux-designer` | One stage's document in the ask folder (through the template manager when the stage names a template), decisions and risks explicit |
+| reviewer | `HVE code-reviewer`, `HVE architecture-reviewer`, `HVE security-reviewer`, `HVE ux-reviewer`, `HVE test-reviewer`, `HVE product-reviewer` | `<ask>/<stage>/review.md` with a verdict and findings by severity; never edits the work |
+
+Each persona has a goal, a focus (what it checks), library and plugin skills, and keywords. `personas.py match "<text>"` ranks personas for a request, and the brief tells the sub-agent its role. Expertise packs extend a persona's stage with their skills, knowledge and `<pack>:<agent>` agents. MCP servers configured in the workspace are listed in every brief.
+
+**Team delivery.** The `team-delivery` lifecycle has one stage per persona: requirements, ux-design, solution-architecture, security-architecture, data-architecture, architecture-review, data-build, build, ui-build, data-science, test-strategy, test, devops, and the code, security, UX, test and product reviews.
+
+**Frontier HVE Collab** lets people come in at any stage:
+
+1. `lifecycle.py ledger` shows every stage of the project as done, active or not started, with the ask that did it.
+2. The user picks the stages for this visit, or all remaining stages.
+3. Each visit is a new ask: `lifecycle.py contract team-delivery <slug> "Frontier HVE Collab" <request> only=<stage,stage>`.
+4. When an expertise pack has a lifecycle for the stage (for example Oracle migration for data-architecture or data-build), it runs in place of the stage plan: `contract oracle-offering:oracle-migration <slug> "Frontier HVE Collab" <request> for=team-delivery:data-build @oracle-offering`. The ledger then shows the stage delivered through that pack lifecycle.
+
+Example: a team with a partial build runs data-architecture and data-build with the Oracle pack in one visit, and comes back days later for architecture-review and security-review in another.
+
+**Frontier HVE Auto** contracts with `gates=ticked`. The plan form asks which milestones to pause after (`gate:<stage>` items in the checklist, ticked in the form or in `plan.md`); the other stages run without stopping. Escalations, evidence that does not hold, a reviewer's reject or blocker, and decisions the plan did not cover still stop and ask.
+
 ## Guardrails
 
 | Guard | File | When | Enforces |
 |---|---|---|---|
 | loop | `hooks/loop_guard.py` | before/after tools, stop | Loop state (`.harness/`, or `.hve/project/` and the ask's `loop/` folder) always, and the loop files `feature_list.json`, `progress.txt` and `tracker.json` while features still fail, change only through `loop.py` (edit targets are matched by path, shell commands only when they write); new features go through `feature_list.add.json` and `loop.py amend`; pushes only for ticked PRs; stop on escalation; a victory check before stopping. **Awareness mode (D-056, `hooks/guard_mode.json`):** loop-file and loop-state edits and the victory check are shown to the user as "Advisory alert (experimental): surfaces LLM behaviour that helps to know" with the change, not blocked; escalation, hook bypass, resume and push rules still block |
-| error | `hooks/error_guard.py` | prompt, before/after tools (E2E, BYOW, Prototype Creator, engineer) | After 3 failed terminal commands in a row (feature-loop checks excluded) the agent stops with "Error guard - paused for your attention", the commands and their output; tools other than reading and asking stay held until the user's next prompt |
+| error | `hooks/error_guard.py` | prompt, before/after tools (Auto, Collab, Prototype Creator, engineer) | After 3 failed terminal commands in a row (feature-loop checks excluded) the agent stops with "Error guard - paused for your attention", the commands and their output; tools other than reading and asking stay held until the user's next prompt |
 | module | `hooks/module_guard.py` | after edits | No file over 500 lines; the agent proposes a split |
 | prototype | `scripts/guardrail.py` | after tools | Flags code over 5,000 lines, files over 20 MB, non-enterprise components and self-built infrastructure, and names the experts to involve |
 | template | `hooks/template_guard.py` | session start, prompt, stop | Requested PRDs, technical designs and test strategies come from the configured template and validate before the agent may finish |
@@ -92,7 +117,7 @@ The repository's `.github/agents/` holds the research arms (`minimal`, `single`,
 | compaction | `hooks/compaction.py` | sub-agent start | Sub-agents return short summaries, not raw tool output; inside an ask, they get its folder, evidence path, skills and the `SKILLS-USED` rule |
 | choice | `scripts/choice_recorder.py` | after ask-questions | Records your ticks (options, manual checks, PRs to push) |
 | stage | `hooks/flow_guard.py` | stage agent stop | A flow stage may not finish without moving the flow along an edge |
-| plan check | `hooks/plan_check.py` | prompt, before tools (`Frontier E2E Delivery`, `Frontier BYOW`) | When the ask's `plan.md` changed since `lifecycle.py plan-sync`, adds a reconcile instruction to each prompt and holds `loop.py init/next/amend` and `lifecycle.py stage` until the agent reconciles and syncs |
+| plan check | `hooks/plan_check.py` | prompt, before tools (`Frontier HVE Auto`, `Frontier HVE Collab`) | When the ask's `plan.md` changed since `lifecycle.py plan-sync`, adds a reconcile instruction to each prompt and holds `loop.py init/next/amend` and `lifecycle.py stage` until the agent reconciles and syncs |
 | no fallback | `hooks/no_fallback.py` | git pre-commit (set by `loop.py init`) | Rejects swallowed errors and TODOs in committed code |
 
 Every deny, block or stop is logged to `.hve/runs/<session>.interventions.jsonl`.

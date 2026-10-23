@@ -12,12 +12,15 @@ from typing import Any, Literal
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "tools" / "skills"))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from recommend import rank, skill_dir, stems  # noqa: E402
+from recommend import rank, skill_dir  # noqa: E402
 from environment import environment  # noqa: E402
 from loop_paths import ASK_ID, loop_dir, project_folder, state_file  # noqa: E402
 from ask_plan import CHECKLIST_BLOCK, SKILLS_BLOCK, items, plugin_skills, record, refresh, ticked, unfinished  # noqa: E402
 from lifecycle_catalog import catalog, pick, route  # noqa: E402
+from ask_project import (CREATE, SCOPE_NOTE, SHIFT_OVERLAP, deliverable, ledger, overlap, project_status, project_text,  # noqa: E402,F401
+                         record_project, shift_message, topic_shift)
 import ask_packs  # noqa: E402
+import personas  # noqa: E402
 import stage_evidence  # noqa: E402
 
 WORKSPACE = Path.cwd()
@@ -26,10 +29,6 @@ SLUG = re.compile(r"^[a-z0-9][a-z0-9-]{0,40}$")
 SUBAGENT_RULES = ("Do not edit the loop files (feature_list.json, progress.txt, tracker.json) or loop state (.harness/ or the ask's loop/ "
                   "folder). Checks save screenshots and logs to $HVE_EVIDENCE/<feature>/. No file over 500 lines, no hidden errors, no TODO "
                   "in shipped code. Never commit, push or bypass git hooks. Reply in under 2,000 tokens: files changed, commands and exit codes.")
-CREATE = re.compile(r"^\s*(?:please\s+|(?:can|could|would)\s+you\s+)?(build|creat\w*|develop\w*|make|writ\w*|draft\w*|design\w*|"
-                    r"generat\w*|prepar\w*|start\w*)\b", re.I)
-SHIFT_MIN_WORDS = 3
-SHIFT_OVERLAP = 0.2
 Status = Literal["planned", "active", "done", "skipped"]
 
 Json = dict[str, Any]
@@ -57,68 +56,6 @@ def active(workspace: Path = WORKSPACE) -> tuple[Path, Json]:
     return path, data
 
 
-def deliverable(text: str) -> str | None:
-    """Return the lifecycle (kind of deliverable) whose fit words the text matches most, or None when none match."""
-    ranked = [p for p in pick(text) if p["matched"] and p["name"] != "direct"]
-    return ranked[0]["name"] if ranked else None
-
-
-def subject(text: str) -> set[str]:
-    """Return the text's word stems without creation verbs and lifecycle fit words (app, report, deck), leaving what the work is about."""
-    generic = stems(" ".join(f for c in catalog().values() for f in c["fits"]) + " build create develop make write draft design generate "
-                    "prepare start formal new simple")
-    return stems(text) - generic
-
-
-def overlap(previous: str, prompt: str) -> float:
-    """Return the share of the prompt's subject words that also appear in the previous text (1.0 for a prompt without subject words)."""
-    new = subject(prompt)
-    return len(new & subject(previous)) / len(new) if new else 1.0
-
-
-def topic_shift(previous: str, prompt: str) -> Json | None:
-    """Return a new-workspace recommendation when a prompt starts a different project from the workspace's one (a different kind of
-    deliverable, or new work sharing little with it); None for work on the same project."""
-    share = overlap(previous, prompt)
-    kinds = (deliverable(previous), deliverable(prompt))
-    if None not in kinds and kinds[0] != kinds[1] and share < SHIFT_OVERLAP:
-        return {"recommend": "new-workspace", "overlap": round(share, 2), "kinds": list(kinds),
-                "reason": f"this is {kinds[1]} work and this workspace's project is {kinds[0]} work: their files, skills and checks belong apart"}
-    if CREATE.match(prompt) and len(subject(prompt)) >= SHIFT_MIN_WORDS and share < SHIFT_OVERLAP:
-        return {"recommend": "new-workspace", "overlap": round(share, 2), "kinds": list(kinds),
-                "reason": "this starts a different project from the one in this workspace; one workspace holds one project"}
-    return None
-
-
-def shift_message(shift: Json, ask: str) -> str:
-    """Return the one-line recommendation to show the user for a prompt that starts a different project."""
-    return (f"Frontier HVE: this looks like a different project from this workspace's (open ask {ask}); {shift['reason']}. Recommended: "
-            "open another folder (or a git worktree) in a new window. You can also stay: the agent then opens a new ask here and records it.")
-
-
-def project_status(workspace: Path = WORKSPACE) -> Json | None:
-    """Return the workspace's project (name, goal, asks) with its feature count, passing count and whether the loop needs init or amend."""
-    folder = project_folder(workspace)
-    if not (folder / "project.json").is_file():
-        return None
-    features = json.loads((folder / "feature_list.json").read_text(encoding="utf-8")) if (folder / "feature_list.json").is_file() else []
-    return json.loads((folder / "project.json").read_text(encoding="utf-8")) | {
-        "feature_list": (folder / "feature_list.json").relative_to(workspace).as_posix(), "features": len(features),
-        "passing": sum(f["passes"] for f in features), "loop": "amend" if (folder / "state.json").is_file() else "init"}
-
-
-def project_text(workspace: Path = WORKSPACE) -> str:
-    """Return what the workspace's project is about: its goal, every ask's request and its feature names."""
-    project = project_status(workspace)
-    if project is None:
-        raise FileNotFoundError(f"{project_folder(workspace) / 'project.json'} missing: no ask has opened a project in this workspace")
-    requests = [json.loads((workspace / ".hve" / "asks" / a / "contract.json").read_text(encoding="utf-8"))["request"] for a in project["asks"]]
-    folder = project_folder(workspace)
-    names = [f["name"] for f in json.loads((folder / "feature_list.json").read_text(encoding="utf-8"))] \
-        if (folder / "feature_list.json").is_file() else []
-    return " ".join([project["goal"], *requests, *names])
-
-
 def where(prompt: str | None) -> Json:
     """Return the project, the open ask with its paths, and for a prompt the recommended step: continue the open ask, open a new ask in
     the project, start the project, or move to a new workspace. The agent confirms the step with the user."""
@@ -144,15 +81,23 @@ def install(rows: list[Json]) -> None:
 
 
 def contract(name: str, slug: str, agent: str, request: str, skips: dict[str, str], required: tuple[str, ...] = (),
-             pack_names: tuple[str, ...] = ()) -> Json:
+             pack_names: tuple[str, ...] = (), scope: tuple[str, ...] = (), for_stage: str | None = None, gates: str = "all") -> Json:
     """Write a new timestamped ask from a lifecycle with its skills, expertise packs, personas, milestones, checklist and environment,
-    install the skills, make it active, recommend a new session or workspace when it is different work, and record an ask it leaves open."""
+    install the skills, make it active, recommend a new session or workspace when it is different work, and record an ask it leaves open.
+    A scope runs only the named stages; for_stage records the stage of another lifecycle this ask delivers; gates=ticked pauses only
+    after the milestones the user ticks."""
     if not SLUG.match(slug):
         raise ValueError(f"slug {slug!r} must match {SLUG.pattern}")
+    if gates not in ("all", "ticked"):
+        raise ValueError(f"gates must be all or ticked, not {gates!r}")
     lifecycle = catalog()[name]
-    unknown = set(skips) - {s["name"] for s in lifecycle["stages"]}
+    names = [s["name"] for s in lifecycle["stages"]]
+    unknown = (set(skips) | set(scope)) - set(names)
     if unknown:
-        raise ValueError(f"cannot skip unknown stages {sorted(unknown)} of lifecycle {name!r}")
+        raise ValueError(f"unknown stages {sorted(unknown)} of lifecycle {name!r}: {names}")
+    if for_stage and (for_stage.count(":") < 1 or for_stage.rsplit(":", 1)[1] not in {s["name"] for s in catalog()[for_stage.rsplit(":", 1)[0]]["stages"]}):
+        raise ValueError(f"for={for_stage!r} must name <lifecycle>:<stage> of a known lifecycle")
+    skips = skips | {s: f"{SCOPE_NOTE} ({', '.join(scope)})" for s in names if scope and s not in scope and s not in skips}
     routed = route(request)["packs"]
     packs = ask_packs.chosen(WORKSPACE, routed, list(pack_names), lifecycle)
     previous = active()[1] if (ASKS / "active.json").is_file() else None
@@ -167,14 +112,18 @@ def contract(name: str, slug: str, agent: str, request: str, skips: dict[str, st
     if folder.exists():
         raise FileExistsError(f"ask {ask} already exists; use another slug or `lifecycle.py open {ask}`")
     stages = [{k: s[k] for k in ("name", "goal", "agent", "skills", "plugin_skills", "templates", "exit")}
-              | {k: s[k] for k in ("evidence", "rework") if k in s}
+              | {k: s[k] for k in ("evidence", "rework", "loop") if k in s}
               | {"status": "skipped" if s["name"] in skips else "planned", "note": skips.get(s["name"], "")} for s in lifecycle["stages"]]
     personas: dict[str, list[str]] = {}
     for s in stages:
         if s["status"] != "skipped":
             personas.setdefault(agent if s["agent"] == "self" else s["agent"], []).append(s["name"])
     shift = topic_shift(project_text(), request) if project_status() else None
-    decisions = [{"ts": now, "stage": s, "choice": "skipped", "why": why} for s, why in skips.items()]
+    decisions = [{"ts": now, "stage": s, "choice": "skipped", "why": why} for s, why in skips.items() if not why.startswith(SCOPE_NOTE)]
+    if scope:
+        decisions.append({"ts": now, "stage": "scope", "choice": ", ".join(scope), "why": "the user came in at these stages"})
+    if for_stage:
+        decisions.append({"ts": now, "stage": "scope", "choice": f"delivers {for_stage}", "why": f"{name} runs in place of that stage"})
     if pack_names:
         decisions.append({"ts": now, "stage": "packs", "choice": ", ".join(p["name"] for p in packs) or "core only",
                           "why": f"offered {routed['explicit'] + [m['name'] for m in routed['matched']] or 'none'}"})
@@ -190,7 +139,7 @@ def contract(name: str, slug: str, agent: str, request: str, skips: dict[str, st
                       "feature_list_add": f"{project}/feature_list.add.json"},
             "previous_ask": {"ask": previous["ask"] if previous else None, **shift} if shift else None,
             "previous_open": {"ask": previous["ask"], "why": open_reasons} if open_reasons else None,
-            "current": None, "stages": stages,
+            "current": None, "stages": stages, "scope": list(scope), "for_stage": for_stage, "gates": gates,
             "packs": [ask_packs.record(p, routed, lifecycle, stages) for p in packs],
             "skills": {"selected": [{k: r[k] for k in ("name", "description", "status", "reason", "relevance", "skill_tokens", "path")}
                                     for r in ranked["load"]],
@@ -205,18 +154,8 @@ def contract(name: str, slug: str, agent: str, request: str, skips: dict[str, st
     refresh(folder, data)
     (folder / "contract.json").write_text(json.dumps(data, indent=2), encoding="utf-8")
     (ASKS / "active.json").write_text(json.dumps({"active": ask}), encoding="utf-8")
-    record_project(slug, request, ask, now)
+    record_project(slug, request, ask, now, WORKSPACE)
     return data | {"project": project_status()}
-
-
-def record_project(slug: str, request: str, ask: str, now: str) -> None:
-    """Add the ask to the workspace's project, starting the project from the first ask's request."""
-    path = project_folder(WORKSPACE) / "project.json"
-    project = json.loads(path.read_text(encoding="utf-8")) if path.is_file() else {
-        "name": slug, "goal": request, "kind": deliverable(request), "created": now, "asks": []}
-    project["asks"].append(ask)
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(project, indent=2), encoding="utf-8")
 
 
 def choose_skills(choice: str) -> Json:
@@ -403,11 +342,14 @@ def brief(stage: str | None, task: str | None, persona: str) -> str:
     skills = task_row["skills"] if task_row else list(dict.fromkeys([*row["skills"], *(r["name"] for r in data["skills"]["selected"])]))
     install([r for r in data["skills"]["selected"] if r["name"] in skills])
     servers = sorted({s["name"] for s in data["environment"]["mcp_servers"]})
+    role = personas.by_agent().get(persona)
     data["delegations"].append({"ts": datetime.now(timezone.utc).isoformat(timespec="seconds"), "persona": persona, "stage": row["name"],
                                 "task": task, "skills": skills})
     path.write_text(json.dumps(data, indent=2), encoding="utf-8")
     return "\n".join([
         f"Frontier HVE brief: ask {data['ask']}, stage {row['name']}" + (f", task {task}" if task else ""),
+        *([f"- Your role: {role['title']}. {role['goal']}"] if role else []),
+        f"- Stage goal: {row['goal']} Gate: {row['exit']}",
         f"- Ask folder: {data['paths']['ask']}/ (prototypes and drafts go there, never in the workspace root)",
         "- Read and follow before you start: " + (", ".join(f".hve/skills/{skill_dir(s)}/SKILL.md" for s in skills) or "no library skills"),
         "- Plugin skills you may use: " + (", ".join(dict.fromkeys([*row["plugin_skills"], *data["skills"]["plugin"]])) or "none"),
@@ -428,8 +370,8 @@ def used(persona: str, task: str | None, skills: list[str]) -> Json:
 
 def main() -> None:
     """CLI: list | pick <request> | route <request-file> | show <name>
-    | contract <name> <slug> <agent> <request-file> [stage=why ...] [+skill ...] [@pack ... | @core]
-    | stage <name> <status> <note> | rework <stage> <why> | tick <item> <value> [note] | checklist
+    | contract <name> <slug> <agent> <request-file> [stage=why ...] [+skill ...] [@pack ... | @core] [only=<s,s>] [for=<lc>:<s>] [gates=ticked]
+    | stage <name> <status> <note> | rework <stage> <why> | tick <item> <value> [note] | checklist | ledger [lifecycle]
     | skills suggested|all|<skill,...> | skills score <scores.json> | shift <prompt>
     | where [request-file]
     | plan-sync <note> | plan-status | tasks-sync [project] | brief <persona> [stage=<s>] [task=<t>] | used <persona> <task|-> <skill,...|none>
@@ -445,10 +387,14 @@ def main() -> None:
     elif args[:1] == ["show"] and len(args) == 2:
         out = catalog()[args[1]]
     elif args[:1] == ["contract"] and len(args) >= 5:
-        skips = dict(a.split("=", 1) for a in args[5:] if a[:1] not in "+@")
+        options = dict(a.split("=", 1) for a in args[5:] if a.split("=", 1)[0] in ("only", "for", "gates"))
+        skips = dict(a.split("=", 1) for a in args[5:] if a[:1] not in "+@" and a.split("=", 1)[0] not in options)
         required = tuple(a[1:] for a in args[5:] if a.startswith("+"))
         packs = tuple(a[1:] for a in args[5:] if a.startswith("@"))
-        out = contract(args[1], args[2], args[3], Path(args[4]).read_text(encoding="utf-8").strip(), skips, required, packs)
+        out = contract(args[1], args[2], args[3], Path(args[4]).read_text(encoding="utf-8").strip(), skips, required, packs,
+                       tuple(s.strip() for s in options.get("only", "").split(",") if s.strip()), options.get("for"), options.get("gates", "all"))
+    elif args[:1] == ["ledger"] and len(args) <= 2:
+        out = ledger(args[1] if len(args) == 2 else "team-delivery", WORKSPACE)
     elif args[:1] == ["stage"] and len(args) == 4 and args[2] in ("planned", "active", "done", "skipped"):
         out = set_stage(args[1], args[2], args[3])  # type: ignore[arg-type]
     elif args[:1] == ["rework"] and len(args) == 3:

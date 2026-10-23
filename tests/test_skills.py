@@ -239,8 +239,9 @@ def library_root(tmp: str) -> Path:
     for script in ("recommend.py", "context_load.py", "scan.py"):
         shutil.copy(REPO / "tools" / "skills" / script, root / "tools" / "skills")
     for script in ("lifecycle.py", "lifecycle_catalog.py", "ask_packs.py", "stage_evidence.py", "environment.py", "loop_paths.py",
-                   "ask_plan.py"):
+                   "ask_plan.py", "ask_project.py", "personas.py"):
         shutil.copy(REPO / "tools" / "loop" / script, root / "tools" / "loop")
+    shutil.copytree(REPO / "templates" / "personas", root / "templates" / "personas")
     (root / "tools" / "plugins").mkdir()
     for script in ("store.py", "route.py"):
         shutil.copy(REPO / "tools" / "plugins" / script, root / "tools" / "plugins")

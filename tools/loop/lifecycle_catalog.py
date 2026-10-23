@@ -19,7 +19,7 @@ SOURCES = [ROOT / "templates" / "lifecycles", *sorted(ROOT.glob("plugins/*/lifec
            *sorted(p for p in WORKSPACE.glob("plugins/*/lifecycles") if not (p.parent / "hve-plugin.json").is_file()),
            WORKSPACE / ".hve" / "lifecycles"]
 STAGE_FIELDS = {"name", "goal", "agent", "skills", "plugin_skills", "templates", "exit", "skip_when"}
-OPTIONAL_STAGE_FIELDS = {"evidence", "rework"}
+OPTIONAL_STAGE_FIELDS = {"evidence", "rework", "loop"}
 
 Json = dict[str, Any]
 
@@ -36,6 +36,8 @@ def validate(lifecycle: Json, source: str) -> Json:
         extra = set(stage) - STAGE_FIELDS - OPTIONAL_STAGE_FIELDS
         if extra:
             raise ValueError(f"{source}: stage {stage['name']!r} has unknown fields {sorted(extra)}")
+        if not isinstance(stage.get("loop", False), bool):
+            raise ValueError(f"{source}: stage {stage['name']!r} loop must be true or false")
         validate_stage(stage, earlier, source)
         earlier.append(stage["name"])
     return lifecycle | {"source": source}
