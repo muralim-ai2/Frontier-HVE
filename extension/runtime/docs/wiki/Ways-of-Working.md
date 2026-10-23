@@ -54,8 +54,8 @@ flowchart LR
 | Agent | Lifecycle | Where you are asked |
 |---|---|---|
 | `HVE creator` | `direct` | Skill choice, plan and dependencies with the telemetry option, escalations, feature sign-off, human review of the evaluation |
-| `Frontier HVE Auto` (`hve-e2e`) | You pick (`sdlc`, `consulting-delivery`, `document`, or a plugin or workspace one) and skip stages | Lifecycle and skips, skill choice, plan with the telemetry option, a sign-off and gate form after each stage |
-| `Frontier HVE Collab` (`hve-agile`) | An agile overlay (`agile-scrum` or a plugin or workspace one) | Overlay and skips, skill choice, plan with evaluation and telemetry options, a hand-off review after each persona, each sprint review |
+| `Frontier HVE Auto` (`hve-e2e`) | You pick (`sdlc`, `team-delivery`, `consulting-delivery`, `document`, or a plugin or workspace one) and skip stages | Lifecycle and skips, skill choice, plan with the telemetry option and `Pause for my review after` (ticked milestones only); other stages run on |
+| `Frontier HVE Collab` (`hve-agile`) | Any stages of `team-delivery` you pick (each visit a new ask, shown in `lifecycle.py ledger`), a pack lifecycle in place of a stage, or an agile overlay | Stages for this visit, pack lifecycle offer, skill choice, plan with evaluation and telemetry options, a hand-off review after each persona |
 | `Frontier Prototype Creator` (`hve-prototype`) | `direct` when you run it; none as Collab's designer (it works in Collab's ask) | Screens, skill choice and options in one form; sign-off of the self-checked clickthrough with its screenshots |
 | `HVE product-manager` | `direct`, `prd` required (none as Auto's or Collab's persona) | Skill choice, options, research questions, backlog target, PRD sign-off |
 
