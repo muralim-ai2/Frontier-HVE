@@ -152,7 +152,8 @@ def build(root: Path, config: dict[str, Any]) -> dict[str, Any]:
         nodes[module_id]["tokens"] += f["tokens"]
         fid = f"file:{f['path']}"
         add({"id": fid, "level": "file", "view": view_id, "module": module_id, "kind": f["kind"], "lang": f["lang"], "name": f["name"],
-             "purpose": f["purpose"], "source": f["path"], "tokens": f["tokens"], "lines": f["lines"], "hash": f["hash"]}, module_id)
+             "purpose": f["purpose"] or (f"Not mapped: the file {f['error']}." if f["error"] else ""), "source": f["path"], "tokens": f["tokens"],
+             "lines": f["lines"], "hash": f["hash"], **({"error": f["error"]} if f["error"] else {})}, module_id)
         for s in f["symbols"]:
             add({"id": f"{fid}#{s['name']}", "level": "symbol", "view": view_id, "module": module_id, "kind": s["kind"], "name": s["name"],
                  "purpose": s["purpose"], "source": f"{f['path']}:{s['line']}-{s['end']}"}, fid)
@@ -270,6 +271,9 @@ def overview(data: dict[str, Any]) -> str:
             lines.append(f"| `{m['id']}` | {m.get('purpose') or ''} | {len(m.get('files', [])) or ''} | {m.get('tokens', 0):,} |")
     if data["conventions"]:
         lines += ["", "## Conventions", ""] + [f"- {c}" for c in data["conventions"]]
+    broken = [n for n in data["nodes"] if n.get("error")]
+    if broken:
+        lines += ["", "## Files the map could not read", ""] + [f"- `{n['source']}` {n['error']}" for n in broken]
     for flow in data["flows"]:
         lines += ["", f"**Flow: {flow['name']}**", ""] + [f"{i}. `{step}`: {what}" for i, (step, what) in enumerate(flow["steps"], 1)]
     return "\n".join(lines).replace("\n\n\n", "\n\n") + "\n"

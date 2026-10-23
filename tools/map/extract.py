@@ -9,7 +9,8 @@ import subprocess
 from pathlib import Path
 from typing import TypedDict
 
-SKIP_DIRS = {"node_modules", "dist", "build", "out", ".next", "coverage", "vendor", "__pycache__", ".venv", "venv", "target", "bin", "obj", ".git"}
+SKIP_DIRS = {"node_modules", "dist", "build", "out", ".next", "coverage", "vendor", "__pycache__", ".venv", "venv", "target", "bin", "obj", ".git", ".hve"}
+SKIP_PREFIXES = (".github/hve/",)
 SKIP_NAMES = ("package-lock.json", "pnpm-lock.yaml", "yarn.lock", ".min.js", ".map", ".tsbuildinfo")
 LANGS = {".py": "python", ".js": "js", ".jsx": "js", ".mjs": "js", ".cjs": "js", ".ts": "ts", ".tsx": "ts", ".cs": "csharp",
          ".java": "java", ".go": "go", ".sh": "shell", ".ps1": "shell", ".md": "markdown", ".json": "json", ".yaml": "yaml",
@@ -77,6 +78,7 @@ class Facts(TypedDict):
     hooks: list[str]
     refs: list[str]
     decisions: list[Decision]
+    error: str
 
 
 def list_files(root: Path, exclude: list[re.Pattern[str]]) -> list[str]:
@@ -89,7 +91,7 @@ def list_files(root: Path, exclude: list[re.Pattern[str]]) -> list[str]:
     keep = []
     for rel in sorted(set(listed)):
         path = root / rel
-        if (any(part in SKIP_DIRS for part in rel.split("/")[:-1]) or rel.endswith(SKIP_NAMES) or Path(rel).suffix.lower() not in LANGS
+        if (any(part in SKIP_DIRS for part in rel.split("/")[:-1]) or rel.startswith(SKIP_PREFIXES) or rel.endswith(SKIP_NAMES) or Path(rel).suffix.lower() not in LANGS
                 or any(x.search(rel) for x in exclude) or not path.is_file() or path.stat().st_size > MAX_BYTES):
             continue
         keep.append(rel)
@@ -113,12 +115,12 @@ def _frontmatter(text: str) -> dict[str, str]:
     return {m[1]: m[2].strip().strip("'\"") for m in pairs if m}
 
 
-def _python(text: str, rel: str) -> tuple[str, list[Symbol], list[str]]:
-    """Return a Python file's docstring sentence, public top-level symbols and imported module names."""
+def _python(text: str) -> tuple[str, list[Symbol], list[str], str]:
+    """Return a Python file's docstring sentence, public top-level symbols, imported module names, and its syntax error if it does not parse."""
     try:
         tree = ast.parse(text)
     except SyntaxError as err:
-        raise ValueError(f"{rel} does not parse as Python ({err.msg}, line {err.lineno}); add it to 'exclude' in the map config") from err
+        return "", [], [], f"does not parse as Python ({err.msg}, line {err.lineno})"
     symbols: list[Symbol] = []
     for node in tree.body:
         if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)) and not node.name.startswith("_"):
@@ -131,7 +133,7 @@ def _python(text: str, rel: str) -> tuple[str, list[Symbol], list[str]]:
         elif isinstance(node, ast.ImportFrom):
             base = "." * node.level + (node.module or "")
             imports += [base] + [f"{base}.{a.name}" if node.module else base + a.name for a in node.names]
-    return first_sentence(ast.get_docstring(tree)), symbols, imports
+    return first_sentence(ast.get_docstring(tree)), symbols, imports, ""
 
 
 def _comment_before(lines: list[str], index: int) -> str:
@@ -208,18 +210,21 @@ def _kind(rel: str, lang: str, decisions: int) -> str:
 
 
 def file_facts(root: Path, rel: str) -> Facts:
-    """Return the map facts of one file."""
+    """Return the map facts of one file; a file that is not UTF-8 or does not parse is kept with its error instead of its symbols."""
     raw = (root / rel).read_bytes()
+    error = ""
     try:
         text = raw.decode("utf-8")
-    except UnicodeDecodeError as err:
-        raise ValueError(f"{rel} is not UTF-8; add it to 'exclude' in the map config") from err
+    except UnicodeDecodeError:
+        text, error = raw.decode("utf-8", errors="replace"), "is not UTF-8 text"
     lang = LANGS[Path(rel).suffix.lower()]
     meta = _frontmatter(text) if lang == "markdown" else {}
     symbols: list[Symbol] = []
     imports: list[str] = []
-    if lang == "python":
-        purpose, symbols, imports = _python(text, rel)
+    if lang == "python" and not error:
+        purpose, symbols, imports, error = _python(text)
+    elif lang == "python":
+        purpose = ""
     elif lang in ("js", "ts"):
         purpose, symbols = _header_comment(text), _regex_symbols(text, JS_SYMBOLS)
         imports = [next(g for g in m.groups() if g) for m in JS_IMPORT.finditer(text)]
@@ -252,4 +257,4 @@ def file_facts(root: Path, rel: str) -> Facts:
             "purpose": purpose, "tokens": len(text) // CHARS_PER_TOKEN, "lines": text.count("\n") + 1,
             "hash": hashlib.sha256(raw).hexdigest()[:16], "symbols": symbols, "imports": imports,
             "mentions": sorted(set(MENTION.findall(mentioned)) - {Path(rel).name, rel}), "hooks": sorted(set(HOOK.findall(text))) if kind == "agent" else [],
-            "refs": refs, "decisions": decisions}
+            "refs": refs, "decisions": decisions, "error": error}

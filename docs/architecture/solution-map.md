@@ -2,7 +2,7 @@
 
 Enterprise AI harness on GitHub Copilot, also exported to Claude Code, Cursor and Codex: agents, guard hooks, delivery lifecycles, a verified feature loop, skills, expertise packs, output evaluation and telemetry.
 
-Map of commit `2d8dd33` built 2026-10-23. Size **medium** (91 code files, 15,900 code lines; 253 mapped files, 519,172 tokens).
+Map of commit `a946b2b` built 2026-10-23. Size **medium** (91 code files, 15,915 code lines; 253 mapped files, 519,595 tokens).
 Read this first. Ask `solution_map.py explain "<topic>"` for a concept, `impact --seeds` before a change, `open` for the explorer.
 
 ## Concepts
@@ -87,10 +87,10 @@ What agents know: the skill library and its gate, plugin skills, expertise packs
 |---|---|---|---|
 | `knowledge:pack-sample` | The pack manifest schema and the Oracle sample pack. | 17 | 5,248 |
 | `knowledge:plugin-scripts` | Plugin manifest and hook scripts: the choice recorder and the prototype guardrail. | 4 | 3,435 |
-| `knowledge:plugin-skills` | Skills shipped with the extension and always available. | 18 | 15,722 |
+| `knowledge:plugin-skills` | Skills shipped with the extension and always available. | 18 | 15,772 |
 | `knowledge:library` | Admitted library skills. | 37 | 56,480 |
 | `knowledge:loadout` | Ranking, loadout budgets, the registry and the context-load measurement. | 4 | 13,465 |
-| `knowledge:solution-map` | Map any repository into concepts, views, modules, files and typed edges; explain, impact and the explorer. | 7 | 27,910 |
+| `knowledge:solution-map` | Map any repository into concepts, views, modules, files and typed edges; explain, impact and the explorer. | 7 | 28,081 |
 | `knowledge:packs` | Pack manifest validation, routing, store, install lifecycle and author kit. | 5 | 13,031 |
 | `knowledge:skill-gate` | Scan, triage, paired evaluation and admission of skills. | 7 | 11,065 |
 
@@ -158,7 +158,7 @@ Unit and integration tests, one file per area. Roles: qa-lead.
 
 | Module | Purpose | Files | Tokens |
 |---|---|---|---|
-| `tests:suite` | Unit and integration tests, one file per area. | 14 | 60,868 |
+| `tests:suite` | Unit and integration tests, one file per area. | 14 | 60,967 |
 
 ## Documentation
 
@@ -168,7 +168,7 @@ The wiki, the README and the always-on instructions. Roles: tech-writer.
 |---|---|---|---|
 | `docs:instructions` | The README and the instructions every agent loads. | 3 | 11,979 |
 | `docs:learnings` | Learnings captured after a delivery. | 1 | 223 |
-| `docs:wiki` | How-to pages for users and agents. | 11 | 33,993 |
+| `docs:wiki` | How-to pages for users and agents. | 11 | 34,096 |
 
 ## Conventions
 

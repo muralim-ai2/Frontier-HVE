@@ -102,6 +102,8 @@ The page loads nothing from the network. If your system is set to reduce motion,
 
 The build also classes the app as small, medium or large: medium from 50 code files or 5,000 code lines, large from 300 files or 50,000 lines.
 
+It always skips dependencies and build output (`node_modules`, `dist`, `.venv` and the like) and the harness's own state (`.hve/`, `.github/hve/`). A file that does not parse or is not UTF-8 is not fatal: it stays in the map without functions, marked "Not mapped", and is listed under `unreadable_files` in the build output and in the overview. Add a path to `exclude` in the config only if you want it gone.
+
 ## Add or improve a concept
 
 Edit `docs/architecture/solution-map.config.json` and rebuild:

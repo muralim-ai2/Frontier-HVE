@@ -221,7 +221,8 @@ def main() -> None:
         print(json.dumps({"size": data["size"], "nodes": counts, "edges": Counter(e["type"] for e in data["edges"]),
                           "concepts": len(data["concepts"]), "derived_concepts": all(c["derived"] for c in data["concepts"]),
                           "unplaced_modules": sum(1 for n in data["nodes"] if n["level"] == "module" and n.get("placed") is False),
-                          "missing_purpose": sum(1 for n in data["nodes"] if n["level"] in ("module", "file") and not n.get("purpose")), **paths}, indent=1))
+                          "missing_purpose": sum(1 for n in data["nodes"] if n["level"] in ("module", "file") and not n.get("purpose")),
+                          "unreadable_files": [f"{n['source']} {n['error']}" for n in data["nodes"] if n.get("error")], **paths}, indent=1))
         return
     m = load(root, args.map)
     page = (args.map.parent / "explorer.html") if args.map else next((x for x in (root / MAP_DIR / "explorer.html", root / SNAPSHOT_DIR / "solution-map.html") if x.is_file()), root / MAP_DIR / "explorer.html")

@@ -1,17 +1,17 @@
 {
  "version": 1,
- "commit": "2d8dd33",
- "built": "2026-10-23T08:38:53+00:00",
+ "commit": "a946b2b",
+ "built": "2026-10-23T08:57:32+00:00",
  "root": "enterprise-harness",
  "size": {
   "class": "medium",
   "code_files": 91,
-  "code_lines": 15900,
+  "code_lines": 15915,
   "files": 253,
-  "tokens": 519172,
+  "tokens": 519595,
   "why": [
    "91 code files",
-   "15,900 code lines",
+   "15,915 code lines",
    "thresholds medium 50 files or 5,000 lines, large 300 or 50,000"
   ]
  },
@@ -1310,7 +1310,7 @@
     "docs/wiki/Templates.md",
     "docs/wiki/Ways-of-Working.md"
    ],
-   "tokens": 33993,
+   "tokens": 34096,
    "placed": true
   },
   {
@@ -1443,9 +1443,9 @@
    "name": "Solution-Map.md",
    "purpose": "Solution map: The solution map lets people and agents understand a codebase without reading all of it.",
    "source": "docs/wiki/Solution-Map.md",
-   "tokens": 1931,
-   "lines": 139,
-   "hash": "8d5ce778a591e24d",
+   "tokens": 2034,
+   "lines": 141,
+   "hash": "37b52fb0b37ff650",
    "external": []
   },
   {
@@ -2450,7 +2450,7 @@
    "source": "extension/package.json",
    "tokens": 461,
    "lines": 58,
-   "hash": "b9740e0593275133",
+   "hash": "afa2ab7c667bf6d7",
    "external": []
   },
   {
@@ -4220,7 +4220,7 @@
     "plugins/harness-assist/skills/solution-map/SKILL.md",
     "plugins/harness-assist/skills/wow-uplift/SKILL.md"
    ],
-   "tokens": 15722,
+   "tokens": 15772,
    "placed": true
   },
   {
@@ -4557,9 +4557,9 @@
    "name": "SKILL.md",
    "purpose": "Explain how part of a codebase works from its solution map - the concept, its modules, files and functions, connections, dependencies and a plain explanation - and open the interactive explorer filtered to it.",
    "source": "plugins/harness-assist/skills/solution-map/SKILL.md",
-   "tokens": 927,
+   "tokens": 977,
    "lines": 26,
-   "hash": "a448b3a4508741ed",
+   "hash": "3f6eb34e6766abe5",
    "external": []
   },
   {
@@ -6446,7 +6446,7 @@
     "tests/test_templates.py",
     "tests/test_trajectory.py"
    ],
-   "tokens": 60868,
+   "tokens": 60967,
    "placed": true
   },
   {
@@ -7649,9 +7649,9 @@
    "name": "test_map.py",
    "purpose": "Tests of the solution map: generic extraction without config, concepts and explain, impact, status, and the offline explorer.",
    "source": "tests/test_map.py",
-   "tokens": 1980,
-   "lines": 124,
-   "hash": "9a91255d72f52c6f",
+   "tokens": 2079,
+   "lines": 129,
+   "hash": "704b66797257fc79",
    "external": []
   },
   {
@@ -7662,7 +7662,7 @@
    "kind": "function",
    "name": "project",
    "purpose": "Return a temp project with Python, TypeScript, a test, docs and decisions.",
-   "source": "tests/test_map.py:28-34"
+   "source": "tests/test_map.py:30-36"
   },
   {
    "id": "file:tests/test_map.py#edges",
@@ -7672,7 +7672,7 @@
    "kind": "function",
    "name": "edges",
    "purpose": "Return the (from, to) pairs of one edge type.",
-   "source": "tests/test_map.py:37-39"
+   "source": "tests/test_map.py:39-41"
   },
   {
    "id": "file:tests/test_map.py#test_generic_map_without_config",
@@ -7682,7 +7682,7 @@
    "kind": "function",
    "name": "test_generic_map_without_config",
    "purpose": "With no config the map has folder views, derived concepts, imports across Python and TypeScript, tests, decisions and dependencies.",
-   "source": "tests/test_map.py:42-55"
+   "source": "tests/test_map.py:44-60"
   },
   {
    "id": "file:tests/test_map.py#test_concepts_explain_and_impact",
@@ -7692,7 +7692,7 @@
    "kind": "function",
    "name": "test_concepts_explain_and_impact",
    "purpose": "Configured concepts answer explain with modules, files, functions and connections; an unknown topic lists the closest nodes.",
-   "source": "tests/test_map.py:58-79"
+   "source": "tests/test_map.py:63-84"
   },
   {
    "id": "file:tests/test_map.py#test_status_and_cli_build",
@@ -7702,7 +7702,7 @@
    "kind": "function",
    "name": "test_status_and_cli_build",
    "purpose": "The CLI writes map, overview and explorer; status reports a changed file as stale.",
-   "source": "tests/test_map.py:82-91"
+   "source": "tests/test_map.py:87-96"
   },
   {
    "id": "file:tests/test_map.py#test_explorer_is_offline_and_queries_run",
@@ -7712,7 +7712,7 @@
    "kind": "function",
    "name": "test_explorer_is_offline_and_queries_run",
    "purpose": "The explorer page loads nothing from the network, its scripts parse, and the Cypher engine runs on the embedded map.",
-   "source": "tests/test_map.py:94-108"
+   "source": "tests/test_map.py:99-113"
   },
   {
    "id": "file:tests/test_map.py#test_repository_config_maps_every_file",
@@ -7722,7 +7722,7 @@
    "kind": "function",
    "name": "test_repository_config_maps_every_file",
    "purpose": "This repository's config places every mapped file in a named module and every concept has members, a start and an explanation.",
-   "source": "tests/test_map.py:111-116"
+   "source": "tests/test_map.py:116-121"
   },
   {
    "id": "file:tests/test_metrics.py",
@@ -10765,7 +10765,7 @@
     "tools/map/map_build.py",
     "tools/map/solution_map.py"
    ],
-   "tokens": 27910,
+   "tokens": 28081,
    "placed": true
   },
   {
@@ -11478,9 +11478,9 @@
    "name": "extract.py",
    "purpose": "Language-neutral code facts for the solution map: files, purposes, symbols, imports, mentions, agents and decisions.",
    "source": "tools/map/extract.py",
-   "tokens": 3276,
-   "lines": 256,
-   "hash": "b00c1344cae035cb",
+   "tokens": 3337,
+   "lines": 261,
+   "hash": "e30c6e7acdb30805",
    "external": []
   },
   {
@@ -11491,7 +11491,7 @@
    "kind": "class",
    "name": "Symbol",
    "purpose": "One function, class or type in a file.",
-   "source": "tools/map/extract.py:44-51"
+   "source": "tools/map/extract.py:45-52"
   },
   {
    "id": "file:tools/map/extract.py#Decision",
@@ -11501,7 +11501,7 @@
    "kind": "class",
    "name": "Decision",
    "purpose": "One recorded decision and the files its text names.",
-   "source": "tools/map/extract.py:54-60"
+   "source": "tools/map/extract.py:55-61"
   },
   {
    "id": "file:tools/map/extract.py#Facts",
@@ -11511,7 +11511,7 @@
    "kind": "class",
    "name": "Facts",
    "purpose": "Everything the map takes from one file.",
-   "source": "tools/map/extract.py:63-79"
+   "source": "tools/map/extract.py:64-81"
   },
   {
    "id": "file:tools/map/extract.py#list_files",
@@ -11521,7 +11521,7 @@
    "kind": "function",
    "name": "list_files",
    "purpose": "Return the repository's mappable text files: tracked and untracked-not-ignored under git, else every file.",
-   "source": "tools/map/extract.py:82-96"
+   "source": "tools/map/extract.py:84-98"
   },
   {
    "id": "file:tools/map/extract.py#first_sentence",
@@ -11531,7 +11531,7 @@
    "kind": "function",
    "name": "first_sentence",
    "purpose": "Return the first sentence of a docstring, comment or paragraph, without Markdown emphasis.",
-   "source": "tools/map/extract.py:99-104"
+   "source": "tools/map/extract.py:101-106"
   },
   {
    "id": "file:tools/map/extract.py#file_facts",
@@ -11540,8 +11540,8 @@
    "module": "knowledge:solution-map",
    "kind": "function",
    "name": "file_facts",
-   "purpose": "Return the map facts of one file.",
-   "source": "tools/map/extract.py:210-255"
+   "purpose": "Return the map facts of one file; a file that is not UTF-8 or does not parse is kept with its error instead of its symbols.",
+   "source": "tools/map/extract.py:212-260"
   },
   {
    "id": "file:tools/map/map_build.py",
@@ -11553,9 +11553,9 @@
    "name": "map_build.py",
    "purpose": "Build the solution map of any repository: views, modules, files, symbols, concepts and typed edges with evidence.",
    "source": "tools/map/map_build.py",
-   "tokens": 4503,
-   "lines": 289,
-   "hash": "2cc53bd6d2f5b4e8",
+   "tokens": 4583,
+   "lines": 293,
+   "hash": "daa2df0143c5c229",
    "external": []
   },
   {
@@ -11596,7 +11596,7 @@
    "kind": "function",
    "name": "build",
    "purpose": "Return the solution map of a repository.",
-   "source": "tools/map/map_build.py:115-226"
+   "source": "tools/map/map_build.py:115-227"
   },
   {
    "id": "file:tools/map/map_build.py#overview",
@@ -11606,7 +11606,7 @@
    "kind": "function",
    "name": "overview",
    "purpose": "Return the Markdown overview: views and modules, stores, concepts, conventions and flows.",
-   "source": "tools/map/map_build.py:256-275"
+   "source": "tools/map/map_build.py:257-279"
   },
   {
    "id": "file:tools/map/map_build.py#explorer",
@@ -11616,7 +11616,7 @@
    "kind": "function",
    "name": "explorer",
    "purpose": "Return the explorer page with its styles, scripts and the map inlined; focus opens it filtered.",
-   "source": "tools/map/map_build.py:278-288"
+   "source": "tools/map/map_build.py:282-292"
   },
   {
    "id": "file:tools/map/solution_map.py",
@@ -11628,9 +11628,9 @@
    "name": "solution_map.py",
    "purpose": "Solution map CLI: build the map, then answer explain, impact, search, overview and status from it.",
    "source": "tools/map/solution_map.py",
-   "tokens": 3870,
-   "lines": 248,
-   "hash": "e075eb3cda9f2ee4",
+   "tokens": 3900,
+   "lines": 249,
+   "hash": "580c0606bd5b4989",
    "external": []
   },
   {
@@ -11751,7 +11751,7 @@
    "kind": "function",
    "name": "main",
    "purpose": "Run one solution map command and print JSON or Markdown.",
-   "source": "tools/map/solution_map.py:203-243"
+   "source": "tools/map/solution_map.py:203-244"
   },
   {
    "id": "observability:research",
@@ -17831,43 +17831,43 @@
    "from": "file:tests/test_map.py",
    "to": "file:tests/test_map.py#project",
    "type": "contains",
-   "evidence": "tests/test_map.py:28-34"
+   "evidence": "tests/test_map.py:30-36"
   },
   {
    "from": "file:tests/test_map.py",
    "to": "file:tests/test_map.py#edges",
    "type": "contains",
-   "evidence": "tests/test_map.py:37-39"
+   "evidence": "tests/test_map.py:39-41"
   },
   {
    "from": "file:tests/test_map.py",
    "to": "file:tests/test_map.py#test_generic_map_without_config",
    "type": "contains",
-   "evidence": "tests/test_map.py:42-55"
+   "evidence": "tests/test_map.py:44-60"
   },
   {
    "from": "file:tests/test_map.py",
    "to": "file:tests/test_map.py#test_concepts_explain_and_impact",
    "type": "contains",
-   "evidence": "tests/test_map.py:58-79"
+   "evidence": "tests/test_map.py:63-84"
   },
   {
    "from": "file:tests/test_map.py",
    "to": "file:tests/test_map.py#test_status_and_cli_build",
    "type": "contains",
-   "evidence": "tests/test_map.py:82-91"
+   "evidence": "tests/test_map.py:87-96"
   },
   {
    "from": "file:tests/test_map.py",
    "to": "file:tests/test_map.py#test_explorer_is_offline_and_queries_run",
    "type": "contains",
-   "evidence": "tests/test_map.py:94-108"
+   "evidence": "tests/test_map.py:99-113"
   },
   {
    "from": "file:tests/test_map.py",
    "to": "file:tests/test_map.py#test_repository_config_maps_every_file",
    "type": "contains",
-   "evidence": "tests/test_map.py:111-116"
+   "evidence": "tests/test_map.py:116-121"
   },
   {
    "from": "tests:suite",
@@ -20009,37 +20009,37 @@
    "from": "file:tools/map/extract.py",
    "to": "file:tools/map/extract.py#Symbol",
    "type": "contains",
-   "evidence": "tools/map/extract.py:44-51"
+   "evidence": "tools/map/extract.py:45-52"
   },
   {
    "from": "file:tools/map/extract.py",
    "to": "file:tools/map/extract.py#Decision",
    "type": "contains",
-   "evidence": "tools/map/extract.py:54-60"
+   "evidence": "tools/map/extract.py:55-61"
   },
   {
    "from": "file:tools/map/extract.py",
    "to": "file:tools/map/extract.py#Facts",
    "type": "contains",
-   "evidence": "tools/map/extract.py:63-79"
+   "evidence": "tools/map/extract.py:64-81"
   },
   {
    "from": "file:tools/map/extract.py",
    "to": "file:tools/map/extract.py#list_files",
    "type": "contains",
-   "evidence": "tools/map/extract.py:82-96"
+   "evidence": "tools/map/extract.py:84-98"
   },
   {
    "from": "file:tools/map/extract.py",
    "to": "file:tools/map/extract.py#first_sentence",
    "type": "contains",
-   "evidence": "tools/map/extract.py:99-104"
+   "evidence": "tools/map/extract.py:101-106"
   },
   {
    "from": "file:tools/map/extract.py",
    "to": "file:tools/map/extract.py#file_facts",
    "type": "contains",
-   "evidence": "tools/map/extract.py:210-255"
+   "evidence": "tools/map/extract.py:212-260"
   },
   {
    "from": "knowledge:solution-map",
@@ -20069,19 +20069,19 @@
    "from": "file:tools/map/map_build.py",
    "to": "file:tools/map/map_build.py#build",
    "type": "contains",
-   "evidence": "tools/map/map_build.py:115-226"
+   "evidence": "tools/map/map_build.py:115-227"
   },
   {
    "from": "file:tools/map/map_build.py",
    "to": "file:tools/map/map_build.py#overview",
    "type": "contains",
-   "evidence": "tools/map/map_build.py:256-275"
+   "evidence": "tools/map/map_build.py:257-279"
   },
   {
    "from": "file:tools/map/map_build.py",
    "to": "file:tools/map/map_build.py#explorer",
    "type": "contains",
-   "evidence": "tools/map/map_build.py:278-288"
+   "evidence": "tools/map/map_build.py:282-292"
   },
   {
    "from": "knowledge:solution-map",
@@ -20159,7 +20159,7 @@
    "from": "file:tools/map/solution_map.py",
    "to": "file:tools/map/solution_map.py#main",
    "type": "contains",
-   "evidence": "tools/map/solution_map.py:203-243"
+   "evidence": "tools/map/solution_map.py:203-244"
   },
   {
    "from": "view:observability",
@@ -30187,7 +30187,7 @@
   "docs/wiki/Plugins.md": "c5892adf8b1be321",
   "docs/wiki/Product-Manager.md": "076548b70e9464f4",
   "docs/wiki/Skills.md": "72f4813213e505ea",
-  "docs/wiki/Solution-Map.md": "8d5ce778a591e24d",
+  "docs/wiki/Solution-Map.md": "37b52fb0b37ff650",
   "docs/wiki/Templates.md": "069e72ad706ca062",
   "docs/wiki/Ways-of-Working.md": "e21c17a4f694fb54",
   "evaluation/frontier.eval.json": "482a327d7553fb3a",
@@ -30232,7 +30232,7 @@
   "extension/agents/hve-uplift-judge.agent.md": "35265d3b0ab4bfc9",
   "extension/build.py": "e87575e60900b78f",
   "extension/extension.js": "b9ab3e8a179ad78a",
-  "extension/package.json": "b9740e0593275133",
+  "extension/package.json": "afa2ab7c667bf6d7",
   "extension/packs.js": "6b04f30306d780a7",
   "extension/render.js": "bfe130045d119b4f",
   "feature_list.json": "a5338d955b09046e",
@@ -30276,7 +30276,7 @@
   "plugins/harness-assist/skills/prototype-guardrail/SKILL.md": "8f9ad9ed091549f7",
   "plugins/harness-assist/skills/recommend-skills/SKILL.md": "72ce1c8e55f6b63b",
   "plugins/harness-assist/skills/run-tests/SKILL.md": "8990307c34378078",
-  "plugins/harness-assist/skills/solution-map/SKILL.md": "a448b3a4508741ed",
+  "plugins/harness-assist/skills/solution-map/SKILL.md": "3f6eb34e6766abe5",
   "plugins/harness-assist/skills/wow-uplift/SKILL.md": "0fec6e2fce93e9ca",
   "reference/Enterprise AI Harness Blueprint v3.md": "a825ec6f8f1ddb8f",
   "reference/Harness Evaluation Layer.md": "f8d80b71156647b8",
@@ -30355,7 +30355,7 @@
   "tests/test_flow_plugin.py": "94bca0e9fda8d378",
   "tests/test_hooks.py": "6435aaf0afafd5c7",
   "tests/test_loop.py": "9931712f897e3d33",
-  "tests/test_map.py": "9a91255d72f52c6f",
+  "tests/test_map.py": "704b66797257fc79",
   "tests/test_metrics.py": "a48f60714a202df9",
   "tests/test_plugins.py": "1d97e3c3f4dcb4b4",
   "tests/test_skills.py": "8b6b35a28ac965e9",
@@ -30384,9 +30384,9 @@
   "tools/map/explorer/graph.js": "51c74e26d3f49d32",
   "tools/map/explorer/query.js": "2218f4317f745ab2",
   "tools/map/explorer/views.js": "c3fbf4f4fe248e67",
-  "tools/map/extract.py": "b00c1344cae035cb",
-  "tools/map/map_build.py": "2cc53bd6d2f5b4e8",
-  "tools/map/solution_map.py": "e075eb3cda9f2ee4",
+  "tools/map/extract.py": "e30c6e7acdb30805",
+  "tools/map/map_build.py": "daa2df0143c5c229",
+  "tools/map/solution_map.py": "580c0606bd5b4989",
   "tools/observe/bench.py": "35af55c57401bcde",
   "tools/observe/blind.py": "b52981da4368966f",
   "tools/observe/collect.py": "977c4c8aba20a673",

@@ -22,6 +22,8 @@ FILES = {
     "web/cart.ts": "// Cart totals.\n\n/** Return the cart total. */\nexport const total = (): number => 3;\n",
     "tests/test_billing.py": '"""Tests of billing."""\nfrom src import billing\n\n\ndef test_charge() -> None:\n    """Charging adds tax."""\n    assert billing.charge(1) == 2\n',
     "docs/decisions.md": "# Decisions\n\n## D-001: tax doubles\nSee src/tax.py.\n\n## D-002: carts in TypeScript\nSee web/cart.ts.\n",
+    "scripts/broken.py": "for x in range(3):\nprint(x)\n",
+    ".hve/skills/copied/scripts/tool.py": "def broken(:\n",
 }
 
 
@@ -45,7 +47,7 @@ def test_generic_map_without_config() -> None:
         data = map_build.build(project(tmp), {})
         nodes = {n["id"]: n for n in data["nodes"]}
         assert data["size"]["class"] == "small" and {n["view"] for n in data["nodes"] if n["level"] == "view"} >= {"src", "web", "tests", "docs"}
-        assert all(c["derived"] for c in data["concepts"]) and len(data["concepts"]) == 5
+        assert all(c["derived"] for c in data["concepts"]) and len(data["concepts"]) == 6
         assert ("file:src/billing.py", "file:src/tax.py") in edges(data, "imports")
         assert ("file:web/main.ts", "file:web/cart.ts") in edges(data, "imports")
         assert ("file:src/billing.py", "file:tests/test_billing.py") in edges(data, "tested-by")
@@ -53,6 +55,9 @@ def test_generic_map_without_config() -> None:
         assert nodes["file:src/billing.py"]["external"] == ["requests"] and nodes["file:web/main.ts"]["external"] == ["react"]
         assert nodes["file:web/cart.ts#total"]["purpose"] == "Return the cart total." and nodes["file:web/main.ts"]["purpose"] == "Web entry: renders the cart."
         assert nodes["system"]["purpose"] == "Shop: A small shop with billing and a web front end."
+        broken = nodes["file:scripts/broken.py"]
+        assert broken["error"].startswith("does not parse as Python") and broken["purpose"].startswith("Not mapped")
+        assert not [n for n in nodes if ".hve/" in n] and "could not read" in map_build.overview(data)
 
 
 def test_concepts_explain_and_impact() -> None:
