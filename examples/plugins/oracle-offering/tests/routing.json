@@ -1,0 +1,8 @@
+{
+  "cases": [
+    {"prompt": "Assess our Oracle estate and plan the migration", "routes": true},
+    {"prompt": "Tune this PL/SQL package", "routes": true},
+    {"prompt": "Use the oracle plugin to review the schema", "routes": true},
+    {"prompt": "Fix the button color on the login page", "routes": false}
+  ]
+}

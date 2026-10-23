@@ -136,6 +136,16 @@
       "id": "N41",
       "issue": "Built (D-056), extension 0.15.0: loop guard in awareness mode (hooks/guard_mode.json advise: loop-file/state edits and the victory check are shown to the user under 'Guard Invoked - For your attention' with the change, not blocked; escalation, hook bypass, resume and pushes still block); new error guard pauses the agent after 3 failed commands in a row; the Copilot OTel export is trimmed to 3 days / 200 MB on every start and git-ignored; skills shortlisted without a cap and ranked by relevance; over 10 skills or 32,000 tokens the agent scores the shortlist for the ask (lifecycle.py skills score) and asks the user to keep the suggested top 10, all or named. Unit-tested; not verified live.",
       "action": "User: install 0.15.0; in a feature loop, have the agent touch feature_list.json and check the 'Guard Invoked - For your attention' message; ask Frontier E2E Delivery for a deck without python-pptx installed and confirm it pauses after 3 failures with the error guard message; check the trim notice and .gitignore line on start; check plan.md shows skill scores. Decide the streak limit (3 or 5), when to set the loop guard back to enforce, and whether research arms should stay in enforce."
+    },
+    {
+      "id": "N42",
+      "issue": "Built (D-059), extension 0.15.4: frontend-slides (MIT, zarazhangrui/frontend-slides at 9906a34) added as a plugin skill without its public Vercel deploy and bash PDF scripts; presentation-deck asks the format first (editable NorthStar pptx or web slides) and routes web slides to frontend-slides; every deck request lists both in skills.plugin. guizang-ppt-skill and dashiAI-ppt-skill (AGPL-3.0) and codex-ppt-skill (external image API) left out by the user. Unit-tested; not verified live.",
+      "action": "User: install 0.15.4; ask Frontier E2E Delivery for a deck, check the plan lists presentation-deck and frontend-slides as always on and the form asks the format; pick web slides and judge the three style previews and the final index.html. Get a legal view before reconsidering the AGPL skills."
+    },
+    {
+      "id": "N43",
+      "issue": "Built (D-060), extension 0.16.0: expertise packs (PR #8 plugin architecture, ported selectively) route into the E2E and BYOW contract: lifecycle.py route, Expertise packs question, contract @pack|@core, pack lifecycles with stage evidence and capped rework, knowledge index per stage, pack skills/templates/rubrics, Install/Manage plugin commands; packs and their token load (always/on demand, share of ask context, window, measured prompt) in contract.json, plan.md and provenance. Unit-tested; not verified live.",
+      "action": "User: install 0.16.0; copy examples/plugins/oracle-offering to plugins/oracle-offering in a test workspace (or run Install plugin); ask Frontier BYOW and Frontier E2E Delivery for an Oracle migration and check the Expertise packs question, the oracle-migration overlay offered first, the pack load in plan.md, knowledge in the stage brief, the evidence gate and provenance.md's Expertise packs table. Decide whether pack agents should be exported to other harnesses and whether creator agents need per-prompt pack routing."
     }
   ],
   "wiki_topics": {

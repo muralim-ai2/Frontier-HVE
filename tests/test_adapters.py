@@ -101,8 +101,8 @@ def test_export_structure() -> None:
         assert agents == {p.name.removesuffix(".agent.md") for p in (EXTENSION / "agents").glob("hve-*.agent.md")}, agents
         argv = [a for args in claude_hooks(ws).values() for a in args]
         assert {a[2] for a in argv} == {"hooks/profile_detector.py", "hooks/skill_loader.py", "hooks/compaction.py", "hooks/loop_guard.py",
-                                        "hooks/module_guard.py", "hooks/template_guard.py", "hooks/agent_ledger.py", "scripts/choice_recorder.py",
-                                        "scripts/guardrail.py"}
+                                        "hooks/module_guard.py", "hooks/template_guard.py", "hooks/agent_ledger.py", "hooks/error_guard.py",
+                                        "scripts/choice_recorder.py", "scripts/guardrail.py"}
         assert all((runtime / a[2]).is_file() for a in argv)
         single = (ws / ".claude" / "agents" / "hve-single.md").read_text(encoding="utf-8")
         assert "hooks:" in single and single.count("hooks/template_guard.py") == 3
@@ -154,7 +154,7 @@ def test_claude_code_hooks() -> None:
         assert denied[0]["hookSpecificOutput"]["permissionDecision"] == "deny" and "loop scripts" in json.dumps(denied), denied
         guard_mode(ws / ".hve" / "runtime", "advise")
         advised = fire(ws, "claude", base | write)
-        assert any(o.get("systemMessage", "").startswith("Guard Invoked - For your attention") for o in advised), advised
+        assert any(o.get("systemMessage", "").startswith("Advisory alert (experimental)") for o in advised), advised
         assert not any(o.get("hookSpecificOutput", {}).get("permissionDecision") == "deny" for o in advised), advised
         guard_mode(ws / ".hve" / "runtime", "enforce")
         push = {"hook_event_name": "PreToolUse", "tool_name": "Bash", "tool_use_id": "t3", "tool_input": {"command": "git push -f origin main"}}

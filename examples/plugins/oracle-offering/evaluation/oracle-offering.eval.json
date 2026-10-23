@@ -1,0 +1,66 @@
+{
+  "version": 1,
+  "intent": {
+    "workflow": "output-reflection",
+    "description": "Oracle migration delivered completely, with intact data and a rehearsed rollback."
+  },
+  "coreShare": 0.3,
+  "validation": {
+    "hooks": [
+      {
+        "id": "validation-logs",
+        "type": "artifacts",
+        "required": true,
+        "trigger": "always",
+        "outputKinds": ["ui", "cli", "api", "library", "document"],
+        "paths": [".harness/evidence/**/*.log"],
+        "timeoutSeconds": 30
+      }
+    ]
+  },
+  "rubrics": [
+    {
+      "id": "migration-completeness",
+      "description": "Every requested schema object, PL/SQL unit and data set is migrated and usable on the target.",
+      "weight": 0.4,
+      "blocking": 0.6,
+      "warning": 0.85,
+      "criteria": [
+        "Every object in the assessment inventory is migrated or explicitly descoped with a reason.",
+        "PL/SQL compiles on the target without errors.",
+        "Applications named in the request connect and run their main workflow."
+      ],
+      "validationHooks": ["locked-feature-checks"]
+    },
+    {
+      "id": "data-integrity",
+      "description": "Migrated data matches the source, proven by row counts and checksums.",
+      "weight": 0.35,
+      "blocking": 0.7,
+      "warning": 0.9,
+      "criteria": [
+        "Row counts match per table.",
+        "Checksums or sampled comparisons match for key tables.",
+        "The validation logs show the commands that produced the evidence."
+      ],
+      "validationHooks": ["validation-logs"]
+    },
+    {
+      "id": "rollback-readiness",
+      "description": "The runbook has a tested rollback with a clear trigger and point of no return.",
+      "weight": 0.25,
+      "blocking": 0.6,
+      "warning": 0.8,
+      "criteria": [
+        "Rollback steps are numbered, owned and timed.",
+        "The rollback trigger and the point of no return are explicit.",
+        "Rollback was rehearsed or the gap is stated."
+      ],
+      "validationHooks": ["locked-feature-checks"]
+    }
+  ],
+  "decision": {
+    "minimumScore": 0.85,
+    "councilPasses": 2
+  }
+}

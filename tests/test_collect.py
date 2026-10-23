@@ -326,6 +326,10 @@ def test_direct_contract_tracks_skills_tasks_briefs_and_reports() -> None:
         shifted = json.loads(lifecycle("contract", "document", "revenue", "HVE creator", "req.md").stdout)
         assert shifted["previous_open"] == {"ask": data["ask"], "why": ["milestones not done: deliver"]}, shifted["previous_open"]
         assert shifted["previous_ask"]["recommend"] == "new-workspace" and shifted["previous_ask"]["ask"] == data["ask"], shifted
+        assert shifted["skills"]["plugin"] == {"presentation-deck": ["every stage"], "frontend-slides": ["every stage"]}, shifted["skills"]["plugin"]
+        assert "- presentation-deck (every stage)" in (ws / shifted["paths"]["plan"]).read_text(encoding="utf-8")
+        assert "- frontend-slides (every stage)" in (ws / shifted["paths"]["plan"]).read_text(encoding="utf-8")
+        assert "presentation-deck" not in data["skills"]["plugin"], "a palette page is not a deck"
         assert any(d["choice"] == f"opened while ask {data['ask']} was still open" for d in shifted["decisions"]), shifted["decisions"]
         assert (ws / shifted["paths"]["ask"] / "contract.json").is_file() and path.is_file(), "each ask keeps its own folder"
         assert json.loads(lifecycle("shift", "Fix the revenue forecasting chart colours").stdout) is None

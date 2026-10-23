@@ -6,6 +6,7 @@ import json
 import os
 import re
 import stat
+import sys
 from pathlib import Path
 from typing import TypedDict
 
@@ -13,6 +14,7 @@ ROOT = Path(__file__).resolve().parents[2]
 BUNDLED = ROOT / "templates" / "deliverables"
 CONFIG_NAME = "frontier-hve.templates.json"
 KINDS = ("prd", "technicalDesign", "testStrategy")
+PLUGIN_SOURCE = re.compile(r"plugin:([a-z0-9-]+)/(\w+)@([1-9]\d*)\Z")
 SLUG = re.compile(r"[a-z0-9]+(?:-[a-z0-9]+)*\Z")
 SESSION = re.compile(r"[A-Za-z0-9_-]{1,128}\Z")
 IDENTITY = re.compile(r"^<!-- hve-template: ([\w-]+)@([1-9]\d*) -->$", re.M)
@@ -98,22 +100,67 @@ def configuration(workspace: Path) -> Config:
     return data
 
 
+def ask_packs(workspace: Path) -> dict[str, dict]:
+    """Return the expertise packs the workspace's active ask chose, by name (none without an open ask)."""
+    active = workspace / ".hve" / "asks" / "active.json"
+    if not active.is_file():
+        return {}
+    ask = json.loads(active.read_text(encoding="utf-8"))["active"]
+    chosen = json.loads((workspace / ".hve" / "asks" / ask / "contract.json").read_text(encoding="utf-8")).get("packs", [])
+    sys.path.insert(0, str(ROOT / "tools" / "plugins"))
+    import store
+    return {p["name"]: store.pack(workspace, p["name"]) for p in chosen}
+
+
+def kinds(workspace: Path) -> tuple[str, ...]:
+    """Return the core deliverable kinds plus the new '<pack>:<kind>' kinds of the active ask's packs."""
+    return KINDS + tuple(f"{name}:{kind}" for name, pack in ask_packs(workspace).items()
+                         for kind in pack["manifest"]["templates"] if kind not in KINDS)
+
+
+def configuration_entry(workspace: Path, kind: str) -> Entry:
+    """Return a kind's template source and output pattern: the workspace policy for core kinds, the pack manifest for pack kinds."""
+    if kind in KINDS:
+        return configuration(workspace)["templates"][kind]
+    name, _, own = kind.partition(":")
+    packs = ask_packs(workspace)
+    if name not in packs or own not in packs[name]["manifest"]["templates"]:
+        raise ValueError(f"unknown deliverable type {kind!r}; this ask knows {list(kinds(workspace))}")
+    spec = packs[name]["manifest"]["templates"][own]
+    return Entry(source=f"plugin:{name}/{own}@{spec['version']}", output=spec["output"])
+
+
+def plugin_template(workspace: Path, source: str, kind: str) -> Path:
+    """Return the template file of a 'plugin:<pack>/<kind>@<version>' source from one of the active ask's packs."""
+    match = PLUGIN_SOURCE.match(source)
+    if not match:
+        raise ValueError(f"plugin template source must be plugin:<pack>/<kind>@<version>, got {source!r}")
+    name, own, version = match.groups()
+    packs = ask_packs(workspace)
+    spec = packs[name]["manifest"]["templates"].get(own) if name in packs else None
+    if spec is None or str(spec["version"]) != version or own != (kind.partition(":")[2] or kind):
+        raise ValueError(f"{source} is not a {kind} template of a pack this ask chose ({sorted(packs)})")
+    return Path(packs[name]["folder"]) / spec["file"]
+
+
 def resolve(workspace: Path, kind: str) -> tuple[Entry, str, str]:
     """Return the entry, template text and exact-byte SHA-256 digest."""
-    entry = configuration(workspace)["templates"][kind]
+    entry = configuration_entry(workspace, kind)
     source = entry["source"]
-    builtin = {"prd": "prd", "technicalDesign": "technical-design", "testStrategy": "test-strategy"}[kind]
     if source.startswith("builtin:"):
+        builtin = {"prd": "prd", "technicalDesign": "technical-design", "testStrategy": "test-strategy"}[kind]
         if source != f"builtin:{builtin}@1":
             raise ValueError(f"unknown bundled template: {source}")
         template = BUNDLED / f"{builtin}-v1.md"
+    elif source.startswith("plugin:"):
+        template = plugin_template(workspace, source, kind)
     else:
         template = safe_path(workspace, source)
     raw = template.read_bytes()
     text = raw.decode("utf-8").replace("\r\n", "\n")
     identities = IDENTITY.findall(text)
     sections = SECTION.findall(text)
-    if (len(identities) != 1 or identities[0][0] != kind or not sections
+    if (len(identities) != 1 or identities[0][0] != (kind.partition(":")[2] or kind) or not sections
             or len(set(sections)) != len(sections) or METADATA.search(text)):
         raise ValueError(f"invalid template identity or section markers: {template}")
     return entry, text, hashlib.sha256(raw).hexdigest()
@@ -144,12 +191,13 @@ def load_state(workspace: Path, session: str) -> State:
     if not path.exists():
         return State(requested=[], documents=[])
     data = json.loads(path.read_text(encoding="utf-8"))
+    known = kinds(workspace)
     if (not isinstance(data, dict) or set(data) != {"requested", "documents"}
             or not isinstance(data["requested"], list)
-            or any(kind not in KINDS for kind in data["requested"])
+            or any(kind not in known for kind in data["requested"])
             or not isinstance(data["documents"], list)
             or any(not isinstance(doc, dict) or set(doc) != {"kind", "slug"}
-                   or doc["kind"] not in KINDS or not isinstance(doc["slug"], str)
+                   or doc["kind"] not in known or not isinstance(doc["slug"], str)
                    for doc in data["documents"])):
         raise ValueError(f"invalid session registry: {path}")
     return data
@@ -165,7 +213,7 @@ def save_state(workspace: Path, session: str, state: State) -> None:
     temporary.replace(path)
 
 
-def update_state(workspace: Path, session: str, kinds: list[str], document: Document | None = None) -> State:
+def update_state(workspace: Path, session: str, requested: list[str], document: Document | None = None) -> State:
     """Serialize registry updates or fail explicitly when another update holds the lock."""
     path = state_path(workspace, session)
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -174,7 +222,7 @@ def update_state(workspace: Path, session: str, kinds: list[str], document: Docu
     try:
         with handle:
             state = load_state(workspace, session)
-            state["requested"] = sorted(set(state["requested"] + kinds))
+            state["requested"] = sorted(set(state["requested"] + requested))
             if document is not None and document not in state["documents"]:
                 state["documents"].append(document)
             save_state(workspace, session, state)
@@ -183,13 +231,14 @@ def update_state(workspace: Path, session: str, kinds: list[str], document: Docu
         lock.unlink()
 
 
-def request(workspace: Path, session: str, kinds: list[str]) -> State:
+def request(workspace: Path, session: str, requested: list[str]) -> State:
     """Register required types after validating their configured templates."""
-    for kind in kinds:
-        if kind not in KINDS:
-            raise ValueError(f"unknown deliverable type: {kind}")
+    known_kinds = kinds(workspace)
+    for kind in requested:
+        if kind not in known_kinds:
+            raise ValueError(f"unknown deliverable type: {kind}; known: {list(known_kinds)}")
         resolve(workspace, kind)
-    return update_state(workspace, session, kinds)
+    return update_state(workspace, session, requested)
 
 
 def initialize(workspace: Path, kind: str, slug: str, session: str) -> Path:
@@ -212,7 +261,7 @@ def register(workspace: Path, kind: str, slug: str, session: str) -> Path:
         raise ValueError("; ".join(errors))
     request(workspace, session, [kind])
     update_state(workspace, session, [kind], Document(kind=kind, slug=slug))
-    return output_path(workspace, configuration(workspace)["templates"][kind], slug)
+    return output_path(workspace, configuration_entry(workspace, kind), slug)
 
 
 def validate(workspace: Path, kind: str, slug: str) -> list[str]:
@@ -262,13 +311,13 @@ def main() -> None:
     commands.add_parser("configure")
     for command in ("resolve", "init", "register", "validate"):
         sub = commands.add_parser(command)
-        sub.add_argument("kind", choices=KINDS)
+        sub.add_argument("kind", help=f"one of {list(KINDS)} or '<pack>:<kind>' of the active ask's packs")
         if command != "resolve":
             sub.add_argument("--slug", required=True)
         if command in ("init", "register"):
             sub.add_argument("--session", required=True)
     sub = commands.add_parser("request")
-    sub.add_argument("kinds", nargs="+", choices=KINDS)
+    sub.add_argument("kinds", nargs="+")
     sub.add_argument("--session", required=True)
     sub = commands.add_parser("check")
     sub.add_argument("--session", required=True)

@@ -418,8 +418,9 @@ def test_loop_guard_awareness_mode() -> None:
         out = fire(root, "loop_guard.py", {"hook_event_name": "PreToolUse", "tool_name": "replace_string_in_file", "tool_input": edit,
                                            "tool_use_id": "t1"}, **env)
         assert out and "permissionDecision" not in out["hookSpecificOutput"], out
-        assert out["systemMessage"].startswith("Guard Invoked - For your attention: during the run a loop file"), out
-        assert '`"passes": false` replaced by `"passes": true`' in out["systemMessage"] and "Guard Invoked" in out["hookSpecificOutput"]["additionalContext"]
+        assert out["systemMessage"].startswith("Advisory alert (experimental): surfaces LLM behaviour that helps to know. During the run a loop "
+                                                "file"), out
+        assert '`"passes": false` replaced by `"passes": true`' in out["systemMessage"] and "Advisory alert" in out["hookSpecificOutput"]["additionalContext"]
         stop = fire(root, "loop_guard.py", {"hook_event_name": "Stop", "timestamp": "2026-10-06T08:05:00+00:00", "stop_hook_active": False},
                     **env)
         assert stop == {"systemMessage": stop["systemMessage"]} and "stopped while features still fail" in stop["systemMessage"], stop

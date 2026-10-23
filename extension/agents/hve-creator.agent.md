@@ -1,6 +1,7 @@
 ---
 name: HVE creator
-user-invocable: false
+model: ['GPT-6 Astra (copilot)', 'Gemini 4 Argon (copilot)', 'Claude Fable 5 (copilot)', 'Claude Opus 5.5 (copilot)']
+reasoning-effort: high
 description: Frontier HVE full harness. Verified feature loop with fresh sub-agents, deterministic retry rules and guards.
 hooks:
   SessionStart:
@@ -9,6 +10,8 @@ hooks:
     - type: command
       command: 'python "{{RUNTIME}}/hooks/profile_detector.py"'
   UserPromptSubmit:
+    - type: command
+      command: 'python "{{RUNTIME}}/hooks/error_guard.py"'
     - type: command
       command: 'python "{{RUNTIME}}/hooks/template_guard.py"'
     - type: command
@@ -27,6 +30,8 @@ hooks:
       command: 'python "{{RUNTIME}}/hooks/agent_ledger.py"'
   PreToolUse:
     - type: command
+      command: 'python "{{RUNTIME}}/hooks/error_guard.py"'
+    - type: command
       command: 'python "{{RUNTIME}}/hooks/loop_guard.py"'
       env:
         HARNESS_PROJECT: .
@@ -36,6 +41,8 @@ hooks:
       env:
         HARNESS_SKILLS_MIN_STATUS: provisional
   PostToolUse:
+    - type: command
+      command: 'python "{{RUNTIME}}/hooks/error_guard.py"'
     - type: command
       command: 'python "{{RUNTIME}}/hooks/skill_loader.py"'
       env:
@@ -91,7 +98,7 @@ When the session context says `Delivery: participatory`, follow the `delivery-co
 2. Run `python "{{RUNTIME}}/tools/loop/loop.py" init . --review local` once. If `project.loop` is `amend` (an earlier ask started the loop), write only the new features to `paths.feature_list_add` and run `loop.py amend .` instead. Afterwards the loop files (`feature_list.json`, `progress.txt`, `tracker.json`) and loop state change only through the loop scripts.
 3. Repeat: `python "{{RUNTIME}}/tools/loop/loop.py" next .`, delegate the feature to one fresh sub-agent (its brief, description, check command and file paths), then `python "{{RUNTIME}}/tools/loop/loop.py" verify .`.
 4. On failure, `verify` prints a `rule` and an `action`; do exactly the action. If it prints `escalated: true`, stop and ask the user its question verbatim.
-5. For genuinely different approaches use the `parallel-options` skill. Stop the loop when `next` prints `{"done": true}`. Run `lifecycle.py tasks-sync`, then ask one multi-select form listing each feature with its evidence folder (`paths.evidence/<feature>/`): "Tick the features you reviewed and accept". Record `lifecycle.py tick task:<feature> accepted` for ticked ones and `skipped` for the rest (`changes` when the user says what is wrong; fix it first). Then run the output reflection. Never commit with `--no-verify` and never push.
+5. For genuinely different approaches use the `parallel-options` skill. Stop the loop when `next` prints `{"done": true}`. Run `lifecycle.py tasks-sync`, then ask one multi-select form listing each feature with a markdown link to its evidence folder (`paths.evidence/<feature>/`, workspace-relative) in the question's `message`: "Tick the features you reviewed and accept". Record `lifecycle.py tick task:<feature> accepted` for ticked ones and `skipped` for the rest (`changes` when the user says what is wrong; fix it first). Then run the output reflection. Never commit with `--no-verify` and never push.
 
 ## Output reflection
 `reflection.py` is `python "{{RUNTIME}}/tools/evaluation/reflection.py"`. Write your inputs only to `.hve/evaluations/input/`. Run it when the loop finishes and again whenever the user asks to evaluate or improve the build; `prepare` refuses when nothing changed since the last evaluation.

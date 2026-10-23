@@ -52,14 +52,14 @@ def test_extension_js_parses() -> None:
 
 
 def test_rendered_plugin_shape() -> None:
-    """The plugin has its manifest, 15 skills, guardrail scripts and 23 HVE agents with every runtime path filled in; only the three
+    """The plugin has its manifest, 16 skills, guardrail scripts and 23 HVE agents with every runtime path filled in; only the three
     Frontier agents are user-invocable and they, with the uplift judge, pin top models."""
     with tempfile.TemporaryDirectory() as tmp:
         out = Path(tmp) / "plugin"
         agents = render(out)
         assert len(agents) == 23, agents
         assert json.loads((out / "plugin.json").read_text(encoding="utf-8"))["name"] == "frontier-hve"
-        assert len(list((out / "skills").glob("*/SKILL.md"))) == 15
+        assert len(list((out / "skills").glob("*/SKILL.md"))) == 16
         assert (out / "skills" / "deliverable-templates" / "SKILL.md").is_file()
         assert (EXTENSION / "runtime" / "tools" / "templates" / "manage.py").is_file()
         assert (EXTENSION / "runtime" / "templates" / "deliverables" / "prd-v1.md").is_file()
@@ -70,13 +70,13 @@ def test_rendered_plugin_shape() -> None:
         assert (out / "scripts" / "guardrail.py").exists()
         restricted = {"council", "evaluation-reviewer", "minimal", "flow-architect", "flow-maintainer", "skill-judge", "skill-worker",
                       "uplift-judge"}
-        visible, pinned = {"e2e", "agile", "prototype"}, {"e2e", "agile", "prototype", "uplift-judge"}
+        visible, pinned = {"e2e", "agile", "prototype", "creator"}, {"e2e", "agile", "prototype", "creator", "uplift-judge"}
         for name in agents:
             text = (out / "com.github.copilot" / "agents" / name).read_text(encoding="utf-8")
             short = name.removeprefix("hve-").removesuffix(".agent.md")
             assert "{{RUNTIME}}" not in text and re.search(r"^name: (HVE |Frontier )", text, re.M), name
             assert bool(re.search(r"^user-invocable: false", text, re.M)) == (short not in visible), f"{name}: only the Frontier agents show"
-            assert bool(re.search(r"^model: \['GPT-6 Astra \(copilot\)'", text, re.M)) == (short in pinned), f"{name}: model pin"
+            assert bool(re.search(r"^model: \[.*'GPT-6 Astra \(copilot\)'", text, re.M)) == (short in pinned), f"{name}: model pin"
             assert not re.search(r"budget\.py|HARNESS_BUDGET", text), f"{name}: product agents have no time budget"
             assert bool(re.search(r"^tools:", text, re.M)) == (short in restricted), \
                 f"{name}: only read-only, blind and baseline agents keep a fixed tool list"

@@ -6,6 +6,7 @@ const fs = require('fs');
 const path = require('path');
 const { execFile } = require('child_process');
 const { renderPlugin } = require('./render');
+const packs = require('./packs');
 
 const MIN_PYTHON = [3, 11];
 const PYTHON_LAUNCHERS = [['python'], ['python3'], ['py', '-3']];
@@ -71,6 +72,19 @@ async function registerPlugin(context, python) {
   await context.globalState.update('renderedVersion', context.extension.packageJSON.version);
   await context.globalState.update('renderedPython', python);
   return pluginDir;
+}
+
+/**
+ * Run an action with the Python launcher, or explain that Python is missing.
+ * @param {(python: string) => Promise<void>} action
+ */
+async function withPython(action) {
+  const python = await findPython();
+  if (!python) {
+    await warnNoPython();
+    return;
+  }
+  await action(python);
 }
 
 /** Explain that Python is missing and offer the download page. */
@@ -283,7 +297,7 @@ async function setUp(context) {
  */
 async function offerReload(message) {
   const reload = await vscode.window.showInformationMessage(
-    `${message} Reload the window, then pick a Frontier agent (E2E Delivery, BYOW or Prototype Creator) in a new chat with Session Target: Local.`,
+    `${message} Reload the window, then pick a Frontier agent (E2E Delivery, BYOW or Prototype Creator) or HVE creator in a new chat with Session Target: Local.`,
     'Reload Window');
   if (reload) {
     vscode.commands.executeCommand('workbench.action.reloadWindow');
@@ -295,11 +309,14 @@ async function offerReload(message) {
  * @param {vscode.ExtensionContext} context
  */
 async function activate(context) {
+  const host = { run: runPythonJson, offerReload };
   context.subscriptions.push(
     vscode.commands.registerCommand('frontierHve.setup', () => setUp(context)),
     vscode.commands.registerCommand('frontierHve.installHarnesses', () => installHarnesses(context)),
     vscode.commands.registerCommand('frontierHve.researchTelemetry', () => enableResearchTelemetry(context)),
-    vscode.commands.registerCommand('frontierHve.researchTelemetryOff', disableResearchTelemetry));
+    vscode.commands.registerCommand('frontierHve.researchTelemetryOff', disableResearchTelemetry),
+    vscode.commands.registerCommand('frontierHve.installPlugin', () => withPython((python) => packs.installPackCommand(context, python, host))),
+    vscode.commands.registerCommand('frontierHve.managePlugins', () => withPython((python) => packs.managePacksCommand(context, python, host))));
   const telemetry = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left);
   telemetry.text = '$(record) Research telemetry on';
   telemetry.tooltip = 'Copilot chats are recorded with full content to .hve/runs/copilot-otel.jsonl. Click to turn research telemetry off.';
@@ -315,6 +332,10 @@ async function activate(context) {
   if (python && folders && folders.length > 0 && fs.existsSync(path.join(folders[0].uri.fsPath, '.hve', 'runs', 'copilot-otel.jsonl'))) {
     // Not awaited: activation must not wait on a large file; a failure is shown, not swallowed.
     trimTelemetry(context, folders[0].uri.fsPath, python).catch((error) => vscode.window.showErrorMessage(`Frontier HVE: ${error.message}`));
+  }
+  if (python) {
+    // Not awaited: activation must not wait on the store or on the user's answers; a failure is shown, not swallowed.
+    packs.startPacks(context, python, host).catch((error) => vscode.window.showErrorMessage(`Frontier HVE expertise packs: ${error.message}`));
   }
   if (!python) {
     const item = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left);

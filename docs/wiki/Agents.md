@@ -4,19 +4,19 @@
 
 Pick these in a new chat. In VS Code the extension's agents and their agent-scoped hooks appear with Session Target **Local**; for Copilot (CLI or the VS Code Copilot harness), Claude Code, Codex, Cursor and the Copilot cloud agent run **Frontier HVE: Install for other harnesses** ([Adapters](Adapters.md)).
 
-Since 0.15.0 the picker shows only the three delivery agents (D-055). They ask VS Code for a top model in this order: GPT-6 Astra, Gemini 4 Argon, Claude Fable 5, Claude Opus 5.5 (the first one available is used), with `reasoning-effort: high`. VS Code does not apply `reasoning-effort` from agent files (D-020), so also set the effort to high in the model picker. Every deliverable a user sees ends with the **wow uplift** loop (`wow-uplift` skill): a top-model judge (`HVE uplift-judge`) names two or three targeted UI/UX or presentation improvements, the agent applies them, re-runs the checks and captures before and after images, and the judge looks again, up to 3 rounds or until it says done. Any deck follows the `presentation-deck` skill (NorthStar style, discovery form, python-pptx build, lint and previews).
+Since 0.15.0 the picker shows only the delivery agents (D-055), and since 0.15.3 `HVE creator` again (D-058). They ask VS Code for a top model in this order: GPT-6 Astra, Gemini 4 Argon, Claude Fable 5, Claude Opus 5.5 (the first one available is used), with `reasoning-effort: high`. VS Code does not apply `reasoning-effort` from agent files (D-020), so also set the effort to high in the model picker. Every deliverable a user sees ends with the **wow uplift** loop (`wow-uplift` skill): a top-model judge (`HVE uplift-judge`) names two or three targeted UI/UX or presentation improvements, the agent applies them, re-runs the checks and captures before and after images, and the judge looks again, up to 3 rounds or until it says done. Any deck follows the `presentation-deck` skill (NorthStar style, discovery form, python-pptx build, lint and previews); when the user picks web slides it routes to `frontend-slides` (animated single-file HTML decks, D-059).
 
 | Agent | Use it for | Guard hooks | Needs Python |
 |---|---|---|---|
 | `Frontier E2E Delivery` (`hve-e2e`) | End-to-end delivery along a lifecycle (SDLC, consulting or a plugin/workspace one) with a gate per stage; build stages run as feature loops. E.g. a leave app from discovery to release, or a consulting deliverable with signed-off stages | as creator | Yes |
 | `Frontier BYOW` (`hve-agile`, Bring your own way of working) | Sprints along your team's agile overlay (built-in Scrum, a plugin's or a workspace one) with product manager, UI/UX and engineer personas, a hand-off review per persona and a review per sprint. E.g. a Scrum sprint on a customer portal, or your team's Kanban overlay | as creator | Yes |
 | `Frontier Prototype Creator` (`hve-prototype`) | Fast UI/UX clickthrough (HTML or TypeScript) in the ask folder's `prototype/`, self-checked (`tools/prototype/check.py`) with a screenshot per screen; no loop; output evaluation on request. E.g. three screens of a leave request flow for a stakeholder demo | loop (safety only) | Yes |
+| `HVE creator` | Build software: verified feature loop, then output evaluation ([Evaluation](Evaluation.md)) | loop, module, error, prototype, template, skill, profile, compaction, choice | Yes |
 
 Hidden in the extension (`user-invocable: false`): the agents below still ship and can be called as sub-agents, but you do not pick them. In this repository the research arms in `.github/agents/` (`minimal`, `single`, `creator`, `creator-flow`, `creator-github`) are the user-invocable versions.
 
 | Agent | Use it for | Guard hooks | Needs Python |
 |---|---|---|---|
-| `HVE creator` | Build software: verified feature loop, then output evaluation ([Evaluation](Evaluation.md)) | loop, module, prototype, template, skill, profile, compaction, choice | Yes |
 | `HVE creator-flow` | Build through the graph workflow (Designer → ... → Maintainer) | as creator; stage agents add the stage guard | Yes |
 | `HVE creator-github` | Product work on GitHub: stacked branches, options you pick, PRs pushed only when you tick them | as creator | Yes |
 | `HVE product-manager` | Research, PRD in the configured template, backlog ([Product Manager](Product-Manager.md)); the product manager persona of E2E and BYOW | template (PRD only), skill (`prd` always loaded), profile, compaction | Yes |
@@ -65,13 +65,14 @@ When another ask is still open (milestones not done, or an evaluation you asked 
 
 ## Lifecycles
 
-`Frontier E2E Delivery` and `Frontier BYOW` start with `tools/loop/lifecycle.py pick "<request>"`, show the stages and ask which to skip; the practitioner's call wins. A stage whose agent is `HVE engineer` is a feature loop the orchestrator runs itself, one engineer per feature. Lifecycles are JSON files with stages (goal, agent, library skills, plugin skills, templates, exit gate, when to skip):
+`Frontier E2E Delivery` and `Frontier BYOW` start with `tools/loop/lifecycle.py route <request-file>` (expertise packs routed by the request, then lifecycles with matched packs' overlays first), show the stages and ask which lifecycle, which stages to skip and, when packs match, which packs to use; the practitioner's call wins. A stage whose agent is `HVE engineer` is a feature loop the orchestrator runs itself, one engineer per feature. Lifecycles are JSON files with stages (goal, agent, library skills, plugin skills, templates, exit gate, when to skip, and optionally `evidence` checked before the stage is done and a capped `rework` step back):
 
 | Source | Folder | Wins over |
 |---|---|---|
 | Built-in | `templates/lifecycles/` (`sdlc`, `agile-scrum`, `consulting-delivery`, `document`, `direct`) | - |
-| Plugin | `plugins/<name>/lifecycles/` | built-in |
+| Plugin | `plugins/<name>/lifecycles/` (folders without `hve-plugin.json`) | built-in |
 | Workspace | `.hve/lifecycles/` | built-in and plugin |
+| Expertise pack | `<pack>/lifecycles/`, named `<pack>:<name>` ([Expertise packs](Plugins.md)) | - (own names) |
 
 `lifecycle.py contract` writes the ask's `contract.json` (expected agent, skills and templates per stage, plus the fields above); `stage` records each stage's status with a one-line note; the skill loader loads and allows the current stage's skills; `lifecycle.py report <session>` (in `tools/loop/ask_report.py`) writes the ask's `provenance.md` with expected against used skills and authored templates, gaps in done stages, plan revisions and sync state, guard trips and waivers, and every decision. `tools/observe/provenance.py` adds the same facts as its `contract` component (failed on gaps or an unsynced plan) and a `guards` summary for every agent.
 
@@ -81,7 +82,7 @@ The repository's `.github/agents/` holds the research arms (`minimal`, `single`,
 
 | Guard | File | When | Enforces |
 |---|---|---|---|
-| loop | `hooks/loop_guard.py` | before/after tools, stop | Loop state (`.harness/`, or `.hve/project/` and the ask's `loop/` folder) always, and the loop files `feature_list.json`, `progress.txt` and `tracker.json` while features still fail, change only through `loop.py` (edit targets are matched by path, shell commands only when they write); new features go through `feature_list.add.json` and `loop.py amend`; pushes only for ticked PRs; stop on escalation; a victory check before stopping. **Awareness mode (D-056, `hooks/guard_mode.json`):** loop-file and loop-state edits and the victory check are shown to the user under "Guard Invoked - For your attention" with the change, not blocked; escalation, hook bypass, resume and push rules still block |
+| loop | `hooks/loop_guard.py` | before/after tools, stop | Loop state (`.harness/`, or `.hve/project/` and the ask's `loop/` folder) always, and the loop files `feature_list.json`, `progress.txt` and `tracker.json` while features still fail, change only through `loop.py` (edit targets are matched by path, shell commands only when they write); new features go through `feature_list.add.json` and `loop.py amend`; pushes only for ticked PRs; stop on escalation; a victory check before stopping. **Awareness mode (D-056, `hooks/guard_mode.json`):** loop-file and loop-state edits and the victory check are shown to the user as "Advisory alert (experimental): surfaces LLM behaviour that helps to know" with the change, not blocked; escalation, hook bypass, resume and push rules still block |
 | error | `hooks/error_guard.py` | prompt, before/after tools (E2E, BYOW, Prototype Creator, engineer) | After 3 failed terminal commands in a row (feature-loop checks excluded) the agent stops with "Error guard - paused for your attention", the commands and their output; tools other than reading and asking stay held until the user's next prompt |
 | module | `hooks/module_guard.py` | after edits | No file over 500 lines; the agent proposes a split |
 | prototype | `scripts/guardrail.py` | after tools | Flags code over 5,000 lines, files over 20 MB, non-enterprise components and self-built infrastructure, and names the experts to involve |

@@ -238,8 +238,12 @@ def library_root(tmp: str) -> Path:
         shutil.copy(REPO / "hooks" / hook, root / "hooks")
     for script in ("recommend.py", "context_load.py", "scan.py"):
         shutil.copy(REPO / "tools" / "skills" / script, root / "tools" / "skills")
-    for script in ("lifecycle.py", "environment.py", "loop_paths.py", "ask_plan.py"):
+    for script in ("lifecycle.py", "lifecycle_catalog.py", "ask_packs.py", "stage_evidence.py", "environment.py", "loop_paths.py",
+                   "ask_plan.py"):
         shutil.copy(REPO / "tools" / "loop" / script, root / "tools" / "loop")
+    (root / "tools" / "plugins").mkdir()
+    for script in ("store.py", "route.py"):
+        shutil.copy(REPO / "tools" / "plugins" / script, root / "tools" / "plugins")
     config = json.loads((REPO / "skills" / "categories.json").read_text(encoding="utf-8")) | {"loadout": {"max_skills": 2, "max_tokens": 1000, "keyword_floor": 0.5}}
     (root / "skills" / "admitted").mkdir(parents=True)
     (root / "skills" / "categories.json").write_text(json.dumps(config), encoding="utf-8")

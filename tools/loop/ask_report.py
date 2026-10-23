@@ -11,6 +11,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "hooks"))
 from lifecycle import WORKSPACE, active, plan_status  # noqa: E402
 from loop_paths import loop_dir, state_dir, state_file  # noqa: E402
 from ask_plan import OPTIONS, items, refresh, ticked  # noqa: E402
+import ask_packs  # noqa: E402
 
 Json = dict[str, Any]
 
@@ -169,10 +170,14 @@ def facts(workspace: Path, session: str) -> Json:
             for kind, verb in (("skills", "used"), ("templates", "authored")) for item, ok in s[kind].items() if not ok]
     status = plan_status(workspace)
     contracted = {k for s in data["stages"] for k in s["skills"]} | {r["name"] for r in data["skills"]["selected"]}
+    cache = measures(workspace, session)
     return {"ask": data["ask"], "lifecycle": data["lifecycle"], "source": data["source"], "agent": data["agent"], "session": session,
             "evidence": [p.relative_to(workspace).as_posix() for p in (path, loadout, deliverables) if p.is_file()],
             "plan": status, "stages": stages, "gaps": gaps, "outside_contract": sorted(used - contracted),
-            "usage": usage(data, observed, workspace, session), "skill_load": data["skills"], "cache": measures(workspace, session),
+            "usage": usage(data, observed, workspace, session), "skill_load": data["skills"], "cache": cache,
+            "packs": [{k: p[k] for k in ("name", "id", "version", "source", "sha256", "routed", "lifecycle", "agents", "templates")}
+                      | {"knowledge": [d["id"] for d in p["knowledge"]]} for p in data["packs"]],
+            "pack_load": ask_packs.measured(ask_packs.load(data), cache),
             "decisions": data["decisions"], "guards": guard_summary(workspace, session)}
 
 
@@ -266,6 +271,7 @@ def report(session: str) -> str:
             f"Facts from: {', '.join(f['evidence'])}.\n\n## Pillars\n\n"
             + "\n".join(pillar_rows(quality(WORKSPACE, data), f["cache"], data["skills"], data["created"]))
             + "\n\n## Stages\n\n" + "\n".join(rows)
+            + "\n\n## Expertise packs\n\n" + "\n".join(ask_packs.report_lines(f["pack_load"]))
             + "\n\n## Sign-off checklist\n\n" + "\n".join(checklist_lines(data))
             + "\n\n## Recommended against used\n\n" + "\n".join(usage_rows(f["usage"]))
             + f"\n\n- Gaps in done stages: {'; '.join(f['gaps']) or 'none'}.\n"

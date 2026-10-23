@@ -522,3 +522,59 @@
   - The full suite passes.
   - Not verified live.
   - Extension 0.15.0.
+
+## D-057: plugin skills are part of the ask contract; a deck request always carries presentation-deck (2026-10-22)
+- **Finding:** the user's live test (Frontier E2E Delivery, "create a deck ... 10-12 slides") showed "presentation deck skill not picked up".
+  - The transcript shows the agent did read `presentation-deck` and planned with `deck_kit.py`, but only after it had already shown the plan.
+  - The user never saw the skill: the skills form and `plan.md` list only library skills (16 shortlisted, several weakly related), and plugin skills sat only in stage briefs.
+  - The deck discovery form (kind, theme, text level, notes) was never asked.
+- **Built:**
+  - `contract` records `skills.plugin`: the plugin skills of the ask's stages, plus `presentation-deck` for any request that mentions a presentation, deck, slides or pptx.
+  - `plan.md` lists them as "always on, outside the skill budget", and briefs pass them to sub-agents.
+  - E2E and BYOW show them whenever they show skills, and for a deck read `presentation-deck` and ask its discovery form before writing the plan.
+  - The `document` lifecycle no longer names the deck skill for every document (a memo is not a deck).
+- **Verified:** `test_collect` (a deck request lists `presentation-deck` in the contract and `plan.md`; a palette page does not) and the full suite. Extension 0.15.1.
+- **Follow-up (user, same day):** the NorthStar deck was given only as a style reference, and agents should never need it. `presentation-deck` now states that the NorthStar style is built in (`deck_kit.py`, the visual grammar). A linked or named NorthStar deck means "use this style": never fetch, download, open or ask for it. A template `.pptx` is used only when it is already in the workspace. Extension 0.15.2.
+
+## D-058: review questions link their files, the advisory alert is renamed, HVE creator is back in the picker (2026-10-22)
+- **Live feedback:**
+  - A gate asked "Accept this research and story direction ...?" without a link to anything, so the user could not see what to review.
+  - The "Guard Invoked - For your attention" note read oddly.
+- **Built:**
+  - **Review links.** Every sign-off question (E2E gates, BYOW hand-offs, Prototype Creator, product manager, creator feature sign-off) puts a markdown link to each file and evidence folder to review in the question's message, each with one line on what to look at. It never asks for a review without them.
+  - **Advisory alert.** The loop guard's awareness note now reads "Advisory alert (experimental): surfaces LLM behaviour that helps to know. During the run ...".
+  - **HVE creator in the picker.** It is user-invocable again, with the same top-model list and `reasoning-effort: high`, and gains the error guard. Creator is the hook source for other harnesses, so the error guard is now also exported to them.
+- **Verified:** the full suite. Extension 0.15.3.
+
+## D-059: frontend-slides joins presentation-deck as a plugin skill; the AGPL and image-API deck skills are left out (2026-10-22)
+- **Request:** add the presentation skills from open-design.ai's "Claude PPT skills" post, except PPT Master, and make sure a presentation ask picks them up.
+- **Assessed:**
+
+| Skill | Licence | Size | Decision | Why |
+|---|---|---|---|---|
+| frontend-slides (`zarazhangrui/frontend-slides`) | MIT | 3.4 MB, about 1.7 MB as text | Added | Animated single-file HTML decks, 12 presets plus 34 bold templates |
+| guizang-ppt-skill | AGPL-3.0 | 5.8 MB | Left out (user) | Shipping AGPL inside the extension puts AGPL obligations on it |
+| dashiAI-ppt-skill | AGPL-3.0 | 57.7 MB (fonts, vendor JS, npm project) | Left out (user) | Same licence issue, plus size |
+| codex-ppt-skill | MIT | 42.8 MB | Left out (user) | Renders each slide through an external image-generation API with a key |
+
+- **Built:**
+  - `plugins/harness-assist/skills/frontend-slides/` holds the MIT text files at commit `9906a34`, with `LICENSE` and `NOTICE.md`.
+  - Removed from the copy: `deploy.sh` (publishes decks to a public Vercel URL, a client-data risk), `export-pdf.sh` (bash, downloads Chromium), the README and screenshots. Phase 6 now keeps decks in the workspace and makes PDFs through the browser's print dialog. One template phrase was reworded so the skill scan passes.
+  - `presentation-deck` stays the router. Its discovery form asks the format first: an editable NorthStar `.pptx` (recommended) or web slides. Web slides go on to `frontend-slides` from its style previews, with previews in the evidence folder and the deck at `presentation/<slug>/index.html`.
+  - Any deck request adds both skills to the contract's `skills.plugin` and `plan.md`. E2E and BYOW name both and the format question.
+- **Verified:** the scan passes (16 plugin skills), `test_collect` checks both skills on a deck request, and the full suite passes. Extension 0.15.4.
+
+## D-060: expertise packs (the plugin architecture) route into the E2E and BYOW lifecycle contract, with their token load recorded (2026-10-22)
+- **Request:** bring the plugin architecture of branch `plugin-architecture/pj-1013` into E2E and especially BYOW: tribal knowledge per practice (skills, overlays, process maps, templates) with routing in a manifest, so the model reads the manifest and not the folder. Later in the same request: the plan, the contract and the provenance must capture the packs in use and their context contribution in tokens, absolute and relative.
+- **Found:** the branch holds only the design plan. The code is open PR #8 (`feature/plugin-architecture`, jnPiyush; its decision D-048 clashes with ours). It is built on an older main; at its HEAD the skill loader's plugin routing calls removed functions; routing is a yes/no match; the process is a creator-flow graph; there are no knowledge documents.
+- **Decided with the user (discussion first):** port selectively (PR #8 at `be8284a`, credited); lifecycles are the only process format, with optional stage `evidence` and a capped `rework` step taken from the flow graphs; a manifest `knowledge` section with `use_when`; packs from the workspace (`plugins/<pack>/`) and the installed store; pack rubrics now.
+- **Built:**
+  - `tools/plugins/` (manifest, route, store, plugin, author), `schemas/hve-plugin.schema.json`, `tools/evaluation/compose.py`, and the Oracle sample rewritten with a lifecycle overlay (evidence, rework) and two knowledge documents. Manifest keys: `flows` replaced by `lifecycles` and `knowledge`; every asset is measured in tokens.
+  - `tools/loop/lifecycle_catalog.py` (catalog, pick, `route`: packs named, missing, matched with why; matched packs' overlays first), `ask_packs.py` (the pack choice check, the contract record, the token load, brief and plan lines, the provenance table) and `stage_evidence.py` (evidence checks, rework), keeping `lifecycle.py` at 497 lines.
+  - `contract ... @<pack>|@core` records `packs` and `pack_load`; it refuses an offered pack choice left unrecorded and a pack lifecycle without its pack. `stage <s> done` refuses missing evidence; `rework <s> <why>` steps back within the cap.
+  - Token load per pack: always loaded (manifest index, knowledge index, its lifecycle, its selected skills) and on demand (knowledge documents, agent prompts, templates), absolute and as a share of the ask's contracted context and of a 128K window; in the provenance also of the first and peak measured prompt. In `contract.json`, `plan.md`, `provenance.md` and `.hve/runs/<session>.provenance.json`.
+  - Skill loader: pack skills load as `<pack>:<skill>` into `.hve/skills/<pack>__<skill>`; skills of packs the ask did not choose are denied. Template manager: `<pack>:<kind>` and `plugin:<pack>/<kind>@<v>`. Output evaluation: `--plugin-contract` and `--rubric-selection`.
+  - Extension: Install plugin and Manage plugins commands, `frontierHve.pluginIndex`, reconcile and requirements on start, pack agents rendered as `<pack>:<agent>` with core hooks (`extension/packs.js`, `render.js renderPacks`).
+  - E2E and BYOW: `route` first, the `Expertise packs` question, `@pack` contract arguments, pack load shown, pack knowledge per stage, evidence and rework. Wiki `Plugins.md`.
+- **Not ported:** creator-flow pack flows, per-prompt plugin routing in the skill loader for the creator agents, export of pack agents to other harnesses (briefs name the agent file instead), the wrapper-extension API.
+- **Verified:** new `tests/test_plugins.py` (validation, install lifecycle, archive and index, routing into the contract with token load, plan, brief, provenance, skill allow and deny, pack template, evidence, rework cap, rubric composition, rendering, author kit) and the full suite. Extension 0.16.0. Not verified live.

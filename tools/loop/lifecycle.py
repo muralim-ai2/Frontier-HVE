@@ -12,17 +12,17 @@ from typing import Any, Literal
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "tools" / "skills"))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from recommend import rank, stems  # noqa: E402
+from recommend import rank, skill_dir, stems  # noqa: E402
 from environment import environment  # noqa: E402
 from loop_paths import ASK_ID, loop_dir, project_folder, state_file  # noqa: E402
-from ask_plan import CHECKLIST_BLOCK, SKILLS_BLOCK, items, record, refresh, ticked, unfinished  # noqa: E402
+from ask_plan import CHECKLIST_BLOCK, SKILLS_BLOCK, items, plugin_skills, record, refresh, ticked, unfinished  # noqa: E402
+from lifecycle_catalog import catalog, pick, route  # noqa: E402
+import ask_packs  # noqa: E402
+import stage_evidence  # noqa: E402
 
 WORKSPACE = Path.cwd()
 ASKS = WORKSPACE / ".hve" / "asks"
-SOURCES = [ROOT / "templates" / "lifecycles", *sorted(ROOT.glob("plugins/*/lifecycles")), *sorted(WORKSPACE.glob("plugins/*/lifecycles")),
-           WORKSPACE / ".hve" / "lifecycles"]
 SLUG = re.compile(r"^[a-z0-9][a-z0-9-]{0,40}$")
-STAGE_FIELDS = {"name", "goal", "agent", "skills", "plugin_skills", "templates", "exit", "skip_when"}
 SUBAGENT_RULES = ("Do not edit the loop files (feature_list.json, progress.txt, tracker.json) or loop state (.harness/ or the ask's loop/ "
                   "folder). Checks save screenshots and logs to $HVE_EVIDENCE/<feature>/. No file over 500 lines, no hidden errors, no TODO "
                   "in shipped code. Never commit, push or bypass git hooks. Reply in under 2,000 tokens: files changed, commands and exit codes.")
@@ -33,35 +33,6 @@ SHIFT_OVERLAP = 0.2
 Status = Literal["planned", "active", "done", "skipped"]
 
 Json = dict[str, Any]
-
-
-def validate(lifecycle: Json, source: Path) -> Json:
-    """Return the lifecycle after checking its fields and stages, or raise naming the file."""
-    missing = {"name", "title", "summary", "fits", "stages"} - set(lifecycle)
-    if missing or not lifecycle["stages"]:
-        raise ValueError(f"{source}: lifecycle needs name, title, summary, fits and non-empty stages; missing {sorted(missing)}")
-    for stage in lifecycle["stages"]:
-        if not STAGE_FIELDS <= set(stage):
-            raise ValueError(f"{source}: stage {stage.get('name')!r} needs {sorted(STAGE_FIELDS - set(stage))}")
-    return lifecycle | {"source": source.as_posix()}
-
-
-def catalog() -> dict[str, Json]:
-    """Return every lifecycle by name; a later source (plugin, then workspace) overrides an earlier one of the same name."""
-    found: dict[str, Json] = {}
-    for folder in SOURCES:
-        for path in sorted(folder.glob("*.json")):
-            lifecycle = validate(json.loads(path.read_text(encoding="utf-8")), path)
-            found[lifecycle["name"]] = lifecycle | ({"overrides": found[lifecycle["name"]]["source"]} if lifecycle["name"] in found else {})
-    return found
-
-
-def pick(request: str) -> list[Json]:
-    """Return lifecycles ranked by the request words they fit, with the matched words as the reason."""
-    words = stems(request)
-    ranked = [{"name": c["name"], "title": c["title"], "summary": c["summary"], "source": c["source"],
-               "matched": sorted(words & stems(" ".join(c["fits"])))} for c in catalog().values()]
-    return sorted(ranked, key=lambda r: -len(r["matched"]))
 
 
 def ask_dir(ask: str) -> Path:
@@ -81,6 +52,8 @@ def active(workspace: Path = WORKSPACE) -> tuple[Path, Json]:
     data = json.loads(path.read_text(encoding="utf-8"))
     for key in ("checklist", "checklist_rendered"):  # asks contracted before 0.13.0 have no checklist yet
         data.setdefault(key, {})
+    data["skills"].setdefault("plugin", {})  # asks contracted before the plugin list
+    data.setdefault("packs", [])  # asks contracted before expertise packs
     return path, data
 
 
@@ -163,26 +136,30 @@ def where(prompt: str | None) -> Json:
     return out | {"verdict": verdict, "why": why}
 
 
-def install(paths: list[str]) -> None:
-    """Copy library skills into <workspace>/.hve/skills/<name>/ so every harness reads them inside the workspace."""
-    for source in paths:
-        shutil.copytree(ROOT / source, WORKSPACE / ".hve" / "skills" / Path(source).name, dirs_exist_ok=True)
+def install(rows: list[Json]) -> None:
+    """Copy skills into <workspace>/.hve/skills/<name>/ ('<pack>:<skill>' into '<pack>__<skill>') so every harness reads them in the
+    workspace."""
+    for row in rows:
+        shutil.copytree(ROOT / row["path"], WORKSPACE / ".hve" / "skills" / skill_dir(row["name"]), dirs_exist_ok=True)
 
 
-def contract(name: str, slug: str, agent: str, request: str, skips: dict[str, str], required: tuple[str, ...] = ()) -> Json:
-    """Write a new timestamped ask from a lifecycle with its skills, personas, milestones, checklist and environment, install the skills,
-    make it active, recommend a new session or workspace when it is different work, and record an ask it leaves open."""
+def contract(name: str, slug: str, agent: str, request: str, skips: dict[str, str], required: tuple[str, ...] = (),
+             pack_names: tuple[str, ...] = ()) -> Json:
+    """Write a new timestamped ask from a lifecycle with its skills, expertise packs, personas, milestones, checklist and environment,
+    install the skills, make it active, recommend a new session or workspace when it is different work, and record an ask it leaves open."""
     if not SLUG.match(slug):
         raise ValueError(f"slug {slug!r} must match {SLUG.pattern}")
     lifecycle = catalog()[name]
     unknown = set(skips) - {s["name"] for s in lifecycle["stages"]}
     if unknown:
         raise ValueError(f"cannot skip unknown stages {sorted(unknown)} of lifecycle {name!r}")
+    routed = route(request)["packs"]
+    packs = ask_packs.chosen(WORKSPACE, routed, list(pack_names), lifecycle)
     previous = active()[1] if (ASKS / "active.json").is_file() else None
     open_reasons = unfinished(previous) if previous else []
     wanted = tuple(dict.fromkeys([*required, *(k for s in lifecycle["stages"] if s["name"] not in skips for k in s["skills"])]))
-    ranked = rank(request, "provisional", wanted)
-    install([r["path"] for r in ranked["load"]])
+    ranked = rank(request, "provisional", wanted, tuple(packs))
+    install(ranked["load"])
     stamp = datetime.now(timezone.utc)
     now = stamp.isoformat(timespec="seconds")
     ask = f"{stamp:%Y%m%d-%H%M}-{slug}"
@@ -190,6 +167,7 @@ def contract(name: str, slug: str, agent: str, request: str, skips: dict[str, st
     if folder.exists():
         raise FileExistsError(f"ask {ask} already exists; use another slug or `lifecycle.py open {ask}`")
     stages = [{k: s[k] for k in ("name", "goal", "agent", "skills", "plugin_skills", "templates", "exit")}
+              | {k: s[k] for k in ("evidence", "rework") if k in s}
               | {"status": "skipped" if s["name"] in skips else "planned", "note": skips.get(s["name"], "")} for s in lifecycle["stages"]]
     personas: dict[str, list[str]] = {}
     for s in stages:
@@ -197,6 +175,9 @@ def contract(name: str, slug: str, agent: str, request: str, skips: dict[str, st
             personas.setdefault(agent if s["agent"] == "self" else s["agent"], []).append(s["name"])
     shift = topic_shift(project_text(), request) if project_status() else None
     decisions = [{"ts": now, "stage": s, "choice": "skipped", "why": why} for s, why in skips.items()]
+    if pack_names:
+        decisions.append({"ts": now, "stage": "packs", "choice": ", ".join(p["name"] for p in packs) or "core only",
+                          "why": f"offered {routed['explicit'] + [m['name'] for m in routed['matched']] or 'none'}"})
     if shift:
         decisions.append({"ts": now, "stage": "ask", "choice": f"recommended {shift['recommend']}", "why": shift["reason"]})
     if open_reasons:
@@ -210,10 +191,12 @@ def contract(name: str, slug: str, agent: str, request: str, skips: dict[str, st
             "previous_ask": {"ask": previous["ask"] if previous else None, **shift} if shift else None,
             "previous_open": {"ask": previous["ask"], "why": open_reasons} if open_reasons else None,
             "current": None, "stages": stages,
+            "packs": [ask_packs.record(p, routed, lifecycle, stages) for p in packs],
             "skills": {"selected": [{k: r[k] for k in ("name", "description", "status", "reason", "relevance", "skill_tokens", "path")}
                                     for r in ranked["load"]],
                        "tokens": ranked["load_tokens"], "over_budget": ranked["over_budget"], "budget": ranked["budget"],
-                       "suggested": ranked["suggested"], "suggested_tokens": ranked["suggested_tokens"], "choice": None},
+                       "suggested": ranked["suggested"], "suggested_tokens": ranked["suggested_tokens"], "choice": None,
+                       "plugin": plugin_skills(stages, request)},
             "personas": [{"agent": a, "stages": names} for a, names in personas.items()], "tasks": [],
             "environment": environment(WORKSPACE), "delegations": [], "reported": [],
             "plan": {"sha256": None, "revisions": []}, "checklist": {}, "checklist_rendered": {}, "decisions": decisions}
@@ -285,6 +268,9 @@ def set_stage(stage: str, status: Status, note: str) -> Json:
     match = next((s for s in data["stages"] if s["name"] == stage), None)
     if match is None:
         raise ValueError(f"stage {stage!r} is not in the contract: {[s['name'] for s in data['stages']]}")
+    missing = stage_evidence.check(WORKSPACE, data["paths"]["ask"], match) if status == "done" else []
+    if missing:
+        raise ValueError(f"stage {stage} cannot be done: its evidence is missing: {'; '.join(missing)}")
     match |= {"status": status, "note": note}
     if status == "active":
         data["current"] = stage
@@ -294,6 +280,15 @@ def set_stage(stage: str, status: Status, note: str) -> Json:
     refresh(path.parent, data)
     path.write_text(json.dumps(data, indent=2), encoding="utf-8")
     return match
+
+
+def rework(stage: str, why: str) -> Json:
+    """Take the stage's capped rework step back to its earlier stage and record it; past the cap the user decides."""
+    path, data = active()
+    result = stage_evidence.rework(data, stage_row(data, stage), why, datetime.now(timezone.utc).isoformat(timespec="seconds"))
+    refresh(path.parent, data)
+    path.write_text(json.dumps(data, indent=2), encoding="utf-8")
+    return result
 
 
 def tick(item: str, value: str, note: str) -> Json:
@@ -406,7 +401,7 @@ def brief(stage: str | None, task: str | None, persona: str) -> str:
     if task and task_row is None:
         raise ValueError(f"task {task!r} is not in the contract; run `lifecycle.py tasks-sync` after loop.py init or amend")
     skills = task_row["skills"] if task_row else list(dict.fromkeys([*row["skills"], *(r["name"] for r in data["skills"]["selected"])]))
-    install([r["path"] for r in data["skills"]["selected"] if r["name"] in skills])
+    install([r for r in data["skills"]["selected"] if r["name"] in skills])
     servers = sorted({s["name"] for s in data["environment"]["mcp_servers"]})
     data["delegations"].append({"ts": datetime.now(timezone.utc).isoformat(timespec="seconds"), "persona": persona, "stage": row["name"],
                                 "task": task, "skills": skills})
@@ -414,8 +409,9 @@ def brief(stage: str | None, task: str | None, persona: str) -> str:
     return "\n".join([
         f"Frontier HVE brief: ask {data['ask']}, stage {row['name']}" + (f", task {task}" if task else ""),
         f"- Ask folder: {data['paths']['ask']}/ (prototypes and drafts go there, never in the workspace root)",
-        "- Read and follow before you start: " + (", ".join(f".hve/skills/{s}/SKILL.md" for s in skills) or "no library skills"),
-        "- Plugin skills you may use: " + (", ".join(row["plugin_skills"]) or "none"),
+        "- Read and follow before you start: " + (", ".join(f".hve/skills/{skill_dir(s)}/SKILL.md" for s in skills) or "no library skills"),
+        "- Plugin skills you may use: " + (", ".join(dict.fromkeys([*row["plugin_skills"], *data["skills"]["plugin"]])) or "none"),
+        *ask_packs.brief_lines(data, row),
         "- MCP servers available: " + (", ".join(servers) or "none"),
         f"- Rules: {SUBAGENT_RULES}",
         "- End your reply with one line: SKILLS-USED: <the skills you actually followed, comma-separated, or none>"])
@@ -431,9 +427,10 @@ def used(persona: str, task: str | None, skills: list[str]) -> Json:
 
 
 def main() -> None:
-    """CLI: list | pick <request> | show <name> | contract <name> <slug> <agent> <request-file> [stage=why ...] [+skill ...]
-    | stage <name> <status> <note> | tick <item> <value> [note] | checklist | skills suggested|all|<skill,...> | skills score <scores.json>
-    | shift <prompt>
+    """CLI: list | pick <request> | route <request-file> | show <name>
+    | contract <name> <slug> <agent> <request-file> [stage=why ...] [+skill ...] [@pack ... | @core]
+    | stage <name> <status> <note> | rework <stage> <why> | tick <item> <value> [note] | checklist
+    | skills suggested|all|<skill,...> | skills score <scores.json> | shift <prompt>
     | where [request-file]
     | plan-sync <note> | plan-status | tasks-sync [project] | brief <persona> [stage=<s>] [task=<t>] | used <persona> <task|-> <skill,...|none>
     | report <session> | close | open <ask-id>."""
@@ -443,14 +440,19 @@ def main() -> None:
         out: Any = [{k: c[k] for k in ("name", "title", "summary", "source")} for c in catalog().values()]
     elif args[:1] == ["pick"] and len(args) == 2:
         out = pick(args[1])
+    elif args[:1] == ["route"] and len(args) == 2:
+        out = route(Path(args[1]).read_text(encoding="utf-8").strip())
     elif args[:1] == ["show"] and len(args) == 2:
         out = catalog()[args[1]]
     elif args[:1] == ["contract"] and len(args) >= 5:
-        skips = dict(a.split("=", 1) for a in args[5:] if not a.startswith("+"))
+        skips = dict(a.split("=", 1) for a in args[5:] if a[:1] not in "+@")
         required = tuple(a[1:] for a in args[5:] if a.startswith("+"))
-        out = contract(args[1], args[2], args[3], Path(args[4]).read_text(encoding="utf-8").strip(), skips, required)
+        packs = tuple(a[1:] for a in args[5:] if a.startswith("@"))
+        out = contract(args[1], args[2], args[3], Path(args[4]).read_text(encoding="utf-8").strip(), skips, required, packs)
     elif args[:1] == ["stage"] and len(args) == 4 and args[2] in ("planned", "active", "done", "skipped"):
         out = set_stage(args[1], args[2], args[3])  # type: ignore[arg-type]
+    elif args[:1] == ["rework"] and len(args) == 3:
+        out = rework(args[1], args[2])
     elif args[:1] == ["tick"] and len(args) in (3, 4):
         out = tick(args[1], args[2], args[3] if len(args) == 4 else "")
     elif args[:1] == ["checklist"] and len(args) == 1:

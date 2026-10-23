@@ -45,25 +45,37 @@ def relevance(prompt: str, entry: Json, categories: list[str], frequency: Counte
     return len(set(entry["task_categories"]) & set(categories)) + sum(1 / frequency[s] for s in shared)
 
 
-def library_entries() -> list[Json]:
-    """Return harness library entries and the workspace's own admitted skills, each with the folder to load it from."""
+def skill_dir(name: str) -> str:
+    """Return the .hve/skills folder name of a skill ('<pack>:<skill>' becomes '<pack>__<skill>')."""
+    return name.replace(":", "__")
+
+
+def library_entries(packs: tuple[Json, ...] = ()) -> list[Json]:
+    """Return harness library entries, the workspace's own admitted skills and the given packs' skills ('<pack>:<skill>', loaded from
+    the pack), each with the folder to load it from."""
     entries = [e | {"path": f"skills/admitted/{e['name']}"} for e in read("registry.json")["admitted"]]
     if USER_REGISTRY.is_file():
         own = json.loads(USER_REGISTRY.read_text(encoding="utf-8"))["admitted"]
         entries += [e | {"path": (USER_REGISTRY.parent / "skill-library" / e["name"]).as_posix()} for e in own]
+    for pack in packs:
+        entries += [s | {"name": f"{pack['name']}:{s['name']}", "path": f"{pack['folder']}/skills/{s['name']}", "pack": pack["name"]}
+                    for s in pack["manifest"]["skills"]]
     return entries
 
 
-def rank(prompt: str, min_status: MinStatus, required: tuple[str, ...] = ()) -> Json:
+def rank(prompt: str, min_status: MinStatus, required: tuple[str, ...] = (), packs: tuple[Json, ...] = ()) -> Json:
     """Return every relevant skill, ranked: required first, then category or keyword matches by relevance (no cap); flag a shortlist over
-    the loadout guideline and suggest the required plus the most relevant-per-token skills that fit within it."""
+    the loadout guideline and suggest the required plus the most relevant-per-token skills that fit within it. Packs add their skills and
+    task categories."""
     if min_status not in STATUS_ORDER:
         raise ValueError(f"min_status {min_status!r}, expected one of {list(STATUS_ORDER)}")
     config = read("categories.json")
+    for pack in packs:
+        config["categories"] |= pack["manifest"]["categories"]
     budget = config["loadout"]
     categories = task_categories(prompt, config)
     allowed = {s for s, order in STATUS_ORDER.items() if order <= STATUS_ORDER[min_status]}
-    library = library_entries()
+    library = library_entries(packs)
     reserved: list[Json] = []
     for name in required:
         matches = [e for e in library if e["name"] == name]

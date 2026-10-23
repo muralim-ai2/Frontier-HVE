@@ -14,7 +14,7 @@
      "skills": [], "plugin_skills": [], "templates": [],
      "exit": "The user approves the outline.", "skip_when": "A one-page memo with an agreed structure."},
     {"name": "draft", "goal": "Write the deliverable in the agreed format.", "agent": "self",
-     "skills": ["prose-anti-slop"], "plugin_skills": ["presentation-deck"], "templates": [],
+     "skills": ["prose-anti-slop"], "plugin_skills": [], "templates": [],
      "exit": "Every outline item is drafted and its sources cited.", "skip_when": "Never: this is the deliverable."},
     {"name": "review", "goal": "Check facts, tone and format, then hand over.", "agent": "self",
      "skills": [], "plugin_skills": [], "templates": [],

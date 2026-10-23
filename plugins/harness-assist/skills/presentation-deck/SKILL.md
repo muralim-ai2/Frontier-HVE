@@ -1,13 +1,15 @@
 ---
 name: presentation-deck
-description: Build any presentation, deck, slides or PowerPoint (pptx) in the NorthStar style - discovery questions on purpose, theme, text level, smart art and speaker notes, a takeaway storyline, python-pptx build, lint and slide previews. Use for every deck.
+description: Build any presentation, deck, slides or PowerPoint (pptx) - discovery questions on format (editable NorthStar pptx or animated web slides through frontend-slides), purpose, theme, text level, smart art and speaker notes, a takeaway storyline, build, lint and slide previews. Use for every deck.
 ---
 
 # Presentation deck (NorthStar)
 
-Use this skill whenever the deliverable is a presentation: a deck, slides, a pitch, a briefing pack, a workshop or a `.pptx`. Do not hand-write slides in another format. The look comes from the NorthStar decks built with `python-pptx` (editorial ink header band, one accent colour, cards, chips, chevron flows and one takeaway bar per slide). The aim is a deck that makes people say "wow": clean, visual, little text, every slide with one clear point.
+Use this skill whenever the deliverable is a presentation: a deck, slides, a pitch, a briefing pack, a workshop or a `.pptx`. It builds an editable PowerPoint, or routes to the `frontend-slides` skill when the user picks web slides (section 1); do not hand-write slides any other way. The look comes from the NorthStar decks built with `python-pptx` (editorial ink header band, one accent colour, cards, chips, chevron flows and one takeaway bar per slide). The aim is a deck that makes people say "wow": clean, visual, little text, every slide with one clear point.
 
 `<skill>` below is the folder holding this `SKILL.md`; its `scripts/` has `deck_kit.py` (theme and slide primitives) and `check_deck.py` (lint and previews).
+
+**The NorthStar style is built in.** `deck_kit.py` and section 3 encode it completely, so you never need a NorthStar reference deck. When a request links or names one (a SharePoint, OneDrive or web link, or a file name such as `Harness_Engineering_Workshop_NorthStar_v2.pptx`), read it as "use this style": do not fetch, download, open or ask for it, and do not wait on it or list it as missing. Content the user wants in the deck comes from the request, the workspace and its repository, and files the user has put in the workspace.
 
 ## 1. Discovery (one form, before any outline)
 
@@ -15,16 +17,19 @@ Ask once with the ask-questions tool as one form; skip any question the request 
 
 | Question | Options |
 |---|---|
+| Format | **Editable PowerPoint (.pptx) in the NorthStar style**, or web slides: one animated HTML file that runs in the browser, with style previews to pick from (`frontend-slides` skill) |
 | What kind of deck is it? | Informational (explain), Analysis (answer a question with evidence), Pitch (persuade and ask), Decision (options and a recommendation), Status update, Workshop or training |
 | Who is in the room? | Executives, technical leads, mixed, customer or partner |
-| Theme | **NorthStar: ink with one accent** (green, blue, teal, orange, purple or red), your brand colours (hex codes), or a template `.pptx` to follow |
+| Theme | **NorthStar: ink with one accent** (green, blue, teal, orange, purple or red), your brand colours (hex codes), or a template `.pptx` already in the workspace (never a link to fetch) |
 | How much text? | **Minimal**: headline plus visual, under 45 words a slide; Balanced: under 80; Detailed reading deck: under 120 |
 | How visual? | **Mostly smart art** (flows, layers, card grids, timelines, metric tiles), mixed, or mostly tables and text |
 | Speaker notes? | **Full talk track per slide**, key points only, none |
 | Length | Number of slides (default 6-10; one message per slide) |
 | Logo or brand assets? | A file path, or none (never download one) |
 
-Record the answers in the ask folder's `deck/brief.md` (five lines: kind, audience, theme, text level, notes).
+Record the answers in the ask folder's `deck/brief.md` (six lines: format, kind, audience, theme, text level, notes).
+
+**Web slides.** When the user picks web slides, do section 2 here, then follow the `frontend-slides` skill from its Phase 2 (style previews) instead of sections 3 and 5: its Phase 1 questions are already answered by this form (purpose is the kind, density is the text level). Save previews in `<evidence folder>/deck/previews/` instead of `.frontend-slides/` and the deck as `presentation/<slug>/index.html`, keep speaker notes as its HTML comments, then finish with section 6 here.
 
 ## 2. Storyline (outline first)
 
@@ -95,4 +100,4 @@ d.save(Path("presentation/leave-sprint-1.pptx"))
 ## 6. Finish
 
 - The wow uplift runs next (`wow-uplift` skill): two or three targeted improvements, for decks usually fewer words, a list turned into a flow or cards, better alignment and spacing.
-- Hand over: the `.pptx` path, the preview folder, the slide count and the words per slide from the lint, and whether notes are in.
+- Hand over: the `.pptx` (or web slides `index.html`) path, the preview folder, the slide count and the words per slide from the lint, and whether notes are in.

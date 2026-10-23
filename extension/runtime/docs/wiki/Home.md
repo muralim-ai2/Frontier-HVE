@@ -10,6 +10,7 @@ How-to pages for people and agents. Each page names the files it describes; the 
 | [Skills](Skills.md) | Where skills live, seven pathways for adding a skill, onboarding with `HVE skill-evaluator` (blind with/without evaluation), checking it loads | W09 |
 | [Adapters](Adapters.md) | Use the harness in Claude Code, Cursor and Codex CLI; connect Azure DevOps; guards per client; troubleshooting | W19 |
 | [Templates](Templates.md) | Configure PRD, technical design and test strategy templates; provenance, validation and company overrides | New capability |
+| [Expertise packs](Plugins.md) | Package a practice's tribal knowledge (lifecycle overlays, skills, agents, templates, knowledge documents, rubrics) with routing in one manifest | New capability |
 | [Product Manager](Product-Manager.md) | Use `HVE product-manager`: research, model council, PRD in the configured template, backlog in local JSON, Azure DevOps or GitHub | W20 |
 | [Evaluation](Evaluation.md) | Output evaluation after the creator's feature loop or on request: JSON contract, grounded rubrics, hooks by output kind, model council, decision, human verdict | New capability |
 

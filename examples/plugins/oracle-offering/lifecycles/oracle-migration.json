@@ -1,0 +1,28 @@
+{
+  "name": "oracle-migration",
+  "title": "Oracle migration (Oracle Offering pack)",
+  "summary": "Assess the Oracle estate, design the target, build the migration as verified features, validate data and rollback, then hand over.",
+  "fits": ["oracle", "plsql", "migration", "migrate", "exadata", "goldengate", "database", "schema", "estate", "cutover"],
+  "stages": [
+    {"name": "assess", "goal": "Inventory the estate and write the assessment.", "agent": "oracle-offering:oracle-db-architect",
+     "skills": ["oracle-offering:oracle-schema-design"], "plugin_skills": [], "templates": ["oracle-offering:assessment"],
+     "exit": "The user accepts the assessment and its recommendation.", "skip_when": "An accepted assessment already exists.",
+     "evidence": [{"type": "template-valid", "kind": "oracle-offering:assessment"}]},
+    {"name": "design", "goal": "Design the target schema, sizing and migration approach.", "agent": "oracle-offering:oracle-db-architect",
+     "skills": ["oracle-offering:oracle-schema-design"], "plugin_skills": [], "templates": ["technicalDesign"],
+     "exit": "The user accepts the technical design.", "skip_when": "The design is already approved.",
+     "evidence": [{"type": "template-valid", "kind": "technicalDesign"}]},
+    {"name": "build", "goal": "Build the migration as verified features.", "agent": "HVE engineer",
+     "skills": ["oracle-offering:oracle-performance-tuning", "build-approach"], "plugin_skills": ["feature-checklist"], "templates": [],
+     "exit": "Every migration feature check passes.", "skip_when": "Never: this is the migration.",
+     "evidence": [{"type": "feature-checks"}]},
+    {"name": "validate", "goal": "Prove data integrity and a rehearsed rollback; write the runbook.", "agent": "oracle-offering:oracle-engineer",
+     "skills": ["oracle-offering:oracle-performance-tuning"], "plugin_skills": [], "templates": ["oracle-offering:migrationRunbook"],
+     "exit": "The user accepts the validation evidence and the runbook.", "skip_when": "Never: cutover needs this evidence.",
+     "evidence": [{"type": "template-valid", "kind": "oracle-offering:migrationRunbook"}, {"type": "artifacts", "paths": ["{ask}/loop/evidence/**/*.log"]}],
+     "rework": {"to": "build", "cap": 2}},
+    {"name": "release", "goal": "Reflect on the output and hand over.", "agent": "self",
+     "skills": [], "plugin_skills": ["explain-walkthrough"], "templates": [],
+     "exit": "Output reflection decides pass or human-review.", "skip_when": "The user keeps iterating."}
+  ]
+}

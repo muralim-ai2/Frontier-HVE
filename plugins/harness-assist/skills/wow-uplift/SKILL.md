@@ -12,7 +12,7 @@ The icing on the cake. Run it on every finished deliverable a user sees (a UI, a
 ## 1. Before
 
 Capture what the user would see now, in `<evidence>/uplift/round-0/`:
-- Static HTML (a prototype, a page): `python <tools>/prototype/check.py shots <folder with index.html> "<route,route>" uplift/round-0`.
+- Static HTML (a prototype, a page, web slides): `python <tools>/prototype/check.py shots <folder with index.html> "<route,route>" uplift/round-0`.
 - An app with its own checks: copy the screenshots its feature checks saved under `<evidence>/<feature>/`.
 - A deck: `python <presentation-deck skill>/scripts/check_deck.py preview <deck.pptx> <evidence>/uplift/round-0`.
 - A document: the file itself.

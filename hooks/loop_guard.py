@@ -45,7 +45,8 @@ if MODE not in ("advise", "enforce"):
 ADVISED = {"anti_gaming": "loop state (.harness/, the ask's loop/ folder or .hve/project/) was changed outside the loop scripts",
            "loop_files": "a loop file (feature_list.json, progress.txt or tracker.json) was changed while features still fail",
            "victory_check": "the agent stopped while features still fail"}
-ATTENTION = "Guard Invoked - For your attention"
+ATTENTION = "Advisory alert (experimental)"
+PURPOSE = "surfaces LLM behaviour that helps to know"
 
 Json = dict[str, Any]
 
@@ -114,8 +115,8 @@ def describe(tool_name: str, tool_input: Json) -> str:
 def advise(session_id: str, kind: str, change: str, reason: str, event: str) -> Json:
     """Record the trip and return a message for the user and the agent instead of a block (awareness mode)."""
     record(session_id, "loop_guard", kind, f"advised: {change}")
-    message = (f"{ATTENTION}: during the run {ADVISED[kind]}. The modification was: {change}. Why the guard watches this: {reason} The loop "
-               "guard is in awareness mode for now, so it did not block; review the change and tell the agent to undo it if it was not intended.")
+    message = (f"{ATTENTION}: {PURPOSE}. During the run {ADVISED[kind]}. The modification was: {change}. Why this is watched: {reason} "
+               "Nothing was blocked; review the change and tell the agent to undo it if it was not intended.")
     if event == "Stop":
         return {"systemMessage": message}
     return {"systemMessage": message, "hookSpecificOutput": {"hookEventName": event, "additionalContext": (
