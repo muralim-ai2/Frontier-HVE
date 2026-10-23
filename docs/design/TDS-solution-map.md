@@ -23,9 +23,12 @@
 | FR-6 | Refresh on demand, on a release tag, when an ask closes, and when the session's context passes 25% of the model's context window (the compaction checkpoint). |
 | FR-7 | At every checkpoint record the context size, the map refresh, and the tokens the map answers replaced; the provenance report shows them per session and per ask. |
 | FR-8 | Route impact results to expertise packs (a data and APIM impact offers the matching packs) and name the roles to involve. |
+| FR-9 | An explorer for people: one offline HTML page with three drawings of the same map (force diagram coloured by concept or view and sized by connections, collapsible tree, zoomable circle packing), opened at two levels and expanded interactively; grouped by Concepts (concept › modules › files › functions) or Architecture (system › views › modules › files › functions); filtered by the concept list, fuzzy search or a Cypher-subset query, with a visible filter banner, Back and Show whole map. |
+| FR-10 | Concepts: named, explained areas of the code (for example agents, skills, packs, telemetry) with their member files, start file and questions; answered in chat by `explain` and the `solution-map` skill as concept, modules, files, functions, connections, dependencies and explanation. |
+| FR-11 | Works on any repository: no repository-specific code in the builder; everything specific lives in an optional config file. |
 | NFR-1 | Code facts are extracted without an LLM and without network calls; only node summaries use the session's own model, and only for nodes whose content hash changed. |
 | NFR-2 | A stale map is never presented as current: every answer states the map's commit and how many mapped files changed since. |
-| NFR-3 | `overview` stays under 3,000 tokens and `impact` under 2,000 tokens by default. |
+| NFR-3 | `overview` stays under 4,000 tokens and `impact` under 2,000 tokens by default. |
 | NFR-4 | No new runtime dependency is required; Graphify is used for the symbol layer when it is installed. |
 | NFR-5 | Python modules stay under 500 lines, fail fast, and follow the repository code style. |
 | AC-1 | On a medium sample app, `impact` lists the touched views, modules and roles for a new authenticated API endpoint, and each item cites a source path. |
@@ -80,13 +83,14 @@ flowchart TD
 
 | Component | Responsibility | Depends on |
 |---|---|---|
-| `tools/map/size.py` | Classify the app: counts source files and lines by language (skipping dependencies and build output), detects views present (frontend, backend, data, infra, identity, integration), reads request signals ("enterprise", "microservice", number of components named); returns `small`, `medium` or `large` with the reasons | workspace, request |
-| `tools/map/extract.py` | Symbol layer: functions, classes, endpoints, tables, resources and their `calls`, `imports`, `contains` edges; reads Graphify's `graph.json` when present, otherwise Python `ast`, and import and export scanning for JS/TS, C# and Java | Graphify (optional) |
-| `tools/map/frameworks.py` | Meaning-bearing edges from conventions: routes and controllers (`exposes`), dependency-injection registrations (`injects`), middleware chains (`routes-through`), auth decorators and policies (`authenticates-with`), ORM models and migrations (`reads`, `writes`), IaC and pipeline files (`deploys-to`, `configured-by`), API specs and APIM policies (`exposes`, `routes-through`) | extract output |
-| `tools/map/views.py` | Assign every node to a view and a module; map views to expertise roles through `skills/map_roles.json` (extendable by expertise packs) | extract, frameworks |
-| `tools/map/solution_map.py` | CLI and store: `build [--changed]`, `summaries prepare\|record`, `overview`, `impact`, `path`, `node`, `status`, `diff`, `snapshot`; keeps the map, the overview and snapshots, and logs every answer's tokens | all of the above |
+| `tools/map/extract.py` (built) | Language-neutral code facts for any repository: tracked files (git, else a folder walk) minus dependencies and build output; purposes from docstrings, header comments, front matter, README and headings; symbols from Python `ast` and line-anchored patterns for JS/TS, C#, Java and Go; imports; file-name mentions; agent hooks and agent references; decision logs (`## D-001`) and ADR files | none |
+| `tools/map/map_build.py` (built) | Size class; placement into views and modules (the config's rules, else the top-level folder as view and the file's folder as module); typed edges with evidence (`imports`, `invokes`, `guarded-by`, `delegates-to`, `tested-by`, `documented-in`, `decided-in`, `uses`, `writes`, `includes`); concepts (configured, else one per view, marked derived); external dependencies (stdlib and local modules excluded); overview Markdown; the explorer page | extract |
+| `docs/architecture/solution-map.config.json` (optional, per repository) | Everything repository-specific: `exclude`, `views` with roles, `modules` (path rules with names and purposes), `purposes` for files without one, `stores` (path marker, curated writers), `concepts` (`name`, `keywords`, `members` path rules, `start`, `explain`, `questions`), `conventions`, `flows`. A repository without it still gets a full map | written by people or proposed by the agent |
+| `tools/map/solution_map.py` (built) | CLI: `build [--snapshot]`, `explain "<question>"` (Markdown or `--json`), `impact --seeds`, `search`, `overview`, `status`, `open [concept=…\|q=…]` | map_build |
 | `hooks/context_meter.py` | Keep a running estimate of the session's context; at 25% of the window run the checkpoint once per crossing band (25%, 50%, 75%); log `PreCompact` events | session events |
 | `tools/loop` additions | `size` and `map` flag in the contract, an `impact` step in the E2E and BYOW prompts, map lines in briefs, a Solution map section in the provenance report | solution_map |
+| `tools/map/explorer/` (built) | `explorer.html`, `explorer.css`, `graph.js` (Concepts and Architecture hierarchies, filters, rolled-up links, search, concept cards), `query.js` (Cypher subset), `views.js` (force, collapsible tree, zoomable circle packing), `app.js` (controls, filter banner with Back and Show whole map, concept card, hash links `#concept=`, `#q=`, `#node=`, `#cypher=`). Inlined into one offline page | map.json |
+| `plugins/harness-assist/skills/solution-map` (built) | Chat entry point in Copilot, Claude Code and Codex: asks before using the map unless invoked with `/solution-map`, refreshes a stale map, runs `explain`, answers as concept › modules › files › functions › connections › dependencies › start file, offers the filtered explorer or an impact check, proposes a new concept when none matches, and tells the user how to ask again. E2E, BYOW and HVE creator follow it when the user asks how code works | solution_map |
 
 Principal flows:
 1. **Contract:** `lifecycle.py contract` calls `size.classify`; medium or large sets `map.enabled` and, when the workspace has code, builds or refreshes the map before planning. A new project with a medium or large request builds its first map when the first milestone with code is done.
@@ -123,7 +127,7 @@ Principal flows:
 - **Levels:** `system`, `view`, `module`, `symbol`. Ids are `<view>:<module>[.<symbol>]`, stable across builds for unchanged code.
 - **Every edge has evidence** (a source line or document anchor); edges without evidence are not written.
 - **Roles** (`skills/map_roles.json`): view to roles, for example `data` to `db-engineer`, `infra` to `devops`, `identity` to `security`, `integration` to `platform-apim`, `ml` to `data-scientist`, `requirements` to `product-manager`. Expertise packs may add roles and views for their domain.
-- **Snapshots:** `.hve/map/snapshots/<release-or-utc-stamp>.json`, never edited. A team that wants the map in review commits `docs/architecture/solution-map.json` from a snapshot (open question Q-3).
+- **Snapshots:** `.hve/map/snapshots/<release-or-utc-stamp>.json`, never edited. A release snapshot is also written to `docs/architecture/solution-map.json` and `solution-map.md` and committed (Q-3).
 - **Events** (`.hve/runs/<session>.map.jsonl`), one line per event: `{"ts", "event": "checkpoint"|"query"|"build"|"precompact", "context_estimate", "window", "share", "map_commit", "changed_files", "answer_tokens", "cited_file_tokens", "measured_prompt"}`.
 - **Retention:** the map and snapshots stay with the workspace; events follow the `.hve/runs` retention. The map holds code structure and summaries, no secrets: files matched by `.gitignore` and secret patterns from `tools/skills/scan.py` are skipped.
 
@@ -137,8 +141,8 @@ Principal flows:
 | `size <request-file>` | `{class, files, lines, views, why}` |
 | `build [--changed]` | Nodes and edges added, changed, removed; summaries pending |
 | `summaries prepare` / `summaries record <file>` | A batch of changed nodes with their source lines for a sub-agent; records its summaries after checking each cites lines inside the node |
-| `overview [--budget N]` | Views, modules with one-line purposes, key flows and roles, the map commit and staleness, within the budget (default 3,000) |
-| `impact "<feature>" [--budget N]` | Touched views and modules, start point, dependency chain with edge types, roles to involve, packs to offer, files to read; within the budget (default 2,000) |
+| `overview [--budget N]` | Views, modules with one-line purposes, state stores, conventions, key flows and roles, the map commit and staleness, within the budget (default 4,000) |
+| `impact "<feature>" --seeds <ids> [--budget N]` | Touched views and modules, start point, dependency chain with edge types, roles to involve, packs to offer, files to read; within the budget (default 2,000) |
 | `path <a> <b>`, `node <id>` | The typed path between two nodes; one node with its edges |
 | `status` | Map commit, files changed since, nodes affected, whether a refresh is due |
 | `snapshot <name>`, `diff <a> <b>` | Immutable snapshot; added, removed and changed nodes and edges between two snapshots |
@@ -157,7 +161,7 @@ Principal flows:
 - **No new network access:** extraction is local; summaries are written by the session's own model inside the chat, so no code leaves through a new channel.
 - **Sensitive content:** the build skips `.gitignore`d files, `.env*`, key and certificate files, and lines matching the secret rules of `tools/skills/scan.py`; summaries describe behaviour and must not quote secrets.
 - **Trust boundary:** the map is input to the model, not an authority: answers name their evidence lines, and the agent reads the cited file before editing it.
-- **Access:** the map lives in the workspace with the same access as the code; committing a snapshot is a team decision (Q-3).
+- **Access:** the map lives in the workspace with the same access as the code; committing a release snapshot to `docs/architecture/` was decided by the user (Q-3).
 - **Prompt injection:** summaries are generated from code that may contain hostile comments; the `summaries record` step rejects summaries that contain instructions to the agent (the scan's prompt-injection rule) and keeps them as plain descriptive text.
 
 <!-- hve-section: operations -->
@@ -173,7 +177,7 @@ Principal flows:
 | Extractor misses a framework convention | Missing edge | `status` lists modules with no inbound or outbound edges; packs can add conventions for their stack |
 | Build too slow on large repos | Delay at contract or checkpoint | `--changed` hashes files and rebuilds only changed modules; full builds run on release or on demand |
 
-**Performance budgets:** a changed-only refresh under 10 s for 50 changed files; `overview` under 3,000 tokens; `impact` under 2,000 tokens.
+**Performance budgets:** a changed-only refresh under 10 s for 50 changed files; `overview` under 4,000 tokens; `impact` under 2,000 tokens.
 
 **Evidence of token saving (the point of FR-7):** the provenance report gets a **Solution map** section per session and ask:
 
@@ -194,11 +198,12 @@ The saving shown per session is an **estimate** (cited file tokens minus answer 
 
 **Rollout in milestones** (each ends with its tests and the user's review):
 1. M1 Size flag: `size.py`, contract `map` field, plan line; no map yet. Shows how often asks are medium or large.
-2. M2 Map build: extractors, framework conventions for the stacks we ship (Python FastAPI or Flask, Node Express, Next.js, .NET minimal APIs, Bicep and GitHub Actions), views and roles, `overview`, `node`, `status`.
+2. M2 Map build: generic extractors (Python `ast`, JS/TS imports and JSDoc, agent frontmatter, decisions, tests, docs, build lists), the placement file with views, modules, purposes and roles, `overview`, `node`, `status`. Framework conventions per stack come later (Q-4).
 3. M3 Impact and agent use: `impact`, `path`, E2E and BYOW steps, briefs carrying cited files, pack routing from impact.
 4. M4 Checkpoint and evidence: `context_meter` hook, events, provenance section.
 5. M5 Measurement: the A/B benchmark on a medium sample app; the result decides whether the map becomes default for medium apps.
-6. M6 Releases: snapshot on tag, `diff`, optional committed snapshot.
+6. M6 Releases: snapshot on tag, `diff`, committed snapshot in `docs/architecture/`.
+7. M7 Explorer: the HTML explorer from the prototype, a VS Code command that opens it in a webview, and a test that loads it headless and runs the example queries.
 
 **Compatibility:** existing asks without a `map` field behave as `map: off`. The map is additive: no current flow depends on it.
 
@@ -219,12 +224,37 @@ The saving shown per session is an **estimate** (cited file tokens minus answer 
 
 **Decisions made (user, 2026-10-22):** build the map only for medium and larger apps, decided by a flag from the request and workspace; refresh at the compaction checkpoint when the context passes 25% of the window; record each checkpoint and the saving in the provenance report.
 
+**Decisions made (user, 2026-10-23):**
+- Q-1: start with the A-4 thresholds (medium from 50 source files or 5,000 lines, large from 300 files or 50,000 lines) and tune after M1 data.
+- Q-2: no. The 25% checkpoint refreshes the map and injects the overview; it does not tell the agent to start a fresh sub-agent.
+- Q-3: release snapshots are committed to `docs/architecture/` (`solution-map.json` and `solution-map.md`).
+- Q-4: no stack-specific framework conventions first. M2 ships the generic extractors and the placement file; conventions come later, per stack, when a real app needs them.
+- Prototype first: build the map of this repository and perfect the format before writing product code (see Prototype findings).
+
 **Open questions:**
-- Q-1 (user): the exact size thresholds; start with A-4 and tune after M1 data.
-- Q-2 (user): whether the 25% checkpoint should also tell the agent to start a fresh sub-agent with the overview for the remaining work, since hooks cannot compact the chat themselves.
-- Q-3 (user): commit release snapshots to `docs/architecture/` or keep them in `.hve/`.
-- Q-4 (engineering): which stacks get framework conventions first.
 - Q-5 (engineering): where the per-model context window table lives and who maintains it.
+
+### Prototype findings (2026-10-23)
+
+A throwaway builder mapped this repository (commit `2d8dd33`) into `docs/architecture/solution-map.json` and `solution-map.md`. It is research, not product code.
+
+| Measure | Result |
+|---|---|
+| Mapped source | 162 files, about 346k tokens; size class large |
+| Nodes | 1 system, 13 views, 48 modules (38 code modules and 10 state stores), 222 files (including 60 decisions), 514 symbols |
+| Edges | contains 797, decided-in 108, guarded-by 99, tested-by 92, imports 111, documented-in 64, uses (state) 58, packages 53, invokes 46, delegates-to 16, writes 14 (curated) |
+| Overview | about 3,500 tokens, 1.0% of the mapped source |
+| Impact (seeded) | about 900 tokens per answer; names 3 to 4 files to change and 10 to 20 files around them |
+
+What changed in the design because of it:
+1. **Impact needs seeds from the agent.** Word matching on purposes picked the wrong start points for both test changes (for example `agent_compat.py` for a context meter). With seeds the agent picks from the overview, the deterministic expansion was right: lifecycle, plan and report for the size flag; the hook, metrics, agent hooks and build for the meter. `impact` therefore takes `--seeds <ids>`; the agent reads the overview first and passes the module or file ids it judges relevant.
+2. **Placement is a reviewed file, not code.** Views, modules and module purposes came from 38 path rules and 38 one-line purposes. The product keeps these in `.hve/map/placement.json` (committed with the snapshot): `views.py` proposes rules from folder names, a sub-agent writes the purposes, the user or a reviewer accepts them, and later builds reuse the file and flag unplaced files.
+3. **State direction is not extractable by text.** Path markers found 58 code places that touch a store, but read against write could not be told apart (paths are built in one function and written in another). The map records `uses` edges from code with file and line, and `writes` edges only from the placement file, marked curated.
+4. **Harness assets are first-class nodes.** Agents (with `guarded-by`, `invokes` and `delegates-to` edges from frontmatter and lifecycle stages), decisions (`D-nnn` with `decided-in` edges from the code they name), tests (`tested-by`), wiki pages (`documented-in`) and the build (`packages`) gave most of the useful impact context: which agents to re-check, which tests to run, which decisions to read.
+5. **Conventions belong in the overview.** The most important fact for a newcomer, that `extension/runtime/` is a build copy and must not be edited, is not in any edge. The overview carries a short Conventions section drawn from `AGENTS.md`, `.github/copilot-instructions.md` and the build file list.
+6. **Budgets.** The overview default budget becomes 4,000 tokens; a large repository with 13 views needs about 3,500. Impact stays at 2,000.
+7. **Explorer.** `docs/architecture/solution-map.html` (about 450 KB, 798 nodes, 1,452 edges embedded) opens with 62 nodes (system, views, modules). Edges between hidden nodes are rolled up to their visible ancestors, so a collapsed view still shows its imports, invocations and store use with counts. Nine example queries, a compound `WHERE`, the `-->` shorthand and a parse error were checked in the browser with no page errors.
+8. **Generalized and concept-first (2026-10-23).** The prototype's repository knowledge moved into `docs/architecture/solution-map.config.json`; `tools/map/` holds no repository-specific code. Without a config, the unrelated Next.js benchmark app (`.hve/outputs/harness/current`) mapped into 6 folder views, 61 symbols, 21 resolved imports (including `@/` aliases) and 11 test links, classed small. With its config, this repository maps 250 files, 839 symbols and 16 concepts with no unplaced module and no missing purpose. `explain` routed "help me understand telemetry implementation", "how do I create a new agent", "plugin architecture" and "skill onboarding" to the right concepts, and answered "kubernetes deployment" with no concept and the closest files. Tests: `tests/test_map.py` (generic map, concepts and explain, impact, status, offline explorer with the Cypher engine run in Node, this repository's config).
 
 <!-- hve-section: traceability -->
 ## Verification and Traceability

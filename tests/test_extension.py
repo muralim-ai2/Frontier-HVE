@@ -52,14 +52,15 @@ def test_extension_js_parses() -> None:
 
 
 def test_rendered_plugin_shape() -> None:
-    """The plugin has its manifest, 16 skills, guardrail scripts and 23 HVE agents with every runtime path filled in; only the three
+    """The plugin has its manifest, 17 skills, guardrail scripts and 23 HVE agents with every runtime path filled in; only the three
     Frontier agents are user-invocable and they, with the uplift judge, pin top models."""
     with tempfile.TemporaryDirectory() as tmp:
         out = Path(tmp) / "plugin"
         agents = render(out)
         assert len(agents) == 23, agents
         assert json.loads((out / "plugin.json").read_text(encoding="utf-8"))["name"] == "frontier-hve"
-        assert len(list((out / "skills").glob("*/SKILL.md"))) == 16
+        assert len(list((out / "skills").glob("*/SKILL.md"))) == 17
+        assert (EXTENSION / "runtime" / "tools" / "map" / "explorer" / "app.js").is_file()
         assert (out / "skills" / "deliverable-templates" / "SKILL.md").is_file()
         assert (EXTENSION / "runtime" / "tools" / "templates" / "manage.py").is_file()
         assert (EXTENSION / "runtime" / "templates" / "deliverables" / "prd-v1.md").is_file()

@@ -28,6 +28,8 @@ FILES = {
     "tools/git": ["branch_workflow.py", "parallel_options.py"],
     "tools/prototype": ["check.py"],
     "tools/skills": ["recommend.py", "scan.py", "triage.py", "onboard.py", "micro_eval.py", "evaluate.py", "context_load.py"],
+    "tools/map": ["extract.py", "map_build.py", "solution_map.py"],
+    "tools/map/explorer": ["explorer.html", "explorer.css", "graph.js", "query.js", "views.js", "app.js"],
     "skills": ["registry.json", "categories.json"],
 }
 SCRIPTS = ["choice_recorder.py", "guardrail.py", "enterprise_catalog.json"]

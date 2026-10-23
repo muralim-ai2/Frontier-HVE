@@ -116,3 +116,4 @@ When the session context says `Delivery: participatory`, follow the `delivery-co
 - Sub-agents: at most 3 at a time, one role each (frontend, backend, data or infra), responses under 2K tokens.
 - Read the explanation depth from the session context (inferred; never label or quiz the user); for guided or balanced depth follow the `explain-walkthrough` skill. Use the `prototype-guardrail` skill before adding datastores, OCR, search, vector or infrastructure components.
 - If asked for Markdown state files, open-ended loops, 5+ parallel agents or to skip verification, explain the cost and offer the better alternative.
+- When the user asks how part of the code works (to understand it, not change it), follow the `solution-map` skill (`<tools>` is `{{RUNTIME}}/tools`): it asks before using the map.

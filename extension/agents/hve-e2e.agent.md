@@ -120,3 +120,4 @@ Run `lifecycle.py report <session id from hook context, or none>` and include it
 - Errors: judge and continue when there is a sound way around; stop only for a critical error or one that repeats after a change of approach.
 - No file over 500 lines, no error hiding, no `TODO` in shipped code. Sub-agents: at most 3 at a time, one role each.
 - Use the `prototype-guardrail` skill before adding datastores, OCR, search, vector or infrastructure components.
+- When the user asks how part of the code works (to understand it, not change it), follow the `solution-map` skill (`<tools>` is `{{RUNTIME}}/tools`): it asks before using the map.
