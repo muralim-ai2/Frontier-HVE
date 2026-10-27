@@ -1,0 +1,11 @@
+{
+  "requested": [
+    "technicalDesign"
+  ],
+  "documents": [
+    {
+      "kind": "technicalDesign",
+      "slug": "solution-map"
+    }
+  ]
+}
