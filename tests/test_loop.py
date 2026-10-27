@@ -430,7 +430,7 @@ def test_loop_guard_awareness_mode() -> None:
 
 
 def test_error_guard_pauses_after_three_failures_in_a_row() -> None:
-    """Three failed commands in a row pause the agent and hold tools until the user's next prompt; a success or a loop check does not count."""
+    """Three failed commands in a row pause the agent to ask for direction and hold tools until the user answers; a success or a loop check does not count."""
     with tempfile.TemporaryDirectory() as tmp:
         root = make_root(tmp)
 
@@ -448,14 +448,19 @@ def test_error_guard_pauses_after_three_failures_in_a_row() -> None:
         assert post("python ../tools/loop/loop.py verify .", failed) is None and post("ls", "ok") is None
         assert post("python build_deck.py", failed) is None and post("python build_deck.py", failed) is None
         paused = post("python build_deck.py", failed)
-        assert paused and paused["continue"] is False and "last 3 commands failed in a row" in paused["stopReason"], paused
-        assert "No module named 'pptx'" in paused["systemMessage"], paused
+        assert paused and paused["decision"] == "block" and "last 3 commands failed in a row" in paused["reason"], paused
+        assert "No module named 'pptx'" in paused["systemMessage"] and "Ask the user for direction" in paused["reason"], paused
         assert pre("run_in_terminal")["hookSpecificOutput"]["permissionDecision"] == "deny"  # type: ignore[index]
-        assert pre("vscode_askQuestions") is None and pre("read_file") is None
-        fire(root, "error_guard.py", {"hook_event_name": "UserPromptSubmit", "prompt": "install python-pptx and retry"})
+        assert pre("vscode_askQuestions") is None and pre("ask_user") is None and pre("read_file") is None and pre("view") is None
+        fire(root, "error_guard.py", {"hook_event_name": "PostToolUse", "tool_name": "ask_user", "tool_use_id": "t",
+                                      "tool_input": {"question": "How should I go on?"}, "tool_response": "install python-pptx and retry"})
         assert pre("run_in_terminal") is None
+        copilot = "Traceback ...\n<shellId: 3 completed with exit code 1>"
+        assert post("python a.py", copilot) is None and post("python a.py", copilot) is None and post("python a.py", copilot)
+        assert post("python ok.py", "<shellId: 4 completed with exit code 0>") is None and pre("run_in_terminal") is None
+        fire(root, "error_guard.py", {"hook_event_name": "UserPromptSubmit", "prompt": "thanks"})
         kinds = [json.loads(line)["kind"] for line in (root / ".hve" / "runs" / "s1.interventions.jsonl").read_text().splitlines()]
-        assert kinds == ["error_streak"], kinds
+        assert kinds == ["error_streak", "error_streak"], kinds
 
 
 def test_module_guard() -> None:
