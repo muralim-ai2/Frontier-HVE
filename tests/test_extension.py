@@ -52,13 +52,13 @@ def test_extension_js_parses() -> None:
 
 
 def test_rendered_plugin_shape() -> None:
-    """The plugin has its manifest, 17 skills, guardrail scripts and 39 HVE agents (16 rendered from the persona catalog) with every runtime
-    path filled in; only the three
+    """The plugin has its manifest, 17 skills, guardrail scripts and 41 HVE agents (16 rendered from the persona catalog, 2 benchmark
+    research arms) with every runtime path filled in; only the three
     Frontier agents are user-invocable and they, with the uplift judge, pin top models."""
     with tempfile.TemporaryDirectory() as tmp:
         out = Path(tmp) / "plugin"
         agents = render(out)
-        assert len(agents) == 39, agents
+        assert len(agents) == 41, agents
         assert json.loads((out / "plugin.json").read_text(encoding="utf-8"))["name"] == "frontier-hve"
         assert len(list((out / "skills").glob("*/SKILL.md"))) == 17
         assert (EXTENSION / "runtime" / "tools" / "map" / "explorer" / "app.js").is_file()
@@ -71,7 +71,7 @@ def test_rendered_plugin_shape() -> None:
         assert not (out / "skills" / "ux-flows").exists() and (EXTENSION / "runtime" / "skills" / "admitted" / "ux-flows" / "SKILL.md").is_file()
         assert (out / "scripts" / "guardrail.py").exists()
         restricted = {"council", "evaluation-reviewer", "minimal", "flow-architect", "flow-maintainer", "skill-judge", "skill-worker",
-                      "uplift-judge"}
+                      "uplift-judge", "research-minimal", "research-single"}
         visible, pinned = {"e2e", "agile", "prototype", "creator"}, {"e2e", "agile", "prototype", "creator", "uplift-judge"}
         for name in agents:
             text = (out / "com.github.copilot" / "agents" / name).read_text(encoding="utf-8")
@@ -122,7 +122,7 @@ def test_rerender_updates_in_place() -> None:
         stale = out / "com.github.copilot" / "agents" / "old.agent.md"
         stale.write_text("old", encoding="utf-8")
         (out / "skills" / "old-skill").mkdir()
-        assert len(render(out, "0.1.1")) == 39
+        assert len(render(out, "0.1.1")) == 41
         assert json.loads((out / "plugin.json").read_text(encoding="utf-8"))["version"] == "0.1.1"
         assert not stale.exists() and not (out / "skills" / "old-skill").exists()
 
