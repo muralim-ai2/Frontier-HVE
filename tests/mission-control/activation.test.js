@@ -5,7 +5,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const { EXTENSION, workspace, removeWorkspace } = require('./helpers');
-const { host } = require('./vscode-stub');
+const { host, mission } = require('./vscode-stub');
 const { project } = require('./fixtures');
 const { snapshot } = require('../../extension/ui/workspace-state');
 const { message } = require('../../extension/ui/validate');
@@ -14,23 +14,6 @@ const ORIGINAL = ['frontierHve.setup', 'frontierHve.installHarnesses', 'frontier
   'frontierHve.installPlugin', 'frontierHve.managePlugins'];
 const MISSION = ['frontierHve.openMissionControl', 'frontierHve.refreshMissionControl', 'frontierHve.selectWorkspace', 'frontierHve.newTask',
   'frontierHve.continueInChat'];
-
-/** Register Mission Control alone in a host double with a fixed Python launcher.
- * @param {import('node:test').TestContext} t
- * @param {number} [count]
- * @returns {ReturnType<typeof host> & {root: string}}
- */
-function mission(t, count = 1) {
-  const roots = Array.from({ length: count }, () => workspace());
-  const storage = workspace();
-  const fixture = host(roots, storage);
-  fixture.context.subscriptions.push(...fixture.load(path.join('ui', 'mission-control.js')).register(fixture.context, async () => 'python'));
-  t.after(() => {
-    fixture.context.subscriptions.forEach(resource => resource.dispose());
-    [...roots, storage].forEach(removeWorkspace);
-  });
-  return { ...fixture, root: roots[0] };
-}
 
 test('the existing extension contributes Mission Control, keeps its commands and has no Copilot extension dependency', () => {
   assert.equal(manifest.name, 'frontier-hve');

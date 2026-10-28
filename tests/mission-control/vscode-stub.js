@@ -4,7 +4,7 @@ const path = require('node:path');
 const fs = require('node:fs');
 const Module = require('node:module');
 const { pathToFileURL } = require('node:url');
-const { EXTENSION } = require('./helpers');
+const { EXTENSION, workspace, removeWorkspace } = require('./helpers');
 
 /** Represent an independently disposable host resource. */
 class Disposable {
@@ -123,4 +123,21 @@ function host(roots, storage) {
   } };
 }
 
-module.exports = { host };
+/** Register Mission Control alone in a host double with a fixed Python launcher, disposed after the test.
+ * @param {import('node:test').TestContext} t
+ * @param {number} [count]
+ * @returns {ReturnType<typeof host> & {root: string}}
+ */
+function mission(t, count = 1) {
+  const roots = Array.from({ length: count }, () => workspace());
+  const storage = workspace();
+  const fixture = host(roots, storage);
+  fixture.context.subscriptions.push(...fixture.load(path.join('ui', 'mission-control.js')).register(fixture.context, async () => 'python'));
+  t.after(() => {
+    fixture.context.subscriptions.forEach(resource => resource.dispose());
+    [...roots, storage].forEach(removeWorkspace);
+  });
+  return { ...fixture, root: roots[0], storage };
+}
+
+module.exports = { host, mission };
