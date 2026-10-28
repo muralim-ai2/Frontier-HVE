@@ -1,0 +1,9 @@
+{
+  "name": "frontier-hve-host-checks",
+  "displayName": "Frontier HVE host checks",
+  "description": "Test-only runner that loads the release checks; it contributes nothing.",
+  "version": "0.0.0",
+  "publisher": "frontier-hve-tests",
+  "private": true,
+  "engines": { "vscode": "^1.100.0" }
+}
