@@ -3,9 +3,9 @@
 (function (root) {
   const TAGS = new Set(['div', 'span', 'p', 'h1', 'h2', 'h3', 'h4', 'ul', 'ol', 'li', 'strong', 'em', 'code', 'pre', 'table', 'thead', 'tbody', 'tr',
     'th', 'td', 'blockquote', 'hr', 'button', 'nav', 'section', 'header', 'footer', 'main', 'article', 'details', 'summary', 'small', 'time',
-    'svg', 'path', 'circle', 'rect', 'polyline', 'line']);
+    'label', 'select', 'option', 'svg', 'path', 'circle', 'rect', 'polyline', 'line']);
   const SVG = new Set(['svg', 'path', 'circle', 'rect', 'polyline', 'line']);
-  const ATTRIBUTE = /^(class|role|title|tabindex|disabled|open|type|viewBox|d|cx|cy|r|x|y|x1|x2|y1|y2|rx|width|height|points|style-width|aria-[a-z-]+|data-[a-z-]+)$/;
+  const ATTRIBUTE = /^(class|role|title|tabindex|disabled|open|type|value|selected|viewBox|d|cx|cy|r|x|y|x1|x2|y1|y2|rx|width|height|points|style-width|aria-[a-z-]+|data-[a-z-]+)$/;
 
   /** @typedef {import('../types').VNode} VNode */
   /** @typedef {import('../types').Child} Child */

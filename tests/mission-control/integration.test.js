@@ -19,10 +19,10 @@ async function setup(t) {
   const storage = workspace();
   t.after(() => { removeWorkspace(root); removeWorkspace(storage); });
   const flow = new Workflow(bundled(), storage);
-  const description = await flow.describeTask(root, 'Build an onboarding policy checker');
+  const description = await flow.describeAsk(root, 'Build an onboarding policy checker');
   assert.equal(description.verdict, 'new-project');
   assert.deepEqual(fs.readdirSync(root), []);
-  const state = await flow.createTask(root, description.revision, 'policy', 'Build an onboarding policy checker');
+  const state = await flow.createAsk(root, description.revision, 'policy', 'Build an onboarding policy checker');
   return { root, storage, flow, state };
 }
 
@@ -80,7 +80,7 @@ test('stale UI and active-ask switches cannot approve another task', async t => 
   completeStage(root, state.ask.id);
   const ready = snapshot(root);
   const ticket = await flow.prepareReview(root, ready.revision, 'stage:deliver', 'accepted');
-  const second = await flow.createTask(root, ready.revision, 'second', 'Build a second onboarding checker');
+  const second = await flow.createAsk(root, ready.revision, 'second', 'Build a second onboarding checker');
   await assert.rejects(flow.recordReview(root, ticket, 'Old approval'), /state changed/);
   await assert.rejects(lifecycle(bundled(), root, ['tick-for', ticket.ask, ticket.revision, ticket.item, ticket.value, 'Stale subprocess']), /changed/);
   assert.ok(second.reviews.every(review => review.decision === 'open'));
@@ -90,7 +90,7 @@ test('stale UI and active-ask switches cannot approve another task', async t => 
 test('changed plans, incomplete work, and invalid identifiers reject before mutation', async t => {
   const { root, flow, state } = await setup(t);
   await assert.rejects(flow.prepareReview(root, state.revision, 'stage:deliver', 'accepted'), /Acceptance requires/);
-  await assert.rejects(flow.createTask(root, state.revision, '..\\escape', 'Build a checker'), /identifier/);
+  await assert.rejects(flow.createAsk(root, state.revision, '..\\escape', 'Build a checker'), /Ask name must contain/);
   completeStage(root, state.ask.id);
   const ready = snapshot(root);
   const ticket = await flow.prepareReview(root, ready.revision, 'stage:deliver', 'accepted');

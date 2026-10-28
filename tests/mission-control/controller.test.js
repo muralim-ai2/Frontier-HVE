@@ -7,7 +7,7 @@ const os = require('node:os');
 const path = require('node:path');
 const { workspace, removeWorkspace } = require('./helpers');
 const { mission } = require('./vscode-stub');
-const { project } = require('./fixtures');
+const { project, ASK } = require('./fixtures');
 const STARTED = new Date(Date.now() - 30_000).toISOString();
 
 /** Write a chat transcript the way Copilot Chat does, one JSON event per line.
@@ -96,7 +96,8 @@ test('files open beside Mission Control only when it lists them', async t => {
   fs.writeFileSync(path.join(fixture.root, 'secret.txt'), 'private');
   fs.mkdirSync(path.join(fixture.root, '.hve', 'skills', 'ux-flows'), { recursive: true });
   fs.writeFileSync(path.join(fixture.root, '.hve', 'skills', 'ux-flows', 'SKILL.md'), '# UX flows');
-  transcript(fixture.transcripts, [{ type: 'tool.execution_start', data: { toolCallId: 'a', toolName: 'create_file', arguments: { filePath: path.join(fixture.root, 'policy.js') } } }]);
+  transcript(fixture.transcripts, [{ type: 'tool.execution_start', data: { toolCallId: 'o', toolName: 'run_in_terminal', arguments: { command: `python lifecycle.py open ${ASK}` } } },
+    { type: 'tool.execution_start', data: { toolCallId: 'a', toolName: 'create_file', arguments: { filePath: path.join(fixture.root, 'policy.js') } } }]);
   await fixture.controls.commands.get('frontierHve.refreshMissionControl')();
   await fixture.controls.provider.execute({ action: 'openFile', path: 'policy.js' });
   await fixture.controls.provider.execute({ action: 'openFile', path: '.hve/skills/ux-flows/SKILL.md' });
@@ -114,7 +115,7 @@ test('an unreadable transcript shows as an activity error while the task view ke
   const result = await fixture.controls.commands.get('frontierHve.refreshMissionControl')();
   assert.ok(result.ask);
   const model = fixture.controls.commands.get('frontierHve.missionControlModel')();
-  assert.match(model.activityError, /Invalid JSON on line 1/);
+  assert.match(model.activityError, /Invalid chat event on line 1/);
   assert.equal(model.activity, null);
 });
 

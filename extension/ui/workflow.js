@@ -1,5 +1,5 @@
 'use strict';
-/** Perform explicit live task and human-review actions through the existing harness. */
+/** Perform explicit ask and human-review actions through the existing harness. */
 const fs = require('node:fs');
 const path = require('node:path');
 const { lifecycle } = require('./lifecycle-cli');
@@ -16,7 +16,7 @@ const { record, text } = require('./validate');
  */
 function current(workspace, revision) {
   const state = snapshot(workspace);
-  if (state.revision !== revision) throw new Error('Workspace state changed. Refresh and review the current task before trying again.');
+  if (state.revision !== revision) throw new Error('Workspace state changed. Refresh and review the current ask before trying again.');
   return state;
 }
 
@@ -35,8 +35,8 @@ class Workflow {
    * @returns {Promise<unknown>}
    */
   async requestFile(request, action) {
-    text(request, 'Task request');
-    if (request.length > 20000) throw new Error('Task request must be at most 20,000 characters.');
+    text(request, 'Ask request');
+    if (request.length > 20000) throw new Error('Ask request must be at most 20,000 characters.');
     fs.mkdirSync(this.storage, { recursive: true });
     const folder = fs.mkdtempSync(path.join(this.storage, 'request-'));
     const file = path.join(folder, 'request.txt');
@@ -49,14 +49,14 @@ class Workflow {
     }
   }
 
-  /** Describe the real lifecycle scope without creating a task.
+  /** Describe where a request lands, using the harness's own recommendation, without creating anything.
    * @param {string} workspace
    * @param {string} request
    * @returns {Promise<{revision: string, activeAsk: string | null, verdict: string, why: string}>}
    */
-  async describeTask(workspace, request) {
+  async describeAsk(workspace, request) {
     const state = snapshot(workspace);
-    const result = record(await this.requestFile(request, file => lifecycle(this.connection, workspace, ['where', file])), 'Task scope');
+    const result = record(await this.requestFile(request, file => lifecycle(this.connection, workspace, ['where', file])), 'Ask scope');
     current(workspace, state.revision);
     return { revision: state.revision, activeAsk: state.ask?.id || null, verdict: text(result.verdict, 'Scope verdict'), why: text(result.why, 'Scope reason') };
   }
@@ -78,15 +78,29 @@ class Workflow {
    * @param {string} request
    * @returns {Promise<import('./types').Snapshot>}
    */
-  async createTask(workspace, revision, slug, request) {
+  async createAsk(workspace, revision, slug, request) {
     return this.mutate(async () => {
-      if (!/^[a-z0-9][a-z0-9-]{0,40}$/.test(slug)) throw new Error('Task identifier must contain 1-41 lowercase letters, digits or hyphens.');
+      if (!/^[a-z0-9][a-z0-9-]{0,40}$/.test(slug)) throw new Error('Ask name must contain 1-41 lowercase letters, digits or hyphens.');
       current(workspace, revision);
       const result = record(await this.requestFile(request, file =>
         lifecycle(this.connection, workspace, ['contract', 'direct', slug, 'HVE creator', file])), 'Created ask');
       const created = askId(result.ask);
       const state = snapshot(workspace);
-      if (state.ask?.id !== created) throw new Error(`Ask ${created} was created, but the active task changed before verification. Inspect the project before continuing.`);
+      if (state.ask?.id !== created) throw new Error(`Ask ${created} was created, but the active ask changed before verification. Inspect the project before continuing.`);
+      return state;
+    });
+  }
+
+  /** Make an existing ask the active one through the harness and verify the pointer.
+   * @param {string} workspace
+   * @param {string} ask
+   * @returns {Promise<import('./types').Snapshot>}
+   */
+  async openAsk(workspace, ask) {
+    return this.mutate(async () => {
+      const result = record(await lifecycle(this.connection, workspace, ['open', askId(ask)]), 'Opened ask');
+      const state = snapshot(workspace);
+      if (result.active !== ask || state.ask?.id !== ask) throw new Error(`The harness did not make ${ask} the active ask.`);
       return state;
     });
   }
@@ -100,10 +114,10 @@ class Workflow {
    */
   async prepareReview(workspace, revision, item, value) {
     const state = current(workspace, revision);
-    if (!state.ask) throw new Error('No active task to review.');
+    if (!state.ask) throw new Error('No active ask to review.');
     if (state.pendingPlanTicks) throw new Error('Plan checkboxes changed. Reconcile them through the harness before another review.');
     const review = state.reviews.find(row => row.item === item);
-    if (!review) throw new Error('The review item is not in this active task.');
+    if (!review) throw new Error('The review item is not in the active ask.');
     if (!['accepted', 'changes'].includes(value)) throw new Error('Unknown human review decision.');
     if (value === 'accepted' && (!review.ready || state.planState !== 'synced')) {
       throw new Error('Acceptance requires completed work, its required evidence, and a synchronized plan.');

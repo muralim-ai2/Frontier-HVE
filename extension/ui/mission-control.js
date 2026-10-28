@@ -3,13 +3,15 @@
 const vscode = require('vscode');
 const path = require('node:path');
 const { randomBytes } = require('node:crypto');
-const { BASE_COMMANDS, runtime, inspect, guardMode, packs } = require('./lifecycle-cli');
+const { runtime, inspect, guardMode, packs } = require('./lifecycle-cli');
 const { snapshot } = require('./workspace-state');
 const { activity } = require('./activity');
-const { containedPath } = require('./file-access');
+const { listAsks, askTree } = require('./asks');
+const { chatList, shownChat, claimsFrom, pendingFrom } = require('./chats');
 const { Workflow } = require('./workflow');
+const actions = require('./actions');
 const { record, text, message, errorText } = require('./validate');
-const PAGES = ['live', 'plan', 'progress', 'skills', 'settings'];
+const PAGES = ['live', 'plan', 'progress', 'files', 'skills', 'settings'];
 const SCRIPTS = ['vnode.js', 'markdown.js', 'views.js', 'pages.js', 'app.js'];
 const REFRESH_DELAY_MS = 400;
 
@@ -57,23 +59,40 @@ class MissionControl {
     this.python = null;
     /** @type {{page: import('./types').Page, seq: number}} */
     this.navigate = { page: 'live', seq: 0 };
+    /** @type {string | null} The ask on screen when it is not the active ask. */
+    this.selected = null;
+    /** @type {string | null} The chat on screen when it is not the ask's latest. */
+    this.chat = null;
     this.disposed = false;
     const version = text(record(context.extension.packageJSON, 'Extension manifest').version, 'Extension version');
     /** @type {Omit<import('./types').Model, 'now' | 'surface' | 'workspace' | 'telemetry' | 'navigate' | 'transcripts'>} */
     this.state = { busy: false, error: null, workspaceMessage: null, connection: { version, python: null, guard: guardMode(context.extensionPath) },
-      snapshot: null, snapshotError: null, activity: null, activityError: null, packs: null, packsError: null };
+      asks: null, asksError: null, snapshot: null, snapshotError: null, activity: null, activityError: null, pending: null, files: null, filesError: null,
+      packs: null, packsError: null };
     this.restoreWorkspace();
   }
 
-  /** Restore an explicit selection or use the only local workspace.
+  /** Restore an explicit selection or use the only local workspace, and the ask on screen.
    * @returns {void}
    */
   restoreWorkspace() {
     const folders = vscode.workspace.workspaceFolders || [];
     const saved = this.context.workspaceState.get('selectedWorkspace');
     this.workspace = folders.find(folder => folder.uri.toString() === saved) || (folders.length === 1 ? folders[0] : null);
+    const ask = this.context.workspaceState.get('selectedAsk');
+    this.selected = typeof ask === 'string' ? ask : null;
     this.flow = null;
     this.bindWatchers();
+  }
+
+  /** Show an ask (null follows the active ask) and its latest chat; the choice is kept for this window.
+   * @param {string | null} ask
+   * @returns {Promise<void>}
+   */
+  async view(ask) {
+    this.selected = ask;
+    this.chat = null;
+    await this.context.workspaceState.update('selectedAsk', ask);
   }
 
   /** Return this window's Copilot Chat transcript folder, a sibling of the extension's workspace storage.
@@ -150,38 +169,62 @@ class MissionControl {
     return this.flow;
   }
 
-  /** Re-read the harness state and live activity; a section that cannot be read shows its own error.
+  /** Read one section of the model; a failure is logged and shown in that section while the others stay live.
+   * @template T
+   * @param {string} label
+   * @param {() => Promise<T>} read
+   * @returns {Promise<{value: T | null, error: string | null}>}
+   */
+  async section(label, read) {
+    try {
+      return { value: await read(), error: null };
+    } catch (error) {
+      const shown = errorText(error);
+      this.output.appendLine(`${label}: ${shown}`);
+      return { value: null, error: shown };
+    }
+  }
+
+  /** Re-read the project's asks, the ask on screen, its chats and its folder.
    * @returns {Promise<import('./types').Snapshot | null>}
    */
   async refresh() {
     if (!vscode.workspace.isTrusted) throw new Error('Trust this workspace to use Mission Control.');
     this.state.workspaceMessage = null;
     if (!this.workspace) {
-      Object.assign(this.state, { snapshot: null, activity: null, snapshotError: null, activityError: null });
+      Object.assign(this.state, { asks: null, asksError: null, snapshot: null, snapshotError: null, activity: null, activityError: null, files: null, filesError: null });
       this.state.workspaceMessage = (vscode.workspace.workspaceFolders?.length || 0) > 1
         ? 'Choose which workspace folder Mission Control follows.' : 'Open a project folder to use Mission Control.';
       this.paint();
       return null;
     }
     const root = this.target().uri.fsPath;
+    const now = Date.now();
     this.python ||= await this.findPython();
     this.state.connection.python = this.python;
-    try {
-      this.state.snapshot = snapshot(root);
-      this.state.snapshotError = null;
-    } catch (error) {
-      this.state.snapshot = null;
-      this.state.snapshotError = errorText(error);
-      this.output.appendLine(`Harness state: ${this.state.snapshotError}`);
-    }
-    try {
-      this.state.activity = activity(root, this.transcripts(), this.telemetry().file, Date.now());
-      this.state.activityError = null;
-    } catch (error) {
-      this.state.activity = null;
-      this.state.activityError = errorText(error);
-      this.output.appendLine(`Live activity: ${this.state.activityError}`);
-    }
+    const asks = await this.section('Asks', async () => {
+      const rows = listAsks(root);
+      if (this.selected !== null && !rows.some(ask => ask.id === this.selected)) await this.view(null);
+      return rows;
+    });
+    const state = await this.section('Harness state', async () => snapshot(root, this.selected));
+    const viewed = state.value?.ask?.id ?? this.selected ?? asks.value?.find(ask => ask.active)?.id ?? null;
+    const live = await this.section('Live activity', async () => {
+      const transcripts = this.transcripts();
+      const claims = claimsFrom(this.context.workspaceState.get('chatAsks'));
+      const pending = pendingFrom(this.context.workspaceState.get('pendingChat'), now);
+      const { chats, claimed } = chatList(transcripts, root, (asks.value || []).map(ask => ask.id), claims, pending, now);
+      if (claimed) {
+        await this.context.workspaceState.update('chatAsks', { ...claims, [claimed.chat]: { ask: claimed.ask, how: 'started' } });
+        await this.context.workspaceState.update('pendingChat', null);
+      }
+      this.state.pending = claimed ? null : pending;
+      const shown = shownChat(chats, viewed, this.chat);
+      return { ...activity(root, shown && transcripts ? path.join(transcripts, `${shown.id}.jsonl`) : null, this.telemetry().file, now), chats };
+    });
+    const files = await this.section('Ask files', async () => viewed ? askTree(root, viewed) : null);
+    Object.assign(this.state, { asks: asks.value, asksError: asks.error, snapshot: state.value, snapshotError: state.error,
+      activity: live.value, activityError: live.error, files: files.value, filesError: files.error });
     this.paint();
     return this.state.snapshot;
   }
@@ -268,82 +311,8 @@ class MissionControl {
     this.workspace = selected.folder;
     this.flow = null;
     await this.context.workspaceState.update('selectedWorkspace', selected.folder.uri.toString());
+    await this.view(null);
     this.bindWatchers();
-  }
-
-  /** Collect and confirm a new task, then create it with the harness.
-   * @returns {Promise<void>}
-   */
-  async newTask() {
-    const target = this.target();
-    const flow = await this.connect();
-    const request = await vscode.window.showInputBox({ title: 'New task (1 of 2): what should be delivered?', prompt: 'Describe the outcome. HVE creator plans and builds it in a new ask.',
-      ignoreFocusOut: true, validateInput: value => !value.trim() || value.length > 20000 ? 'Enter 1-20,000 characters.' : null });
-    if (request === undefined) return;
-    const slug = await vscode.window.showInputBox({ title: 'New task (2 of 2): short name', prompt: 'Used for the task folder, for example pawstagram-feed.',
-      ignoreFocusOut: true, validateInput: value => /^[a-z0-9][a-z0-9-]{0,40}$/.test(value) ? null : 'Use 1-41 lowercase letters, digits or hyphens.' });
-    if (slug === undefined) return;
-    const description = await flow.describeTask(target.uri.fsPath, request);
-    const confirm = await vscode.window.showWarningMessage(`Create task "${slug}" in ${target.uri.fsPath}?`,
-      { modal: true, detail: `${description.why}.\n${description.activeAsk ? `The current task ${description.activeAsk} stays on disk but is no longer active.\n` : ''}This writes the task's contract and plan under .hve/ and copies its skills. No agent starts.` }, 'Create task');
-    if (confirm !== 'Create task') return;
-    this.target();
-    await flow.createTask(target.uri.fsPath, description.revision, slug, request);
-    this.open('plan');
-    void vscode.window.showInformationMessage(`Task "${slug}" is ready. In Copilot Chat, pick HVE creator and describe the work; it continues this task.`);
-  }
-
-  /** Open the active ask's plan.md in a text editor beside Mission Control.
-   * @returns {Promise<void>}
-   */
-  async editPlan() {
-    const state = snapshot(this.target().uri.fsPath);
-    if (!state.plan) throw new Error('There is no plan.md to edit: start a task first.');
-    await vscode.window.showTextDocument(vscode.Uri.file(containedPath(state.workspace, state.plan.path)), { viewColumn: vscode.ViewColumn.Beside, preview: false });
-  }
-
-  /** Confirm and record a human sign-off through the guarded review commands.
-   * @param {Record<string, string>} data
-   * @returns {Promise<void>}
-   */
-  async review(data) {
-    if (data.value !== 'accepted' && data.value !== 'changes') throw new Error('Unknown review decision.');
-    const target = this.target();
-    const flow = await this.connect();
-    const ticket = await flow.prepareReview(target.uri.fsPath, data.revision, data.item, data.value);
-    const note = await vscode.window.showInputBox({ title: data.value === 'accepted' ? `Accept ${data.item}: what did you check?` : `Changes for ${data.item}: what needs to change?`,
-      ignoreFocusOut: true, validateInput: value => !value.trim() ? 'A note is required.' : value.length > 4000 ? 'Use at most 4,000 characters.' : null });
-    if (note === undefined) return;
-    const label = data.value === 'accepted' ? 'Accept' : 'Request changes';
-    const confirm = await vscode.window.showWarningMessage(`${label}: ${data.item}?`, { modal: true,
-      detail: `Task ${ticket.ask} in ${target.uri.fsPath}\n\n“${note}”\n\nThis records your decision in the task. It does not push code or start the next stage.` }, label);
-    if (confirm !== label) return;
-    this.target();
-    await flow.recordReview(target.uri.fsPath, ticket, note);
-    void vscode.window.showInformationMessage(`${label === 'Accept' ? 'Accepted' : 'Changes requested for'} ${data.item}.`);
-  }
-
-  /** Run one of the extension's own commands; it asks its own questions.
-   * @param {string} name
-   * @returns {Promise<void>}
-   */
-  async command(name) {
-    if (!Object.hasOwn(BASE_COMMANDS, name)) throw new Error('Unknown harness command.');
-    const target = this.target();
-    if (vscode.workspace.workspaceFolders?.[0]?.uri.toString() !== target.uri.toString()) {
-      throw new Error('Set-up and pack commands act on the first folder of this window. Open the selected folder in its own window to use them.');
-    }
-    await vscode.commands.executeCommand(BASE_COMMANDS[/** @type {keyof typeof BASE_COMMANDS} */ (name)]);
-    if (name === 'installPack' || name === 'managePacks') await this.loadPacks();
-  }
-
-  /** Turn research telemetry on (the extension's own warning explains what it records) or off.
-   * @param {string} value
-   * @returns {Promise<void>}
-   */
-  async telemetrySwitch(value) {
-    if (value !== 'on' && value !== 'off') throw new Error('Telemetry must be on or off.');
-    await vscode.commands.executeCommand(value === 'on' ? 'frontierHve.researchTelemetry' : 'frontierHve.researchTelemetryOff');
   }
 
   /** Read the installed expertise packs; a failure shows on the Skills and packs page.
@@ -362,21 +331,6 @@ class MissionControl {
     this.paint();
   }
 
-  /** Open a file Mission Control lists: evidence, the plan, files the agent changed, or a loaded skill.
-   * @param {string} relative
-   * @returns {Promise<void>}
-   */
-  async openFile(relative) {
-    const root = this.target().uri.fsPath;
-    const state = snapshot(root);
-    const listed = [...state.files, ...(this.state.activity?.session?.files.map(file => file.path) || []),
-      ...state.skills.map(skill => path.join('.hve', 'skills', skill.name, 'SKILL.md'))].map(file => path.normalize(file));
-    if (!listed.includes(path.normalize(relative))) throw new Error('That file is not listed in Mission Control.');
-    const uri = vscode.Uri.file(containedPath(state.workspace, relative));
-    if (['.png', '.jpg', '.jpeg', '.webp', '.gif'].includes(path.extname(relative).toLowerCase())) await vscode.commands.executeCommand('vscode.open', uri);
-    else await vscode.window.showTextDocument(uri, { viewColumn: vscode.ViewColumn.Beside, preview: true });
-  }
-
   /** Dispatch a validated view action and show failures before rejecting them.
    * @param {unknown} raw
    * @returns {Promise<import('./types').Snapshot | null>}
@@ -384,7 +338,7 @@ class MissionControl {
   async execute(raw) {
     if (this.disposed) throw new Error('Mission Control has been disposed.');
     const data = message(raw);
-    const mutating = ['newTask', 'review', 'command', 'telemetry', 'selectWorkspace'].includes(data.action);
+    const mutating = ['newAsk', 'newChat', 'activateAsk', 'review', 'command', 'telemetry', 'selectWorkspace'].includes(data.action);
     if (mutating && this.state.busy) throw new Error('Another Mission Control action is still running.');
     if (mutating) { this.state.busy = true; this.paint(); }
     try {
@@ -392,13 +346,19 @@ class MissionControl {
         case 'ready': case 'refresh': break;
         case 'openDashboard': this.open(data.page); break;
         case 'selectWorkspace': await this.selectWorkspace(); break;
-        case 'newTask': await this.newTask(); break;
-        case 'editPlan': await this.editPlan(); break;
-        case 'review': await this.review(data); break;
-        case 'command': await this.command(data.name); break;
-        case 'telemetry': await this.telemetrySwitch(data.value); break;
+        case 'newAsk': await actions.newAsk(this); break;
+        case 'newChat': await actions.newChat(this); break;
+        case 'selectAsk': await actions.selectAsk(this, data.ask); break;
+        case 'activateAsk': await actions.activateAsk(this, data.ask); break;
+        case 'selectChat': actions.selectChat(this, data.chat); break;
+        case 'linkChat': await actions.linkChat(this, data.chat); break;
+        case 'editPlan': await actions.editPlan(this); break;
+        case 'revealAsk': await actions.revealAsk(this); break;
+        case 'review': await actions.review(this, data); break;
+        case 'command': await actions.command(this, data.name); break;
+        case 'telemetry': await actions.telemetrySwitch(data.value); break;
         case 'loadPacks': await this.loadPacks(); break;
-        case 'openFile': await this.openFile(data.path); break;
+        case 'openFile': await actions.openFile(this, data.path); break;
         default: throw new Error('Unsupported Mission Control action.');
       }
       this.state.error = null;
@@ -438,7 +398,7 @@ function register(context, findPython) {
     vscode.commands.registerCommand('frontierHve.openMissionControl', () => ui.execute({ action: 'openDashboard', page: 'live' })),
     vscode.commands.registerCommand('frontierHve.refreshMissionControl', () => ui.execute({ action: 'refresh' })),
     vscode.commands.registerCommand('frontierHve.selectWorkspace', () => ui.execute({ action: 'selectWorkspace' })),
-    vscode.commands.registerCommand('frontierHve.newTask', () => ui.execute({ action: 'newTask' })),
+    vscode.commands.registerCommand('frontierHve.newAsk', () => ui.execute({ action: 'newAsk' })),
     vscode.commands.registerCommand('frontierHve.editPlan', () => ui.execute({ action: 'editPlan' })),
     vscode.commands.registerCommand('frontierHve.missionControlModel', () => ui.model('editor')),
     vscode.workspace.onDidChangeWorkspaceFolders(() => { ui.restoreWorkspace(); ui.scheduleRefresh(); }),

@@ -2,8 +2,9 @@
 /** Write representative current-layout harness fixtures into disposable projects. */
 const fs = require('node:fs');
 const path = require('node:path');
-const { json } = require('./helpers');
-const { planDigest } = require('../../extension/ui/workspace-state');
+const { json, bundled } = require('./helpers');
+const { planDigest, snapshot } = require('../../extension/ui/workspace-state');
+const { Workflow } = require('../../extension/ui/workflow');
 const ASK = '20261028-1200-onboarding';
 
 /** Write a complete project with a verified feature and unreviewed delivery milestone.
@@ -37,4 +38,21 @@ function project(root) {
   return folder;
 }
 
-module.exports = { ASK, project };
+/** Create real asks one after another through the bundled harness; the last one created is active.
+ * @param {string} root
+ * @param {string} storage
+ * @param {[string, string][]} asks Name and request of each ask.
+ * @returns {Promise<string[]>}
+ */
+async function realAsks(root, storage, asks) {
+  const flow = new Workflow(bundled(), storage);
+  /** @type {string[]} */
+  const ids = [];
+  for (const [slug, request] of asks) {
+    const state = await flow.createAsk(root, snapshot(root).revision, slug, request);
+    ids.push(/** @type {NonNullable<typeof state.ask>} */ (state.ask).id);
+  }
+  return ids;
+}
+
+module.exports = { ASK, project, realAsks };

@@ -1,5 +1,5 @@
 'use strict';
-/** Verify Mission Control's confirmed task, review and Chat actions end to end through its commands and the bundled runtime. */
+/** Verify Mission Control's confirmed ask, review and new-chat actions end to end through its commands and the bundled runtime. */
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
@@ -7,47 +7,48 @@ const path = require('node:path');
 const { mission } = require('./vscode-stub');
 const { snapshot } = require('../../extension/ui/workspace-state');
 
-/** Create a real ask through the New task command after the user confirms it.
+/** Create a real ask through the New ask command, renamed and confirmed by the user.
  * @param {ReturnType<typeof mission>} fixture
  * @param {string} slug
  * @returns {Promise<import('../../extension/ui/types').Snapshot>}
  */
 async function create(fixture, slug) {
   fixture.controls.inputs.push('Build an onboarding policy checker', slug);
-  fixture.controls.confirmations.push('Create task');
-  await fixture.controls.commands.get('frontierHve.newTask')();
+  fixture.controls.confirmations.push('Change name…', 'Create ask');
+  await fixture.controls.commands.get('frontierHve.newAsk')();
   return snapshot(fixture.root);
 }
 
-test('new task creates a real ask only after a confirmation that names the workspace', async t => {
+test('new ask creates a real ask only after a confirmation, then opens an empty new chat for it', async t => {
   const fixture = mission(t);
   const state = await create(fixture, 'onboarding');
   assert.match(state.ask.id, /-onboarding$/);
   assert.equal(state.ask.agent, 'HVE creator');
-  assert.ok(fixture.controls.calls.some(call => call[0] === 'confirmation' && call[1].includes(fixture.root)));
-  assert.ok(!fixture.controls.calls.some(call => call[0] === 'workbench.action.chat.open'));
+  assert.ok(fixture.controls.calls.some(call => call[0] === 'confirmation' && call[1].includes(path.basename(fixture.root))));
+  const chat = fixture.controls.calls.filter(call => String(call[0]).startsWith('workbench.action.chat.'));
+  assert.deepEqual(chat, [['workbench.action.chat.open'], ['workbench.action.chat.newChat']]);
+  assert.equal(fixture.context.workspaceState.get('pendingChat').ask, state.ask.id);
   assert.deepEqual(fs.readdirSync(fixture.storage), []);
 });
 
 test('cancelled creation does not modify the target project', async t => {
   const fixture = mission(t);
-  fixture.controls.inputs.push('Build an onboarding policy checker', 'cancelled');
-  await fixture.controls.commands.get('frontierHve.newTask')();
-  await fixture.controls.commands.get('frontierHve.newTask')();
+  fixture.controls.inputs.push('Build an onboarding policy checker');
+  await fixture.controls.commands.get('frontierHve.newAsk')();
+  await fixture.controls.commands.get('frontierHve.newAsk')();
   assert.deepEqual(fs.readdirSync(fixture.root), []);
 });
 
-test('requested changes persist through the guarded API and the new task opens on its plan', async t => {
+test('requested changes persist through the guarded API and the new ask opens on Live', async t => {
   const fixture = mission(t);
   const state = await create(fixture, 'review');
-  assert.deepEqual(fixture.controls.commands.get('frontierHve.missionControlModel')().navigate, { page: 'plan', seq: 1 });
+  assert.deepEqual(fixture.controls.commands.get('frontierHve.missionControlModel')().navigate, { page: 'live', seq: 1 });
   fixture.controls.inputs.push('Clarify the policy acceptance criteria.');
   fixture.controls.confirmations.push('Request changes');
   await fixture.controls.provider.execute({ action: 'review', item: 'stage:deliver', value: 'changes', revision: state.revision });
   const saved = snapshot(fixture.root);
   assert.equal(saved.reviews[0].decision, 'changes');
   assert.equal(saved.reviews[0].note, 'Clarify the policy acceptance criteria.');
-  assert.ok(!fixture.controls.calls.some(call => call[0] === 'workbench.action.chat.open'));
 });
 
 test('accepting unfinished work is refused before any confirmation or write', async t => {

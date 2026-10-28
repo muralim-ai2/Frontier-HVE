@@ -60,8 +60,8 @@
         "title": "Frontier HVE: Select Mission Control workspace"
       },
       {
-        "command": "frontierHve.newTask",
-        "title": "Frontier HVE: New task"
+        "command": "frontierHve.newAsk",
+        "title": "Frontier HVE: New ask"
       },
       {
         "command": "frontierHve.editPlan",

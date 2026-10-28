@@ -37,7 +37,7 @@ function validateOperation(args) {
   if (args.length === 1 && ['list', 'where', 'plan-status'].includes(args[0])) return;
   if (args.length === 2 && args[0] === 'where' && path.isAbsolute(args[1])) return;
   const ask = /^\d{8}-\d{4}-[a-z0-9][a-z0-9-]{0,40}$/;
-  if (args.length === 2 && args[0] === 'review-status' && ask.test(args[1])) return;
+  if (args.length === 2 && ['review-status', 'open'].includes(args[0]) && ask.test(args[1])) return;
   if (args.length === 6 && args[0] === 'tick-for' && ask.test(args[1]) && /^[a-f0-9]{64}$/.test(args[2])
       && /^(stage|task):[a-z0-9][a-z0-9_.-]*$/.test(args[3]) && ['accepted', 'changes'].includes(args[4]) && args[5].trim()) return;
   if (args.length === 5 && args[0] === 'contract' && args[1] === 'direct' && /^[a-z0-9][a-z0-9-]{0,40}$/.test(args[2])

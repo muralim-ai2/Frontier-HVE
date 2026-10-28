@@ -43,7 +43,8 @@
   const KIND_ICON = { prompt: 'user', message: 'chat', read: 'eye', edit: 'pencil', run: 'terminal', search: 'search', ask: 'question',
     delegate: 'users', todo: 'list', guard: 'shield', tool: 'tool' };
   /** @type {[import('../types').Page, string, string][]} */
-  const PAGES = [['live', 'Live', 'pulse'], ['plan', 'Plan', 'map'], ['progress', 'Progress', 'flag'], ['skills', 'Skills & packs', 'box'], ['settings', 'Settings', 'gear']];
+  const PAGES = [['live', 'Live', 'pulse'], ['plan', 'Plan', 'map'], ['progress', 'Progress', 'flag'], ['files', 'Files', 'folder'], ['skills', 'Skills & packs', 'box'],
+    ['settings', 'Settings', 'gear']];
 
   /** Return a decorative line icon.
    * @param {string} name
@@ -136,7 +137,8 @@
     const session = run?.session;
     const snap = model.snapshot;
     if (model.error) items.push({ tone: 'error', icon: 'alert', title: 'The last action failed', detail: model.error });
-    if (model.snapshotError) items.push({ tone: 'error', icon: 'alert', title: 'Mission Control cannot read the task files', detail: model.snapshotError });
+    if (model.asksError) items.push({ tone: 'error', icon: 'alert', title: 'Mission Control cannot list the asks', detail: model.asksError });
+    if (model.snapshotError) items.push({ tone: 'error', icon: 'alert', title: 'Mission Control cannot read the ask files', detail: model.snapshotError });
     if (model.activityError) items.push({ tone: 'error', icon: 'alert', title: 'Mission Control cannot read the live activity', detail: model.activityError });
     if (session?.status === 'waiting') items.push({ tone: 'warn', icon: 'question', title: 'The agent is waiting for your answer in Chat', detail: session.current?.detail || '' });
     if (run?.errors?.paused) {
@@ -222,25 +224,77 @@
       'data-action': 'telemetry', 'data-value': on ? 'off' : 'on', disabled: model.busy }, h('span', { class: 'knob' })));
   }
 
-  /** Return the task card: what is being built, by whom, and how far along.
+  /** Return the chats that work on the ask on screen; with no ask, every chat of this window.
+   * @param {Model} model
+   * @returns {import('../types').Chat[]}
+   */
+  function askChats(model) {
+    const ask = model.snapshot?.ask;
+    const chats = model.activity?.chats || [];
+    return ask ? chats.filter(chat => chat.asks.some(link => link.ask === ask.id)) : chats;
+  }
+
+  /** Return why no chat activity is shown.
+   * @param {Model} model
+   * @returns {string}
+   */
+  function noChat(model) {
+    if (model.pending && model.pending.ask === model.snapshot?.ask?.id) return 'A new chat is open for this ask. Its activity appears here once you send your first message.';
+    if (model.activityError) return 'Mission Control cannot read this window\'s chats: see Needs you.';
+    if (!model.transcripts) return 'This window has no workspace storage, so Mission Control cannot follow its chats.';
+    if (!model.activity?.chats.length) return 'No Copilot Chat session has run in this workspace yet.';
+    return 'No chat is linked to this ask yet. A chat is linked when it creates or reopens the ask, edits its files, or is opened for it here.';
+  }
+
+  /** Return the dropdown of the project's asks; choosing one only changes what Mission Control shows.
+   * @param {Model} model
+   * @returns {VNode | null}
+   */
+  function askPicker(model) {
+    const asks = model.asks || [];
+    if (!asks.length) return null;
+    const shown = model.snapshot?.ask?.id || '';
+    return h('label', { class: 'ask-picker' }, h('span', { class: 'section-label' }, `Ask · ${plural(asks.length, 'ask')} in this project`),
+      h('select', { 'data-action': 'selectAsk', disabled: model.busy, title: 'Show another ask. Make active switches the ask agents work on.' },
+        shown ? null : h('option', { value: '', selected: true }, 'No ask is active'),
+        ...asks.map(ask => h('option', { value: ask.id, selected: ask.id === shown },
+          `${ask.title} · ${new Date(ask.created).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}${ask.active ? ' · active' : ''}`))));
+  }
+
+  /** Return the notice shown while an ask other than the active one is on screen.
+   * @param {Model} model
+   * @returns {VNode | null}
+   */
+  function viewing(model) {
+    const ask = model.snapshot?.ask;
+    if (!ask || ask.active) return null;
+    const active = model.asks?.find(row => row.active);
+    return h('div', { class: 'notice viewing' }, icon('eye'),
+      h('span', null, active ? `You are viewing an earlier ask. Agents work on “${active.title}”.` : 'You are viewing an ask that is not active. No ask is active.'),
+      button('Make active', 'activateAsk', { data: { ask: ask.id }, disabled: model.busy, title: 'Agents, hooks and guards then work on this ask. Asks you leave stay on disk.' }));
+  }
+
+  /** Return the ask card: what is being built, by whom, and how far along.
    * @param {Model} model
    * @param {number} now
    * @returns {VNode}
    */
-  function taskCard(model, now) {
+  function askCard(model, now) {
     const snap = model.snapshot;
     const session = model.activity?.session;
     if (!snap?.ask) {
-      return h('section', { class: 'card task empty' }, h('strong', null, 'No task in this workspace yet'),
-        h('p', { class: 'muted' }, 'Start one here, or pick an HVE agent in Copilot Chat and describe what to build.'),
-        button('New task', 'newTask', { kind: 'primary', icon: 'plus', disabled: model.busy || !model.workspace }));
+      return h('section', { class: 'card task empty' }, h('strong', null, model.asks?.length ? 'No ask is active' : 'No ask in this project yet'),
+        h('p', { class: 'muted' }, model.asks?.length ? 'Choose an earlier ask above, or start a new one.'
+          : 'An ask is one piece of work in this project. Start one here, or pick an HVE agent in Copilot Chat and describe what to build.'),
+        button('New ask', 'newAsk', { kind: 'primary', icon: 'plus', disabled: model.busy || !model.workspace }));
     }
     const done = session ? session.todos.filter(todo => todo.status === 'completed').length : 0;
     const stage = snap.stages.find(row => row.name === snap.ask?.current) || snap.stages[0];
     return h('button', { class: 'card task', type: 'button', 'data-action': 'go', 'data-page': 'live', title: snap.ask.request },
-      h('span', { class: 'section-label' }, snap.project ? pretty(snap.project.name) : 'Task'),
+      h('span', { class: 'section-label' }, snap.project ? pretty(snap.project.name) : 'Ask'),
       h('strong', { class: 'task-title' }, snap.ask.title),
-      h('span', { class: 'meta' }, [snap.ask.agent, stage ? `${stage.name}: ${stage.status}` : null, `started ${ago(snap.ask.created, now)}`].filter(Boolean).join(' · ')),
+      h('span', { class: 'meta' }, [snap.ask.agent, stage ? `${stage.name}: ${stage.status}` : null, `started ${ago(snap.ask.created, now)}`,
+        plural(askChats(model).length, 'chat')].filter(Boolean).join(' · ')),
       session && session.todos.length ? h('span', { class: 'task-progress' }, bar(done, session.todos.length, 'To-do progress'), `${done} of ${session.todos.length} to-dos done`) : null);
   }
 
@@ -251,7 +305,7 @@
    */
   function nowSection(model, now) {
     const session = model.activity?.session;
-    if (!session) return h('section', { class: 'now' }, h('div', { class: 'section-label' }, 'Now'), h('p', { class: 'muted' }, model.activity?.reason || 'Waiting for the first chat.'));
+    if (!session) return h('section', { class: 'now' }, h('div', { class: 'section-label' }, 'Now'), h('p', { class: 'muted' }, noChat(model)));
     const current = session.current;
     return h('section', { class: 'now' }, h('div', { class: 'section-label' }, 'Now'),
       current ? h('div', { class: `current kind-${current.kind}` }, icon(current.kind === 'ask' ? 'question' : 'spark', current.kind === 'ask' ? '' : 'spin'),
@@ -282,7 +336,8 @@
     const passing = snap ? snap.features.filter(feature => feature.passes).length : 0;
     /** @type {Record<string, string>} */
     const badges = { plan: snap?.plan ? { empty: 'not written', draft: 'draft', agreed: 'agreed', edited: 'changed' }[snap.plan.status] : '',
-      progress: snap?.features.length ? `${passing}/${snap.features.length}` : '', skills: snap?.skills.length ? String(snap.skills.length) : '' };
+      progress: snap?.features.length ? `${passing}/${snap.features.length}` : '', files: model.files ? String(model.files.count) : '',
+      skills: snap?.skills.length ? String(snap.skills.length) : '' };
     return h('nav', { class: 'links', 'aria-label': 'Mission Control pages' }, ...PAGES.map(([page, label, glyph]) =>
       h('button', { class: 'link-row', type: 'button', 'data-action': 'go', 'data-page': page }, icon(glyph), h('span', null, label),
         badges[page] ? h('span', { class: 'badge' }, badges[page]) : null, icon('chevron', 'trail'))));
@@ -299,11 +354,13 @@
       h('header', { class: 'top' }, icon('logo', 'brand'), h('strong', null, 'Frontier HVE'), chip(model),
         button('', 'refresh', { kind: 'icon', icon: 'refresh', title: 'Refresh', disabled: model.busy })),
       model.workspaceMessage ? h('div', { class: 'notice' }, model.workspaceMessage, button('Choose folder', 'selectWorkspace')) : null,
-      taskCard(model, now), attention(needs(model), true), nowSection(model, now), recent(model, now), pageLinks(model),
-      h('footer', null, telemetrySwitch(model), button('New task', 'newTask', { icon: 'plus', disabled: model.busy || !model.workspace })));
+      askPicker(model), viewing(model), askCard(model, now), attention(needs(model), true), nowSection(model, now), recent(model, now), pageLinks(model),
+      h('footer', null, telemetrySwitch(model), button('New ask', 'newAsk', { icon: 'plus', disabled: model.busy || !model.workspace,
+        title: 'Start a new piece of work in this project; the harness first checks whether it continues the open ask' })));
   }
 
-  const api = { ICONS, PAGES, icon, ago, count, plural, pretty, button, chip, needs, attention, eventRow, todoList, bar, telemetrySwitch, sessionState, sidebar };
+  const api = { ICONS, PAGES, icon, ago, count, plural, pretty, button, chip, needs, attention, eventRow, todoList, bar, telemetrySwitch, sessionState,
+    askChats, noChat, askPicker, viewing, sidebar };
   if (typeof module === 'object' && module.exports) module.exports = api;
   else root.hveViews = api;
 })(globalThis);

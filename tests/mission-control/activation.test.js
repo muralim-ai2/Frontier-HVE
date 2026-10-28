@@ -12,7 +12,7 @@ const { message } = require('../../extension/ui/validate');
 const manifest = JSON.parse(fs.readFileSync(path.join(EXTENSION, 'package.json'), 'utf8'));
 const ORIGINAL = ['frontierHve.setup', 'frontierHve.installHarnesses', 'frontierHve.researchTelemetry', 'frontierHve.researchTelemetryOff',
   'frontierHve.installPlugin', 'frontierHve.managePlugins'];
-const MISSION = ['frontierHve.openMissionControl', 'frontierHve.refreshMissionControl', 'frontierHve.selectWorkspace', 'frontierHve.newTask',
+const MISSION = ['frontierHve.openMissionControl', 'frontierHve.refreshMissionControl', 'frontierHve.selectWorkspace', 'frontierHve.newAsk',
   'frontierHve.editPlan'];
 
 /** Return the models posted to views so far.
@@ -57,7 +57,7 @@ test('full activation registers Mission Control before setup work, keeps every o
   assert.ok(fixture.controls.statusItems.some(item => item.visible && item.text.includes('guards off')));
   assert.equal((await fixture.controls.commands.get('frontierHve.refreshMissionControl')()).ask, null);
   assert.equal(fixture.controls.commands.get('frontierHve.missionControlModel')().connection.python, null);
-  await assert.rejects(fixture.controls.commands.get('frontierHve.newTask')(), /needs Python 3\.11\+/);
+  await assert.rejects(fixture.controls.commands.get('frontierHve.newAsk')(), /needs Python 3\.11\+/);
   assert.deepEqual(fs.readdirSync(root), []);
 });
 
@@ -76,14 +76,15 @@ test('registration is passive, watches harness state and chat transcripts, and p
   const model = posted(fixture.controls).at(-1);
   assert.equal(model.surface, 'sidebar');
   assert.equal(model.connection.version, manifest.version);
-  assert.match(model.activity.reason, /No Copilot Chat session/);
+  assert.deepEqual(model.activity.chats, []);
+  assert.deepEqual(model.asks, []);
 });
 
 test('multi-root requires selection and untrusted workspaces are rejected', async t => {
   const fixture = mission(t, 2);
   assert.equal(await fixture.controls.commands.get('frontierHve.refreshMissionControl')(), null);
   fixture.api.workspace.isTrusted = false;
-  await assert.rejects(fixture.controls.commands.get('frontierHve.newTask')(), /Trust this workspace/);
+  await assert.rejects(fixture.controls.commands.get('frontierHve.newAsk')(), /Trust this workspace/);
   assert.ok(fixture.controls.errors.length);
   assert.deepEqual(fs.readdirSync(fixture.root), []);
 });

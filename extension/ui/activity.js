@@ -1,5 +1,5 @@
 'use strict';
-/** Read live agent activity: this workspace's Copilot Chat transcripts, the session's harness run files, and research telemetry. */
+/** Read one chat's live agent activity: its Copilot Chat transcript, its harness run files, and research telemetry. */
 const fs = require('node:fs');
 const path = require('node:path');
 const { Reader, containedPath } = require('./file-access');
@@ -255,16 +255,27 @@ function parsed(file, workspace) {
   return result;
 }
 
+/** Return a chat's state: waiting for your answer, working, or idle after ten quiet minutes.
+ * @param {string | null} openTool The tool still running, if any.
+ * @param {boolean} turnOpen
+ * @param {string} lastAt
+ * @param {number} now
+ * @returns {import('./types').Session['status']}
+ */
+function status(openTool, turnOpen, lastAt, now) {
+  const quiet = now - Date.parse(lastAt) > IDLE_AFTER_MS;
+  return openTool && ASK_TOOLS.has(openTool) ? 'waiting' : !quiet && (openTool || turnOpen) ? 'working' : 'idle';
+}
+
 /** Return the session as shown: working, waiting for you, or idle after ten quiet minutes.
  * @param {Parsed} s
  * @param {number} now
  * @returns {import('./types').Session}
  */
 function session(s, now) {
-  const quiet = now - Date.parse(s.lastAt) > IDLE_AFTER_MS;
-  const status = s.open && ASK_TOOLS.has(s.open.tool) ? 'waiting' : !quiet && (s.open || s.turnOpen) ? 'working' : 'idle';
-  const events = s.events.slice(-EVENT_LIMIT).reverse().map(event => ({ ...event, state: event.state === 'running' && status === 'idle' ? 'stopped' : event.state }));
-  return { id: s.id, title: s.title, started: s.started, lastAt: s.lastAt, status, current: status === 'idle' ? null : s.open?.event || null,
+  const state = status(s.open?.tool || null, s.turnOpen, s.lastAt, now);
+  const events = s.events.slice(-EVENT_LIMIT).reverse().map(event => ({ ...event, state: event.state === 'running' && state === 'idle' ? 'stopped' : event.state }));
+  return { id: s.id, title: s.title, started: s.started, lastAt: s.lastAt, status: state, current: state === 'idle' ? null : s.open?.event || null,
     turns: s.turns, tools: s.tools, failures: s.failures, commands: s.commands, todos: s.todos, events,
     files: [...s.files].map(([file, row]) => ({ path: file, ...row })).sort((a, b) => b.last.localeCompare(a.last)) };
 }
@@ -332,24 +343,19 @@ function usage(workspace, file, id) {
   return models.size ? { models: [...models.values()].sort((a, b) => b.input - a.input), aiu: nano / 1e9 } : null;
 }
 
-/** Return the live activity of the workspace's latest chat session.
+/** Return the live activity of one chat session, or nothing when no chat is shown.
  * @param {string} workspace
- * @param {string | null} transcripts Copilot Chat's transcript folder for this window, or null without workspace storage.
+ * @param {string | null} file The chat's transcript, or null when no chat is shown.
  * @param {string | null} telemetryFile The research telemetry export, or null when it was never configured.
  * @param {number} now
- * @returns {import('./types').Activity}
+ * @returns {Omit<import('./types').Activity, 'chats'>}
  */
-function activity(workspace, transcripts, telemetryFile, now) {
-  const none = { session: null, sessions: 0, errors: null, loadout: null, tokens: null };
-  if (!transcripts || !fs.existsSync(transcripts)) return { ...none, reason: 'No Copilot Chat session has run in this workspace yet.' };
-  const files = fs.readdirSync(transcripts).filter(name => name.endsWith('.jsonl')).map(name => path.join(transcripts, name))
-    .map(file => ({ file, mtime: fs.statSync(file).mtimeMs })).sort((a, b) => b.mtime - a.mtime);
-  if (!files.length) return { ...none, reason: 'No Copilot Chat session has run in this workspace yet.' };
-  const current = session(parsed(files[0].file, workspace), now);
+function activity(workspace, file, telemetryFile, now) {
+  if (!file) return { session: null, errors: null, loadout: null, tokens: null };
+  const current = session(parsed(file, workspace), now);
   const run = runFiles(workspace, current.id);
   current.events = [...current.events, ...run.guards].sort((a, b) => b.at.localeCompare(a.at)).slice(0, EVENT_LIMIT);
-  return { session: current, sessions: files.length, reason: null, errors: run.errors, loadout: run.loadout,
-    tokens: telemetryFile ? usage(workspace, telemetryFile, current.id) : null };
+  return { session: current, errors: run.errors, loadout: run.loadout, tokens: telemetryFile ? usage(workspace, telemetryFile, current.id) : null };
 }
 
-module.exports = { activity, describe, headline, clip, jsonLines };
+module.exports = { activity, describe, status, headline, clip, jsonLines };

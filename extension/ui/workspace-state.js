@@ -81,11 +81,12 @@ function planDigest(plan) {
   return body ? digest(body) : null;
 }
 
-/** Read a complete immutable view of the current workspace.
+/** Read a complete immutable view of the workspace, showing the selected ask or, without a selection, the active ask.
  * @param {string} workspace
+ * @param {string | null} [selected]
  * @returns {import('./types').Snapshot}
  */
-function snapshot(workspace) {
+function snapshot(workspace, selected = null) {
   const reader = new Reader(workspace);
   /** @type {import('./types').Snapshot} */
   const state = { workspace: reader.root, revision: '', project: null, ask: null, features: [], reviews: [], files: [],
@@ -100,19 +101,20 @@ function snapshot(workspace) {
     projectAsks = list(project.asks, 'Project asks').map(askId);
   }
   const activeValue = reader.json(path.join('.hve', 'asks', 'active.json'), true);
+  const activeId = activeValue === undefined ? null : askId(record(activeValue, 'Active ask pointer').active);
+  const shown = selected === null ? activeId : askId(selected);
   /** @type {Record<string, unknown> | null} */
   let contract = null;
-  let activeFolder = '';
-  if (activeValue !== undefined) {
-    const active = askId(record(activeValue, 'Active ask pointer').active);
-    if (!state.project || !projectAsks.includes(active)) throw new Error('The active ask is missing from the project record.');
-    activeFolder = path.join('.hve', 'asks', active);
-    contract = record(reader.json(path.join(activeFolder, 'contract.json')), 'Ask contract');
-    if (contract.ask !== active) throw new Error('Active ask and contract identities differ.');
-    state.ask = { id: active, title: headline(text(contract.request, 'Ask request')), request: text(contract.request, 'Ask request'),
+  let askFolder = '';
+  if (shown !== null) {
+    if (!state.project || !projectAsks.includes(shown)) throw new Error(`Ask ${shown} is missing from the project record.`);
+    askFolder = path.join('.hve', 'asks', shown);
+    contract = record(reader.json(path.join(askFolder, 'contract.json')), 'Ask contract');
+    if (contract.ask !== shown) throw new Error('Ask folder and contract identities differ.');
+    state.ask = { id: shown, title: headline(text(contract.request, 'Ask request')), request: text(contract.request, 'Ask request'),
       agent: text(contract.agent, 'Ask agent'), lifecycle: text(contract.lifecycle, 'Ask lifecycle'), created: text(contract.created, 'Ask creation time'),
-      current: contract.current === null ? null : text(contract.current, 'Current stage') };
-    const planFile = path.join(activeFolder, 'plan.md');
+      current: contract.current === null ? null : text(contract.current, 'Current stage'), active: shown === activeId };
+    const planFile = path.join(askFolder, 'plan.md');
     const plan = reader.text(planFile, true);
     if (plan !== undefined) {
       state.files.push(planFile);
@@ -133,10 +135,10 @@ function snapshot(workspace) {
         if ((match[1] !== ' ') !== prior) state.pendingPlanTicks = true;
       }
     }
-    const requestFile = path.join(activeFolder, 'request.md');
+    const requestFile = path.join(askFolder, 'request.md');
     reader.text(requestFile);
     state.files.push(requestFile);
-    state.files.push(...reader.files(path.join(activeFolder, 'loop', 'evidence')));
+    state.files.push(...reader.files(path.join(askFolder, 'loop', 'evidence')));
   }
   const featureValue = reader.json(path.join('.hve', 'project', 'feature_list.json'), true);
   const lockValue = reader.json(path.join('.hve', 'project', 'state.json'), true);

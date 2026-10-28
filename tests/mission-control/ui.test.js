@@ -6,9 +6,11 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { workspace, removeWorkspace, json, EXTENSION } = require('./helpers');
 const { mission } = require('./vscode-stub');
-const { project } = require('./fixtures');
+const { project, ASK } = require('./fixtures');
 const { snapshot } = require('../../extension/ui/workspace-state');
 const { activity } = require('../../extension/ui/activity');
+const { listAsks, askTree } = require('../../extension/ui/asks');
+const { chatList } = require('../../extension/ui/chats');
 const { text } = require('../../extension/ui/media/vnode');
 const { sidebar } = require('../../extension/ui/media/views');
 const { dashboard } = require('../../extension/ui/media/pages');
@@ -31,7 +33,7 @@ function find(node, match) {
  */
 function actions(tree, action) { return find(tree, node => node.attrs['data-action'] === action); }
 
-/** Build a model from a project with a working chat session.
+/** Build a model from a project with a working chat session opened for its ask.
  * @param {import('node:test').TestContext} t
  * @returns {import('../../extension/ui/types').Model}
  */
@@ -52,28 +54,31 @@ function model(t) {
     + row('tool.execution_complete', 9, { toolCallId: 'b', success: false })
     + row('tool.execution_start', 10, { toolCallId: 'c', toolName: 'create_file', arguments: { filePath: path.join(root, 'policy.js') } }));
   json(root, '.hve\\runs\\session-1.errors.json', { failures: [{ command: 'npm test', output: '1 failing' }], paused: false });
+  const asks = listAsks(root);
+  const { chats } = chatList(transcripts, root, asks.map(ask => ask.id), { 'session-1': { ask: ASK, how: 'started' } }, null, NOW);
   return { now: new Date(NOW).toISOString(), surface: 'sidebar', busy: false, error: null, workspace: { name: 'policy', path: root }, workspaceMessage: null,
     connection: { version: '0.20.0', python: 'python', guard: 'advise' }, telemetry: { enabled: false, file: null }, transcripts,
-    snapshot: snapshot(root), snapshotError: null, activity: activity(root, transcripts, null, NOW), activityError: null, packs: null, packsError: null,
+    asks, asksError: null, snapshot: snapshot(root), snapshotError: null, activity: { ...activity(root, path.join(transcripts, 'session-1.jsonl'), null, NOW), chats },
+    activityError: null, pending: null, files: askTree(root, ASK), filesError: null, packs: null, packsError: null,
     navigate: { page: 'live', seq: 0 } };
 }
 
 /** @type {import('../../extension/ui/types').UiState} */
 const UI = { page: 'live', filter: 'all', open: {}, seq: 0 };
 
-test('the sidebar shows live status, the task, what needs you, the current step and its to-do list', t => {
+test('the sidebar shows live status, the ask, what needs you, the current step and its to-do list', t => {
   const tree = sidebar(model(t), UI, NOW);
   const shown = text(tree);
   assert.match(shown, /Working/);
   assert.match(shown, /Build the onboarding workspace/);
-  assert.match(shown, /HVE creator · deliver: done/);
+  assert.match(shown, /HVE creator · deliver: done · started .* · 1 chat/);
   assert.match(shown, /2 items ready for your sign-off/);
   assert.match(shown, /The last command failed/);
   assert.match(shown, /Created policy\.js/);
   assert.match(shown, /1 of 2 to-dos done/);
   assert.match(shown, /Research telemetry/);
   assert.equal(find(tree, node => node.attrs.role === 'switch')[0].attrs['aria-checked'], 'false');
-  assert.deepEqual(actions(tree, 'go').map(node => node.attrs['data-page']).filter((page, index, all) => all.indexOf(page) === index), ['live', 'plan', 'progress', 'skills', 'settings']);
+  assert.deepEqual(actions(tree, 'go').map(node => node.attrs['data-page']).filter((page, index, all) => all.indexOf(page) === index), ['live', 'plan', 'progress', 'files', 'skills', 'settings']);
   assert.doesNotMatch(shown, /Continue in Chat/);
 });
 

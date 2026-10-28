@@ -8,7 +8,7 @@
   const root = document.getElementById('root');
   const announce = document.getElementById('announce');
   if (!root || !announce) throw new Error('Mission Control document is incomplete.');
-  const PAGES = ['live', 'plan', 'progress', 'skills', 'settings'];
+  const PAGES = ['live', 'plan', 'progress', 'files', 'skills', 'settings'];
   const FILTERS = ['all', 'edits', 'commands', 'conversation', 'problems'];
   const saved = /** @type {Partial<import('../types').UiState> | undefined} */ (api.getState());
   /** @type {import('../types').UiState} */
@@ -17,6 +17,7 @@
   let model = null;
   let status = '';
   let packsAsked = false;
+  let deferred = false;
 
   /** Return a key that finds the same control after a redraw.
    * @param {Element | null} element
@@ -26,11 +27,16 @@
     return element instanceof HTMLElement && element.dataset.action ? JSON.stringify(element.dataset) : null;
   }
 
-  /** Redraw the whole view from the model, keeping focus and scroll position.
+  /** Redraw the whole view from the model, keeping focus and scroll position; an open dropdown is redrawn once it closes.
    * @returns {void}
    */
   function draw() {
     if (!model || !root) return;
+    if (document.activeElement instanceof HTMLSelectElement) {
+      deferred = true;
+      return;
+    }
+    deferred = false;
     const focused = controlKey(document.activeElement);
     const scroller = document.scrollingElement || document.documentElement;
     const top = scroller.scrollTop;
@@ -73,7 +79,7 @@
 
   document.addEventListener('click', event => {
     const target = event.target instanceof Element ? event.target.closest('[data-action]') : null;
-    if (!(target instanceof HTMLElement) || (target instanceof HTMLButtonElement && target.disabled)) return;
+    if (!(target instanceof HTMLElement) || target instanceof HTMLSelectElement || (target instanceof HTMLButtonElement && target.disabled)) return;
     const { action, ...data } = target.dataset;
     if (action === 'go') go(data.page || '');
     else if (action === 'filter') {
@@ -81,6 +87,17 @@
       ui.filter = /** @type {import('../types').UiState['filter']} */ (data.value);
       draw();
     } else api.postMessage({ action, ...data });
+  });
+
+  document.addEventListener('change', event => {
+    const target = event.target;
+    if (!(target instanceof HTMLSelectElement) || target.dataset.action !== 'selectAsk' || !target.value) return;
+    api.postMessage({ action: 'selectAsk', ask: target.value });
+    target.blur();
+  });
+
+  document.addEventListener('focusout', event => {
+    if (event.target instanceof HTMLSelectElement && deferred) setTimeout(draw, 0);
   });
 
   document.addEventListener('toggle', event => {

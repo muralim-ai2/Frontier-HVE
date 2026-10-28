@@ -25,7 +25,7 @@ export interface Snapshot {
   workspace: string;
   revision: string;
   project: { name: string; goal: string } | null;
-  ask: { id: string; title: string; request: string; agent: string; lifecycle: string; created: string; current: string | null } | null;
+  ask: { id: string; title: string; request: string; agent: string; lifecycle: string; created: string; current: string | null; active: boolean } | null;
   features: Feature[];
   reviews: Review[];
   files: string[];
@@ -51,7 +51,50 @@ export interface Pack {
   knowledge: string[];
   templates: string[];
 }
-export type Page = 'live' | 'plan' | 'progress' | 'skills' | 'settings';
+export type Page = 'live' | 'plan' | 'progress' | 'files' | 'skills' | 'settings';
+export interface AskSummary {
+  id: string;
+  title: string;
+  created: string;
+  agent: string;
+  stage: string | null;
+  active: boolean;
+}
+export interface FileNode {
+  name: string;
+  path: string;
+  kind: 'folder' | 'file' | 'other';
+  size: number;
+  modified: string;
+  children: FileNode[];
+}
+export interface AskFiles {
+  ask: string;
+  path: string;
+  entries: FileNode[];
+  count: number;
+  truncated: boolean;
+}
+export interface Claim {
+  ask: string;
+  how: 'started' | 'linked';
+}
+export interface Pending {
+  ask: string;
+  at: string;
+}
+export interface ChatLink {
+  ask: string;
+  how: 'started' | 'linked' | 'created' | 'opened' | 'edited';
+}
+export interface Chat {
+  id: string;
+  title: string | null;
+  started: string;
+  lastAt: string;
+  status: 'working' | 'waiting' | 'idle';
+  asks: ChatLink[];
+}
 export interface Model {
   now: string;
   surface: 'sidebar' | 'editor';
@@ -62,10 +105,15 @@ export interface Model {
   connection: { version: string; python: string | null; guard: 'advise' | 'enforce' | null };
   telemetry: { enabled: boolean; file: string | null };
   transcripts: string | null;
+  asks: AskSummary[] | null;
+  asksError: string | null;
   snapshot: Snapshot | null;
   snapshotError: string | null;
   activity: Activity | null;
   activityError: string | null;
+  pending: Pending | null;
+  files: AskFiles | null;
+  filesError: string | null;
   packs: Pack[] | null;
   packsError: string | null;
   navigate: { page: Page; seq: number };
@@ -100,6 +148,10 @@ export interface Views {
   bar(done: number, total: number, label: string): VNode;
   telemetrySwitch(model: Model): VNode;
   sessionState(model: Model): { key: string; label: string };
+  askChats(model: Model): Chat[];
+  noChat(model: Model): string;
+  askPicker(model: Model): VNode | null;
+  viewing(model: Model): VNode | null;
   sidebar(model: Model, ui: UiState, now: number): VNode;
 }
 export interface Pages {
@@ -107,6 +159,7 @@ export interface Pages {
   live(model: Model, ui: UiState, now: number): Child[];
   plan(model: Model, ui: UiState, now: number): Child[];
   progress(model: Model, ui: UiState, now: number): Child[];
+  files(model: Model, ui: UiState, now: number): Child[];
   skills(model: Model): Child[];
   settings(model: Model): Child[];
 }
@@ -147,8 +200,7 @@ export interface TokenUse {
 }
 export interface Activity {
   session: Session | null;
-  sessions: number;
-  reason: string | null;
+  chats: Chat[];
   errors: { paused: boolean; failures: { command: string; output: string }[] } | null;
   loadout: { skills: number; tokens: number; overBudget: boolean; maxSkills: number; maxTokens: number } | null;
   tokens: { models: TokenUse[]; aiu: number } | null;
