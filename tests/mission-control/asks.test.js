@@ -49,7 +49,7 @@ test('every ask of the project is listed newest first with its title, agent, sta
   assert.deepEqual(listAsks(root), []);
   const [first, second] = await realAsks(root, storage, ASKS);
   const asks = listAsks(root);
-  assert.deepEqual(asks.map(ask => ask.id), [second, first].sort().reverse());
+  assert.deepEqual(asks.map(ask => ask.id), [second, first]);
   const row = asks.find(ask => ask.id === first);
   assert.equal(row.title, 'Build an onboarding policy checker');
   assert.equal(row.agent, 'HVE creator');
@@ -105,7 +105,7 @@ test('the sidebar and dashboard show the dropdown, mark the active ask, and hold
     assert.equal(select.length, 1);
     assert.equal(select[0].attrs['data-action'], 'selectAsk');
     const options = find(select[0], node => node.tag === 'option');
-    assert.deepEqual(options.map(node => node.attrs.value), [second, first].sort().reverse());
+    assert.deepEqual(options.map(node => node.attrs.value), [second, first]);
     assert.deepEqual(options.filter(node => 'selected' in node.attrs).map(node => node.attrs.value), [first]);
     assert.match(text(options.find(node => node.attrs.value === second)), /Write the quarterly revenue report · .* · active$/);
     assert.match(text(tree), /You are viewing an earlier ask\. Agents work on “Write the quarterly revenue report”/);

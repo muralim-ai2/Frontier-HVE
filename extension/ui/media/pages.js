@@ -231,8 +231,9 @@
       if (node.kind === 'folder') {
         const key = `dir:${node.path}`;
         return h('li', null, h('details', { class: 'folder', open: ui.open[key] ?? depth === 0, 'data-key': key },
-          h('summary', null, icon('folder'), h('span', { class: 'name' }, node.name), h('span', { class: 'muted' }, [about, plural(node.size, 'item')].filter(Boolean).join(' · '))),
-          node.children.length ? h('ul', { class: 'tree' }, ...node.children.map(child => item(child, depth + 1))) : h('p', { class: 'muted' }, 'Empty')));
+          h('summary', null, icon('folder'), h('span', { class: 'name' }, node.name),
+            h('span', { class: 'muted' }, [about, node.size ? plural(node.size, 'item') : 'empty'].filter(Boolean).join(' · '))),
+          node.children.length ? h('ul', { class: 'tree' }, ...node.children.map(child => item(child, depth + 1))) : null));
       }
       if (node.kind === 'other') return h('li', { class: 'muted other' }, icon('file'), `${node.name}: a link or special file, not opened`);
       return h('li', null, h('button', { class: 'file', type: 'button', 'data-action': 'openFile', 'data-path': node.path, title: `Open ${node.path}` }, icon('file'),

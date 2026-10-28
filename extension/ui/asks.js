@@ -43,7 +43,7 @@ function listAsks(workspace) {
       return { id: name, title: headline(text(contract.request, `${name} request`)), created: text(contract.created, `${name} creation time`),
         agent: text(contract.agent, `${name} agent`), stage: current ? `${text(current.name, 'Stage name')}: ${text(current.status, 'Stage status')}` : null,
         active: name === active };
-    });
+    }).sort((a, b) => Date.parse(b.created) - Date.parse(a.created) || b.id.localeCompare(a.id));
 }
 
 /** Return an ask's folder as a tree, folders first, bounded in depth and entries; links and special files are listed but never followed.

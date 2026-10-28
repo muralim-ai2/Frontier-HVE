@@ -54,14 +54,23 @@ async function run() {
   assert.equal(state.ask.agent, 'HVE creator');
   assert.ok(vscode.window.tabGroups.all.some(group => group.tabs.some(tab => tab.label === 'HVE Mission Control')), 'Mission Control editor must open.');
   assert.equal(snapshot(folder.uri.fsPath).revision, before, 'Opening Mission Control must not change project state.');
-  const transcripts = (await vscode.commands.executeCommand('frontierHve.missionControlModel')).transcripts;
+  const opened = await vscode.commands.executeCommand('frontierHve.missionControlModel');
+  assert.ok(opened.asks.some(ask => ask.id === state.ask.id && ask.active), 'The ask dropdown must list the active ask.');
+  assert.equal(opened.files.ask, state.ask.id, 'The Files page must show the active ask\'s folder.');
+  assert.ok(opened.files.entries.some(node => node.name === 'contract.json'), 'The ask folder must list its contract.');
+  for (const id of ['workbench.action.chat.open', 'workbench.action.chat.newChat', 'revealInExplorer']) assert.ok(available.includes(id), `VS Code must provide ${id}`);
+  const transcripts = opened.transcripts;
   assert.ok(transcripts, 'Mission Control must know this window\'s chat transcript folder.');
   fs.mkdirSync(transcripts, { recursive: true });
   const file = path.join(transcripts, 'host-check.jsonl');
   const event = (type, data) => JSON.stringify({ type, data, timestamp: new Date().toISOString() }) + '\n';
   fs.writeFileSync(file, event('user.message', { content: 'Build the Pawstagram feed' }) + event('assistant.turn_start', {})
+    + event('tool.execution_start', { toolCallId: 'o', toolName: 'run_in_terminal', arguments: { command: `python lifecycle.py open ${state.ask.id}` } })
+    + event('tool.execution_complete', { toolCallId: 'o', success: true })
     + event('tool.execution_start', { toolCallId: 'a', toolName: 'run_in_terminal', arguments: { command: 'npm test', explanation: 'Check the feed' } }));
   await until(model => model.activity?.session?.current?.title === 'Check the feed', 'Mission Control must show a new chat step without a manual refresh.');
+  const linked = (await vscode.commands.executeCommand('frontierHve.missionControlModel')).activity.chats.find(chat => chat.id === 'host-check');
+  assert.deepEqual(linked.asks, [{ ask: state.ask.id, how: 'opened' }], 'A chat that reopens the ask must be linked to it.');
   fs.appendFileSync(file, event('tool.execution_complete', { toolCallId: 'a', success: true }) + event('assistant.message', { content: 'The feed is done.' }));
   await until(model => model.activity?.session?.events[0]?.title === 'The feed is done.', 'Mission Control must follow each further step.');
   fs.writeFileSync(setting('HVE_HOST_REPORT'), JSON.stringify({
@@ -69,7 +78,8 @@ async function run() {
     checks: ['installed from VSIX', 'Copilot Chat disabled', 'activated on startup without a manual activate call', 'all contributed commands registered',
       'HVE agent plugin rendered and registered (41 agents)', 'current wow-uplift skill rendered', 'no Continue in Chat command',
       'Activity Bar container opened', 'Mission Control editor opened with live ask', 'no passive project mutation',
-      'new chat steps appear live through the real file watcher'],
+      'ask dropdown lists the active ask and the Files page shows its folder', 'chat and Explorer commands used by New ask and Show in Explorer exist',
+      'new chat steps appear live through the real file watcher', 'a chat that reopens the ask is linked to it'],
   }, null, 2));
 }
 

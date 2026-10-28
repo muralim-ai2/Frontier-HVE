@@ -7,17 +7,25 @@ const { pathToFileURL } = require('node:url');
 const { EXTENSION } = require('./helpers');
 const { snapshot } = require('../../extension/ui/workspace-state');
 const { activity } = require('../../extension/ui/activity');
+const { listAsks, askTree } = require('../../extension/ui/asks');
+const { chatList, shownChat } = require('../../extension/ui/chats');
 
-const [workspace, transcripts, telemetry, at] = process.argv.slice(2);
-if (!workspace || !transcripts) throw new Error('usage: node preview.js <workspace> <transcripts folder> [telemetry export or -] [ISO time to show]');
-const now = at ? Date.parse(at) : Date.now();
+const [workspace, transcripts, telemetry, at, selected] = process.argv.slice(2);
+if (!workspace || !transcripts) throw new Error('usage: node preview.js <workspace> <transcripts folder> [telemetry export or -] [ISO time to show or -] [ask on screen]');
+const now = at && at !== '-' ? Date.parse(at) : Date.now();
 const file = telemetry && telemetry !== '-' ? telemetry : null;
 const manifest = JSON.parse(fs.readFileSync(path.join(EXTENSION, 'package.json'), 'utf8'));
+const asks = listAsks(workspace);
+const state = snapshot(workspace, selected || null);
+const viewed = state.ask ? state.ask.id : null;
+const { chats } = chatList(transcripts, workspace, asks.map(ask => ask.id), {}, null, now);
+const shown = shownChat(chats, viewed, null);
 /** @type {import('../../extension/ui/types').Model} */
 const model = { now: new Date(now).toISOString(), surface: 'sidebar', busy: false, error: null, workspace: { name: path.basename(workspace), path: workspace },
   workspaceMessage: null, connection: { version: manifest.version, python: 'python', guard: 'advise' }, telemetry: { enabled: !!file, file }, transcripts,
-  snapshot: snapshot(workspace), snapshotError: null, activity: activity(workspace, transcripts, file, now), activityError: null, packs: [], packsError: null,
-  navigate: { page: 'live', seq: 0 } };
+  asks, asksError: null, snapshot: state, snapshotError: null, activityError: null, pending: null, packs: [], packsError: null,
+  activity: { ...activity(workspace, shown ? path.join(transcripts, `${shown.id}.jsonl`) : null, file, now), chats },
+  files: viewed ? askTree(workspace, viewed) : null, filesError: null, navigate: { page: 'live', seq: 0 } };
 const out = fs.mkdtempSync(path.join(os.tmpdir(), 'hve-preview-'));
 const media = name => pathToFileURL(path.join(EXTENSION, 'ui', 'media', name)).href;
 fs.writeFileSync(path.join(out, 'model.js'), `window.previewModel = ${JSON.stringify(model)};\nwindow.previewNow = ${now};\n`);
