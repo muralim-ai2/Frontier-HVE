@@ -38,8 +38,8 @@ function host(roots, storage) {
   const commands = new Map();
   const settings = new Map();
   const controls = { commands, settings, provider: null, inputs: [], confirmations: [], calls: [], watchers: [], errors: [], statusItems: [],
-    /** Return a Primary Side Bar view double. @returns {object} */
-    view: () => ({ webview: webview(controls.calls), onDidDispose: () => new Disposable() }) };
+    /** Return a Primary Side Bar view double. @param {boolean} [visible] @returns {object} */
+    view: (visible = false) => ({ visible, webview: webview(controls.calls), onDidDispose: () => new Disposable() }) };
   const folders = roots.map((root, index) => ({ name: path.basename(root), uri: uri(root), index }));
   const api = {
     Disposable,
@@ -56,9 +56,10 @@ function host(roots, storage) {
         update: async (key, value) => { settings.set(`${section}.${key}`, value); },
       }),
       createFileSystemWatcher: pattern => {
-        const watcher = Object.assign(new Disposable(), {
-          pattern, onDidCreate: () => new Disposable(), onDidChange: () => new Disposable(), onDidDelete: () => new Disposable(),
-        });
+        /** @type {(() => void)[]} */
+        const listeners = [];
+        const listen = listener => { listeners.push(listener); return new Disposable(); };
+        const watcher = Object.assign(new Disposable(), { pattern, listeners, onDidCreate: listen, onDidChange: listen, onDidDelete: listen });
         controls.watchers.push(watcher);
         return watcher;
       },

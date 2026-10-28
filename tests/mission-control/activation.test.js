@@ -81,6 +81,30 @@ test('webview messages reject arbitrary commands and unexpected fields', () => {
   assert.equal(message({ action: 'navigate', page: 'evidence' }).page, 'evidence');
 });
 
+test('background file changes refresh only a visible Mission Control, so hidden views never run the harness or raise errors', async t => {
+  const fixture = mission(t);
+  const changed = () => fixture.controls.watchers[0].listeners.forEach(listener => listener());
+  const refreshes = () => fixture.controls.calls.filter(call => call[0] === 'frontierHve.refreshMissionControl').length;
+  const settle = () => new Promise(resolve => setTimeout(resolve, 400));
+  changed();
+  await settle();
+  assert.equal(refreshes(), 0);
+  const view = fixture.controls.view(true);
+  fixture.controls.provider.resolveWebviewView(view);
+  changed();
+  await settle();
+  assert.equal(refreshes(), 1);
+  for (let waited = 0; !fixture.controls.calls.some(call => call[0] === 'render'); waited += 100) {
+    if (waited > 10000) throw new Error('The visible view was not refreshed.');
+    await new Promise(resolve => setTimeout(resolve, 100));
+  }
+  view.visible = false;
+  changed();
+  await settle();
+  assert.equal(refreshes(), 1);
+  assert.deepEqual(fixture.controls.errors, []);
+});
+
 test('disposal removes only Mission Control resources and leaves harness state intact', async t => {
   const fixture = mission(t);
   project(fixture.root);

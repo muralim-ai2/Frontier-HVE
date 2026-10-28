@@ -40,4 +40,4 @@ Accept needs finished work, a recorded passing check for feature tasks, and a sy
 | `extension/ui/workspace-state.js`, `file-access.js` | Read-only, bounded reads of `.hve/` state |
 | `extension/ui/workflow.js`, `lifecycle-cli.js` | Task and review actions through the bundled `lifecycle.py` (allowlisted operations only) |
 | `extension/ui/render.js`, `ui/media/` | Escaped HTML, styles and the webview script (strict content security policy) |
-| `tests/mission-control/` | Unit and integration tests, and the release check |
+| `tests/mission-control/` | Unit and integration tests (`node --test "tests/mission-control/*.test.js"`) and the release check |

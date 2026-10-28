@@ -22,6 +22,8 @@ class MissionControl {
     this.output = vscode.window.createOutputChannel('Frontier HVE Mission Control');
     /** @type {Map<vscode.Webview, 'sidebar' | 'editor'>} */
     this.views = new Map();
+    /** @type {vscode.WebviewView | null} */
+    this.sidebar = null;
     /** @type {vscode.WebviewPanel | null} */
     this.panel = null;
     /** @type {vscode.WorkspaceFolder | null} */
@@ -65,11 +67,11 @@ class MissionControl {
     this.watcher.onDidDelete(() => this.scheduleRefresh());
   }
 
-  /** Coalesce filesystem notifications without polling telemetry.
+  /** Coalesce filesystem notifications into one refresh of a visible view; a view refreshes itself when it is shown again.
    * @returns {void}
    */
   scheduleRefresh() {
-    if (this.disposed) return;
+    if (this.disposed || !(this.sidebar?.visible || this.panel?.visible)) return;
     if (this.timer) clearTimeout(this.timer);
     this.timer = setTimeout(() => {
       this.timer = null;
@@ -155,8 +157,9 @@ class MissionControl {
    * @returns {void}
    */
   resolveWebviewView(view) {
+    this.sidebar = view;
     const attached = this.attach(view.webview, 'sidebar');
-    view.onDidDispose(() => attached.dispose());
+    view.onDidDispose(() => { attached.dispose(); this.sidebar = null; });
   }
 
   /** Open or reveal the shared editor detail view.
