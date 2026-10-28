@@ -1,1 +1,20 @@
-[]
+[
+  {
+    "name": "builtin-mission-control",
+    "description": "The existing HVE extension opens its own sidebar and dashboard without a separate UI or legacy Copilot extension dependency.",
+    "verify": "node --test tests\\mission-control\\bridge.test.js tests\\mission-control\\state.test.js tests\\mission-control\\ui.test.js tests\\mission-control\\activation.test.js",
+    "passes": false
+  },
+  {
+    "name": "builtin-live-workflows",
+    "description": "Confirmed task creation and exact-ask human reviews persist through the bundled harness while stale actions are refused.",
+    "verify": "node --test tests\\mission-control\\workflow.test.js tests\\mission-control\\integration.test.js",
+    "passes": false
+  },
+  {
+    "name": "single-extension-release",
+    "description": "One installable HVE package contains Mission Control while retaining the original commands, agents, hooks and runtime.",
+    "verify": "npm --prefix extension run test:release",
+    "passes": false
+  }
+]
