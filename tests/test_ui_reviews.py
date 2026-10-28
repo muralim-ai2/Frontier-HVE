@@ -81,7 +81,7 @@ def test_guarded_reviews_reject_nonreview_actions_and_preserve_legacy_tick(tmp_p
     """The UI route cannot toggle telemetry, while the existing tick route retains its behavior."""
     ask = create(tmp_path, "first")
     ticket = run(tmp_path, "review-status", ask)
-    bad = invoke(tmp_path, "tick-for", ask, str(ticket["revision"]), "opt:telemetry", "on", "Not a review")
+    bad = invoke(tmp_path, "tick-for", ask, str(ticket["revision"]), "opt:evaluation", "on", "Not a review")
     assert bad.returncode != 0 and "guarded review needs" in bad.stderr
     assert read_contract(tmp_path, ask)["checklist"] == {}
     legacy = run(tmp_path, "tick", "stage:deliver", "changes", "Legacy form requested changes")

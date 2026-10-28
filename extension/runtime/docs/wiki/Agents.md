@@ -53,7 +53,7 @@ The contract prints `paths` (ask, plan, loop, evidence, project, feature list, f
 | `environment` | Harness, MCP servers per harness with tool load, Frontier HVE hook files, plugin skills |
 | `delegations`, `reported` | Each sub-agent brief and the `SKILLS-USED` line it returned |
 | `previous_ask` | The ask open before this one, with the new-workspace recommendation when this ask starts a different project |
-| `checklist` | Your sign-off of each option (`opt:evaluation`, `opt:telemetry`), milestone (`stage:<name>`) and task (`task:<feature>`): value, note, and whether it came from the agent's form or a tick in `plan.md` ([Ways of working](Ways-of-Working.md#what-you-are-asked-and-why)) |
+| `checklist` | Your sign-off of each option (`opt:evaluation`), milestone (`stage:<name>`) and task (`task:<feature>`): value, note, and whether it came from the agent's form or a tick in `plan.md` ([Ways of working](Ways-of-Working.md#what-you-are-asked-and-why)) |
 
 When another ask is still open (milestones not done, or an evaluation you asked for not run), the new ask still gets its own folder; the contract reports it as `previous_open` and the other chat is told once to run `lifecycle.py open <its ask>` ([Parallel chats](Ways-of-Working.md#parallel-chats)).
 

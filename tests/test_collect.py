@@ -262,14 +262,14 @@ def test_direct_contract_tracks_skills_tasks_briefs_and_reports() -> None:
         assert ticked["value"] == "accepted" and ticked["by"] == "form", ticked
         assert "takes ['accepted', 'changes', 'skipped']" in lifecycle("tick", "task:core", "on").stderr
         assert "not on the ask's checklist" in lifecycle("tick", "task:ghost", "accepted").stderr
-        plan.write_text(plan.read_text(encoding="utf-8").replace("- [ ] opt:telemetry", "- [x] opt:telemetry"), encoding="utf-8")
+        plan.write_text(plan.read_text(encoding="utf-8").replace("- [ ] opt:evaluation", "- [x] opt:evaluation"), encoding="utf-8")
         state = json.loads(lifecycle("checklist").stdout)
-        assert [t["item"] for t in state["ticked_in_plan"]] == ["opt:telemetry"] and state["items"]["opt:telemetry"]["by"] == "plan.md", state
+        assert [t["item"] for t in state["ticked_in_plan"]] == ["opt:evaluation"] and state["items"]["opt:evaluation"]["by"] == "plan.md", state
         assert state["items"]["task:core"]["ticked"] and state["open"] == ["milestones not done: deliver"], state
         assert json.loads(lifecycle("plan-status").stdout)["changed"] is False, "ticks in the generated block do not change the plan"
         text = lifecycle("report", "none").stdout
         assert "## Pillars" in text and "| Cost | not measured (research telemetry off) |" in text and "0/1 feature checks pass" in text, text
-        assert "- [x] task:core: accepted (form: checked the screenshot)" in text and "Turn off research telemetry" in text, text
+        assert "- [x] task:core: accepted (form: checked the screenshot)" in text and "Turn off research telemetry" not in text, text
         agents = text.split("## Agents")[1]
         assert f"| HVE creator | HVE engineer | a1 | s9 |" in agents and f"| frontend sub-agent: {', '.join(names)} | {names[0]}, made-up | gpt-5 |" in agents, agents
         assert "| a2 |" in agents and "| no brief | - | not measured |" in agents, agents

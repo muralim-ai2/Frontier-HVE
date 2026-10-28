@@ -29,7 +29,7 @@ test('an unusable Python launcher surfaces the failing operation', async t => {
 });
 
 test('only allowlisted lifecycle operations can execute', () => {
-  for (const args of [['stage', 'deliver', 'done', 'skip'], ['checklist'], ['tick', 'opt:telemetry', 'on', 'yes'],
+  for (const args of [['stage', 'deliver', 'done', 'skip'], ['checklist'], ['tick', 'opt:evaluation', 'on', 'yes'],
     ['tick', 'task:x', 'accepted', ''], ['contract', 'direct', '../../escape', 'HVE creator', __filename]]) {
     assert.throws(() => validateOperation(args), /Unsupported/);
   }
