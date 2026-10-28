@@ -30,6 +30,7 @@ export interface Snapshot {
   reviews: Review[];
   files: string[];
   planState: 'missing' | 'unsynced' | 'synced';
+  plan: Plan | null;
   pendingPlanTicks: boolean;
   skills: { name: string; status: string; reason: string }[];
   decisions: { ts: string; stage: string; choice: string; why: string }[];
@@ -93,4 +94,24 @@ declare global {
     getState(): unknown;
     setState(state: unknown): void;
   };
+  var hveVnode: {
+    h(tag: string, attrs: Record<string, string | number | boolean | null | undefined> | null, ...children: Child[]): VNode;
+    text(node: VNode | string): string;
+    mount(node: VNode | string, doc: Document): Node;
+  };
+  var hveMarkdown: { render(source: string): VNode[]; inline(source: string): Child[] };
+}
+export interface VNode {
+  tag: string;
+  attrs: Record<string, string>;
+  children: (VNode | string)[];
+}
+export type Child = VNode | string | number | null | undefined | false | Child[];
+export interface Plan {
+  path: string;
+  body: string;
+  skills: string;
+  status: 'empty' | 'draft' | 'agreed' | 'edited';
+  revisions: number;
+  agreedAt: string | null;
 }

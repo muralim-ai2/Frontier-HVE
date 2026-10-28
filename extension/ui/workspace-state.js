@@ -5,6 +5,8 @@ const { Reader, digest } = require('./file-access');
 const { record, text, list, flag, integer } = require('./validate');
 const ASK = /^\d{8}-\d{4}-[a-z0-9][a-z0-9-]{0,40}$/;
 const FEATURE = /^[a-z0-9][a-z0-9_-]{0,40}$/;
+const SKILLS_BLOCK = /<!-- hve:skills -->\n?([\s\S]*?)<!-- \/hve:skills -->\n?/;
+const CHECKLIST_BLOCK = /<!-- hve:checklist -->[\s\S]*?<!-- \/hve:checklist -->\n?/;
 
 /** Validate a harness ask identifier.
  * @param {unknown} value
@@ -86,7 +88,7 @@ function snapshot(workspace) {
   const reader = new Reader(workspace);
   /** @type {import('./types').Snapshot} */
   const state = { workspace: reader.root, revision: '', project: null, ask: null, features: [], reviews: [], files: [],
-    planState: 'missing', pendingPlanTicks: false, decisions: [], skills: [] };
+    planState: 'missing', plan: null, pendingPlanTicks: false, decisions: [], skills: [] };
   const projectPath = path.join('.hve', 'project', 'project.json');
   const projectValue = reader.json(projectPath, true);
   /** @type {string[]} */
@@ -113,9 +115,15 @@ function snapshot(workspace) {
     if (plan !== undefined) {
       state.files.push(planFile);
       const current = planDigest(plan);
-      const recorded = record(contract.plan, 'Contract plan').sha256;
+      const contractPlan = record(contract.plan, 'Contract plan');
+      const recorded = contractPlan.sha256;
       if (recorded !== null) text(recorded, 'Recorded plan digest');
       state.planState = current === null ? 'missing' : current === recorded ? 'synced' : 'unsynced';
+      const revisions = list(contractPlan.revisions, 'Plan revisions').map(row => record(row, 'Plan revision'));
+      state.plan = { path: planFile.split(path.sep).join('/'), body: plan.replace(/\r\n/g, '\n').replace(SKILLS_BLOCK, '').replace(CHECKLIST_BLOCK, '').trim(),
+        skills: (SKILLS_BLOCK.exec(plan.replace(/\r\n/g, '\n'))?.[1] || '').trim(),
+        status: current === null ? 'empty' : recorded === null ? 'draft' : current === recorded ? 'agreed' : 'edited',
+        revisions: revisions.length, agreedAt: revisions.length ? text(revisions[revisions.length - 1].ts, 'Plan revision time') : null };
       const rendered = record(contract.checklist_rendered, 'Rendered checklist');
       const block = /<!-- hve:checklist -->[\s\S]*?<!-- \/hve:checklist -->/.exec(plan);
       for (const match of (block ? block[0] : '').matchAll(/^- \[([ xX])\] ((?:opt|stage|task|gate):[\w.-]+)/gm)) {

@@ -64,6 +64,10 @@
         "title": "Frontier HVE: New task"
       },
       {
+        "command": "frontierHve.editPlan",
+        "title": "Frontier HVE: Edit plan"
+      },
+      {
         "command": "frontierHve.continueInChat",
         "title": "Frontier HVE: Continue in Chat"
       }

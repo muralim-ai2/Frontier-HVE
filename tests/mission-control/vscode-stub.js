@@ -45,7 +45,7 @@ function host(roots, storage) {
     Disposable,
     Uri: { file: uri, parse: value => ({ toString: () => value }), joinPath: (base, ...parts) => uri(path.join(base.fsPath, ...parts)) },
     RelativePattern: class { constructor(base, pattern) { this.base = base; this.pattern = pattern; } },
-    ViewColumn: { Active: -1 },
+    ViewColumn: { Active: -1, Beside: -2 },
     StatusBarAlignment: { Left: 1, Right: 2 },
     ConfigurationTarget: { Global: 1 },
     env: { openExternal: async target => { controls.calls.push(['external', target.toString()]); return true; } },
@@ -85,7 +85,7 @@ function host(roots, storage) {
       showInputBox: async () => controls.inputs.shift(),
       showWarningMessage: async (...args) => { controls.calls.push(['confirmation', ...args]); return controls.confirmations.shift(); },
       showQuickPick: async choices => choices[0],
-      showTextDocument: async document => { controls.calls.push(['document', document]); },
+      showTextDocument: async (document, options) => { controls.calls.push(['document', document, options]); },
       createWebviewPanel: () => {
         let close = () => {};
         return { webview: webview(controls.calls), onDidDispose: callback => { close = callback; return new Disposable(); },

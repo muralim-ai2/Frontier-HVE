@@ -69,7 +69,7 @@ function message(value) {
   const action = text(data.action, 'Webview action');
   /** @type {Record<string, string[]>} */
   const fields = {
-    ready: [], refresh: [], selectWorkspace: [], newTask: [], continue: [],
+    ready: [], refresh: [], selectWorkspace: [], newTask: [], continue: [], editPlan: [],
     navigate: ['page'], inspectCheck: ['name'], openFile: ['path'], baseCommand: ['command'],
     review: ['item', 'revision', 'value'],
   };

@@ -276,6 +276,15 @@ class MissionControl {
     await vscode.commands.executeCommand(command);
   }
 
+  /** Open the active ask's plan.md in a text editor beside Mission Control.
+   * @returns {Promise<void>}
+   */
+  async editPlan() {
+    const state = snapshot(this.target().uri.fsPath);
+    if (!state.plan) throw new Error('There is no plan.md to edit: start a task first.');
+    await vscode.window.showTextDocument(vscode.Uri.file(containedPath(state.workspace, state.plan.path)), { viewColumn: vscode.ViewColumn.Beside, preview: false });
+  }
+
   /** Open only a file listed in the latest validated workspace snapshot.
    * @param {string} relative
    * @returns {Promise<void>}
@@ -312,6 +321,7 @@ class MissionControl {
         case 'review': await this.review(data); await this.refresh(); break;
         case 'baseCommand': await this.baseCommand(data.command); this.flow = null; await this.refresh(); break;
         case 'openFile': await this.openFile(data.path); break;
+        case 'editPlan': await this.editPlan(); break;
         default: throw new Error('Unsupported UI action.');
       }
       return this.state.snapshot;
@@ -354,6 +364,7 @@ function register(context, findPython) {
     vscode.commands.registerCommand('frontierHve.refreshMissionControl', () => ui.execute({ action: 'refresh' })),
     vscode.commands.registerCommand('frontierHve.selectWorkspace', () => ui.execute({ action: 'selectWorkspace' })),
     vscode.commands.registerCommand('frontierHve.newTask', () => ui.execute({ action: 'newTask' })),
+    vscode.commands.registerCommand('frontierHve.editPlan', () => ui.execute({ action: 'editPlan' })),
     vscode.commands.registerCommand('frontierHve.continueInChat', () => ui.execute({ action: 'continue' })),
     vscode.workspace.onDidChangeWorkspaceFolders(() => { ui.restoreWorkspace(); ui.flow = null; ui.scheduleRefresh(); }),
     vscode.workspace.onDidChangeConfiguration(event => {
