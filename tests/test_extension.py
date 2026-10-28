@@ -45,6 +45,28 @@ def run(command: str, ws: Path, payload: dict[str, object], **env: str) -> dict[
     return json.loads(result.stdout) if result.stdout.strip() else None
 
 
+def test_uplift_skill_polish_contract() -> None:
+    """The uplift skill and read-only judge share ten bounded polish candidates and an honest evidence contract."""
+    skill = (EXTENSION / "skills" / "wow-uplift" / "SKILL.md").read_text(encoding="utf-8")
+    source = REPO / "plugins" / "harness-assist" / "skills" / "wow-uplift" / "SKILL.md"
+    assert skill == source.read_text(encoding="utf-8"), "Rebuild extension skills from the canonical plugin templates"
+    judge = (EXTENSION / "agents" / "hve-uplift-judge.agent.md").read_text(encoding="utf-8")
+    assert re.match(r"---\nname: wow-uplift\ndescription: .+\n---\n", skill)
+    checklist = skill.split("## Ten quick uplift candidates\n", 1)[1].split("\n## ", 1)[0]
+    assert re.findall(r"^\| (\d+) \|", checklist, re.M) == [str(number) for number in range(1, 11)]
+    for candidate in ("Type hierarchy", "Alignment within elements", "Composition and focal balance", "Material layers",
+                      "Focus and highlight borders", "Purposeful icons", "Domain-specific creativity", "Contained theme refinement",
+                      "Dark appearance", "Colourblind-safe treatment"):
+        assert candidate.lower() in checklist.lower() and candidate.lower() in judge.lower(), candidate
+    assert "at most 3 rounds" in skill and "one to three" in skill and "one to three" in judge
+    assert "report the pass as blocked" in skill and "only if that reviewer actually ran" in skill
+    assert "retained/dropped" in skill and "Automated lint is not proof" in skill
+    assert "no new dependencies" in skill and "new settings subsystem" in judge
+    assert "about a 10%" not in judge and "do not manufacture work" in skill
+    assert "tools: [read/" in judge and "agents: []" in judge and "edit/" not in judge
+    assert all(f'"{field}"' in judge for field in ("verdict", "changes", "title", "where", "what", "why", "keep"))
+
+
 def test_extension_js_parses() -> None:
     """Both extension scripts are valid JavaScript."""
     for name in ("extension.js", "render.js"):
