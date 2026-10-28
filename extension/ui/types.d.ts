@@ -44,6 +44,49 @@ export interface ViewState {
   error: string | null;
   workspaceMessage: string | null;
 }
+export interface ActivityEvent {
+  at: string;
+  kind: 'prompt' | 'message' | 'read' | 'edit' | 'run' | 'search' | 'ask' | 'delegate' | 'todo' | 'guard' | 'tool';
+  title: string;
+  detail: string;
+  files: string[];
+  state: 'running' | 'ok' | 'failed' | 'stopped';
+}
+export interface Todo {
+  title: string;
+  status: 'not-started' | 'in-progress' | 'completed';
+}
+export interface Session {
+  id: string;
+  title: string | null;
+  started: string;
+  lastAt: string;
+  status: 'working' | 'waiting' | 'idle';
+  current: ActivityEvent | null;
+  turns: number;
+  tools: number;
+  failures: number;
+  commands: number;
+  todos: Todo[];
+  events: ActivityEvent[];
+  files: { path: string; count: number; last: string }[];
+}
+export interface TokenUse {
+  model: string;
+  calls: number;
+  failed: number;
+  input: number;
+  output: number;
+  cached: number;
+}
+export interface Activity {
+  session: Session | null;
+  sessions: number;
+  reason: string | null;
+  errors: { paused: boolean; failures: { command: string; output: string }[] } | null;
+  loadout: { skills: number; tokens: number; overBudget: boolean; maxSkills: number; maxTokens: number } | null;
+  tokens: { models: TokenUse[]; aiu: number } | null;
+}
 declare global {
   function acquireVsCodeApi(): {
     postMessage(message: unknown): void;
