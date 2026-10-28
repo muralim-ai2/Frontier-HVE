@@ -59,7 +59,7 @@ class MissionControl {
     this.navigate = { page: 'live', seq: 0 };
     this.disposed = false;
     const version = text(record(context.extension.packageJSON, 'Extension manifest').version, 'Extension version');
-    /** @type {Omit<import('./types').Model, 'now' | 'surface' | 'workspace' | 'telemetry' | 'navigate'>} */
+    /** @type {Omit<import('./types').Model, 'now' | 'surface' | 'workspace' | 'telemetry' | 'navigate' | 'transcripts'>} */
     this.state = { busy: false, error: null, workspaceMessage: null, connection: { version, python: null, guard: guardMode(context.extensionPath) },
       snapshot: null, snapshotError: null, activity: null, activityError: null, packs: null, packsError: null };
     this.restoreWorkspace();
@@ -191,7 +191,7 @@ class MissionControl {
    * @returns {import('./types').Model}
    */
   model(surface) {
-    return { ...this.state, now: new Date().toISOString(), surface, navigate: this.navigate, telemetry: this.telemetry(),
+    return { ...this.state, now: new Date().toISOString(), surface, navigate: this.navigate, telemetry: this.telemetry(), transcripts: this.transcripts(),
       workspace: this.workspace ? { name: this.workspace.name, path: this.workspace.uri.fsPath } : null };
   }
 

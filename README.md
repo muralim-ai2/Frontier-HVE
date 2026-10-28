@@ -29,7 +29,7 @@ Install the VSIX and reload; the extension finds Python (3.11+ as `python`, `pyt
 
 Workspace state goes to `<workspace>/.hve/` (profile, interventions, loadouts). The Copilot telemetry export is only for research metrics and has its own command (D-032, D-047).
 
-**Mission Control (D-063).** The **HVE icon in the Activity Bar** opens a sidebar with the workspace's project, open ask, recorded check evidence and the reviews waiting for you; it starts new tasks, drafts the next Chat message and records confirmed human decisions through guarded lifecycle commands. It never runs a check or starts an agent by itself: [docs/wiki/Mission-Control.md](docs/wiki/Mission-Control.md).
+**Mission Control (D-063, D-064).** The **HVE icon in the Activity Bar** opens a live sidebar: what the agent is doing now (from Copilot Chat's transcript of the window), its to-do list, what needs you, and the task's plan, checks and sign-offs. The dashboard shows the plan as formatted text with **Edit plan**, every step of the session, token use when research telemetry is on (one switch), skills and expertise packs. It never runs a check, starts an agent or writes into Chat: [docs/wiki/Mission-Control.md](docs/wiki/Mission-Control.md).
 
 **Configured deliverables.** The authoring agents use bundled PRD, Technical Design Specification and Test Strategy templates. Teams can commit `frontier-hve.templates.json` to select company templates and output locations. The template manager initializes documents without overwriting existing files and validates structure, placeholders and template provenance before handoff. Configuration, commands and enforcement limits: [Templates](docs/wiki/Templates.md).
 

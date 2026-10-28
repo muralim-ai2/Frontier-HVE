@@ -53,7 +53,7 @@ function model(t) {
     + row('tool.execution_start', 10, { toolCallId: 'c', toolName: 'create_file', arguments: { filePath: path.join(root, 'policy.js') } }));
   json(root, '.hve\\runs\\session-1.errors.json', { failures: [{ command: 'npm test', output: '1 failing' }], paused: false });
   return { now: new Date(NOW).toISOString(), surface: 'sidebar', busy: false, error: null, workspace: { name: 'policy', path: root }, workspaceMessage: null,
-    connection: { version: '0.20.0', python: 'python', guard: 'advise' }, telemetry: { enabled: false, file: null },
+    connection: { version: '0.20.0', python: 'python', guard: 'advise' }, telemetry: { enabled: false, file: null }, transcripts,
     snapshot: snapshot(root), snapshotError: null, activity: activity(root, transcripts, null, NOW), activityError: null, packs: null, packsError: null,
     navigate: { page: 'live', seq: 0 } };
 }

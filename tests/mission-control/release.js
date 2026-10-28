@@ -10,8 +10,8 @@ const REPO = path.dirname(EXTENSION);
 const { runTests, resolveCliPathFromVSCodeExecutablePath } = createRequire(path.join(EXTENSION, 'package.json'))('@vscode/test-electron');
 const ORIGINAL = ['frontierHve.setup', 'frontierHve.installHarnesses', 'frontierHve.researchTelemetry', 'frontierHve.researchTelemetryOff',
   'frontierHve.installPlugin', 'frontierHve.managePlugins'];
-const UI_FILES = ['mission-control.js', 'render.js', 'workspace-state.js', 'workflow.js', 'lifecycle-cli.js', 'file-access.js', 'validate.js',
-  'media/app.css', 'media/app.js', 'media/hve.svg'];
+const UI_FILES = ['mission-control.js', 'workspace-state.js', 'activity.js', 'workflow.js', 'lifecycle-cli.js', 'file-access.js', 'validate.js',
+  'media/app.css', 'media/app.js', 'media/vnode.js', 'media/markdown.js', 'media/views.js', 'media/pages.js', 'media/hve.svg'];
 const EXCLUDED = /(^|\/)node_modules\/|^package-lock\.json$|^tsconfig\.json$|^ui\/types\.d\.ts$|\.vsix$|^build\.py$|__pycache__\//;
 
 /** Run a command and return its standard output, failing with its output when it exits non-zero.
@@ -47,7 +47,8 @@ function packageAndInspect(out) {
   run(process.execPath, [path.join(EXTENSION, 'node_modules', '@vscode', 'vsce', 'vsce'), 'package', '--skip-license',
     '--allow-missing-repository', '--out', vsix], { cwd: EXTENSION });
   const reader = 'import json, sys, zipfile\nz = zipfile.ZipFile(sys.argv[1])\nprint(json.dumps({"names": z.namelist(), '
-    + '"manifest": json.loads(z.read("extension/package.json")), "lifecycle": z.read("extension/runtime/tools/loop/lifecycle.py").decode()}))';
+    + '"manifest": json.loads(z.read("extension/package.json")), "lifecycle": z.read("extension/runtime/tools/loop/lifecycle.py").decode(), '
+    + '"uplift": z.read("extension/skills/wow-uplift/SKILL.md").decode()}))';
   const packaged = JSON.parse(run('python', ['-c', reader, vsix]));
   const names = new Set(packaged.names.filter(name => name.startsWith('extension/')).map(name => name.slice('extension/'.length)));
   const missing = [...UI_FILES.map(file => `ui/${file}`), 'extension.js', 'render.js', 'packs.js',
@@ -59,6 +60,9 @@ function packageAndInspect(out) {
   if ([...names].filter(name => /^agents\/[^/]+\.agent\.md$/.test(name)).length !== 41) throw new Error('The VSIX must keep all 41 HVE agents.');
   if (packaged.lifecycle !== fs.readFileSync(path.join(REPO, 'tools', 'loop', 'lifecycle.py'), 'utf8') || !packaged.lifecycle.includes('tick-for')) {
     throw new Error('The packaged lifecycle runtime must match tools/loop/lifecycle.py, including the guarded review API.');
+  }
+  if (packaged.uplift !== fs.readFileSync(path.join(REPO, 'plugins', 'harness-assist', 'skills', 'wow-uplift', 'SKILL.md'), 'utf8')) {
+    throw new Error('The packaged wow-uplift skill must be the current plugins/harness-assist/skills/wow-uplift/SKILL.md.');
   }
   const manifest = packaged.manifest;
   if (manifest.extensionDependencies !== undefined) throw new Error('The packaged extension must not depend on another extension.');
@@ -103,6 +107,7 @@ async function hostCheck(root, release) {
     extensionDevelopmentPath: path.join(__dirname, 'host', 'runner'),
     extensionTestsPath: path.join(__dirname, 'host', 'index.js'),
     extensionTestsEnv: { HVE_HOST_REPORT: report, HVE_HOST_EXTENSIONS: extensions, HVE_HOST_COMMANDS: JSON.stringify(release.commands),
+      HVE_HOST_UPLIFT: path.join(REPO, 'plugins', 'harness-assist', 'skills', 'wow-uplift', 'SKILL.md'),
       HVE_PLUGIN_HOME: path.join(root, 'packs'), PYTHONDONTWRITEBYTECODE: '1', VSCODE_PORTABLE: root },
     launchArgs: [project, '--user-data-dir', profile, '--extensions-dir', extensions, '--disable-extension', 'GitHub.copilot-chat',
       '--skip-welcome', '--skip-release-notes', '--skip-add-to-recently-opened', '--disable-workspace-trust', '--disable-telemetry'],

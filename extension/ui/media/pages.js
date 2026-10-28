@@ -224,7 +224,8 @@
     return [
       card('Workspace', h('div', { class: 'stats' }, stat('Folder', model.workspace ? model.workspace.path : 'None selected'),
         stat('Frontier HVE', model.connection.version), stat('Python', model.connection.python || 'not found: install Python 3.11+'),
-        stat('Loop guard', guard === 'advise' ? 'Advisory: warns in chat, does not block' : guard === 'enforce' ? 'Enforced: blocks' : 'unknown')),
+        stat('Loop guard', guard === 'advise' ? 'Advisory: warns in chat, does not block' : guard === 'enforce' ? 'Enforced: blocks' : 'unknown'),
+        stat('Live activity from', model.transcripts || 'no workspace storage')),
       button('Change folder', 'selectWorkspace', { icon: 'folder', disabled: model.busy })),
       card('Research telemetry', [telemetrySwitch(model), h('p', { class: 'muted' }, 'When on, Copilot writes every new chat, with its full content, tokens and cost, to '
         + `${model.telemetry.file || '.hve/runs/copilot-otel.jsonl'}. Mission Control and the task report use it for token and cost figures. Turn it off when you are done.`)]),

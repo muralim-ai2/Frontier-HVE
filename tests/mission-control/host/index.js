@@ -45,18 +45,45 @@ async function run() {
   const plugin = locations.find(dir => dir.endsWith(path.join('muralim-ai2.frontier-hve', 'plugin')));
   assert.ok(plugin, 'Activation must still render and register the HVE agent plugin.');
   assert.equal(fs.readdirSync(path.join(plugin, 'com.github.copilot', 'agents')).filter(name => name.endsWith('.agent.md')).length, 41);
+  assert.equal(fs.readFileSync(path.join(plugin, 'skills', 'wow-uplift', 'SKILL.md'), 'utf8'), fs.readFileSync(setting('HVE_HOST_UPLIFT'), 'utf8'),
+    'The rendered wow-uplift skill must be the current source.');
+  assert.ok(!available.includes('frontierHve.continueInChat'), 'Continue in Chat must be gone.');
   await vscode.commands.executeCommand('workbench.view.extension.frontierHve');
   const state = await vscode.commands.executeCommand('frontierHve.openMissionControl');
   assert.match(state.ask.id, /-pawstagram$/);
   assert.equal(state.ask.agent, 'HVE creator');
   assert.ok(vscode.window.tabGroups.all.some(group => group.tabs.some(tab => tab.label === 'HVE Mission Control')), 'Mission Control editor must open.');
   assert.equal(snapshot(folder.uri.fsPath).revision, before, 'Opening Mission Control must not change project state.');
+  const transcripts = (await vscode.commands.executeCommand('frontierHve.missionControlModel')).transcripts;
+  assert.ok(transcripts, 'Mission Control must know this window\'s chat transcript folder.');
+  fs.mkdirSync(transcripts, { recursive: true });
+  const file = path.join(transcripts, 'host-check.jsonl');
+  const event = (type, data) => JSON.stringify({ type, data, timestamp: new Date().toISOString() }) + '\n';
+  fs.writeFileSync(file, event('user.message', { content: 'Build the Pawstagram feed' }) + event('assistant.turn_start', {})
+    + event('tool.execution_start', { toolCallId: 'a', toolName: 'run_in_terminal', arguments: { command: 'npm test', explanation: 'Check the feed' } }));
+  await until(model => model.activity?.session?.current?.title === 'Check the feed', 'Mission Control must show a new chat step without a manual refresh.');
+  fs.appendFileSync(file, event('tool.execution_complete', { toolCallId: 'a', success: true }) + event('assistant.message', { content: 'The feed is done.' }));
+  await until(model => model.activity?.session?.events[0]?.title === 'The feed is done.', 'Mission Control must follow each further step.');
   fs.writeFileSync(setting('HVE_HOST_REPORT'), JSON.stringify({
     status: 'passed', vscode: vscode.version, extension: extension.packageJSON.version, ask: state.ask.id,
     checks: ['installed from VSIX', 'Copilot Chat disabled', 'activated on startup without a manual activate call', 'all contributed commands registered',
-      'HVE agent plugin rendered and registered (41 agents)', 'Activity Bar container opened', 'Mission Control editor opened with live ask',
-      'no passive project mutation'],
+      'HVE agent plugin rendered and registered (41 agents)', 'current wow-uplift skill rendered', 'no Continue in Chat command',
+      'Activity Bar container opened', 'Mission Control editor opened with live ask', 'no passive project mutation',
+      'new chat steps appear live through the real file watcher'],
   }, null, 2));
+}
+
+/** Wait until Mission Control's own model satisfies a condition, reading it without refreshing.
+ * @param {(model: any) => boolean} condition
+ * @param {string} failure
+ * @returns {Promise<void>}
+ */
+async function until(condition, failure) {
+  for (let waited = 0; ; waited += 250) {
+    if (condition(await vscode.commands.executeCommand('frontierHve.missionControlModel'))) return;
+    if (waited >= 20000) throw new Error(failure);
+    await new Promise(resolve => setTimeout(resolve, 250));
+  }
 }
 
 module.exports = { run };

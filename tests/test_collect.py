@@ -265,8 +265,9 @@ def test_direct_contract_tracks_skills_tasks_briefs_and_reports() -> None:
         plan.write_text(plan.read_text(encoding="utf-8").replace("- [ ] opt:evaluation", "- [x] opt:evaluation"), encoding="utf-8")
         state = json.loads(lifecycle("checklist").stdout)
         assert [t["item"] for t in state["ticked_in_plan"]] == ["opt:evaluation"] and state["items"]["opt:evaluation"]["by"] == "plan.md", state
-        assert state["items"]["task:core"]["ticked"] and state["open"] == ["milestones not done: deliver"], state
+        assert state["items"]["task:core"]["ticked"] and state["open"] == ["milestones not done: deliver", "the output evaluation you asked for has not run"], state
         assert json.loads(lifecycle("plan-status").stdout)["changed"] is False, "ticks in the generated block do not change the plan"
+        assert lifecycle("tick", "opt:evaluation", "off", "not needed for this check").returncode == 0
         text = lifecycle("report", "none").stdout
         assert "## Pillars" in text and "| Cost | not measured (research telemetry off) |" in text and "0/1 feature checks pass" in text, text
         assert "- [x] task:core: accepted (form: checked the screenshot)" in text and "Turn off research telemetry" not in text, text

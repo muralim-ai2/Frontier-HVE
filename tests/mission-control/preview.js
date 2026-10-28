@@ -15,7 +15,7 @@ const file = telemetry && telemetry !== '-' ? telemetry : null;
 const manifest = JSON.parse(fs.readFileSync(path.join(EXTENSION, 'package.json'), 'utf8'));
 /** @type {import('../../extension/ui/types').Model} */
 const model = { now: new Date(now).toISOString(), surface: 'sidebar', busy: false, error: null, workspace: { name: path.basename(workspace), path: workspace },
-  workspaceMessage: null, connection: { version: manifest.version, python: 'python', guard: 'advise' }, telemetry: { enabled: !!file, file },
+  workspaceMessage: null, connection: { version: manifest.version, python: 'python', guard: 'advise' }, telemetry: { enabled: !!file, file }, transcripts,
   snapshot: snapshot(workspace), snapshotError: null, activity: activity(workspace, transcripts, file, now), activityError: null, packs: [], packsError: null,
   navigate: { page: 'live', seq: 0 } };
 const out = fs.mkdtempSync(path.join(os.tmpdir(), 'hve-preview-'));

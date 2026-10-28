@@ -61,6 +61,7 @@ export interface Model {
   workspaceMessage: string | null;
   connection: { version: string; python: string | null; guard: 'advise' | 'enforce' | null };
   telemetry: { enabled: boolean; file: string | null };
+  transcripts: string | null;
   snapshot: Snapshot | null;
   snapshotError: string | null;
   activity: Activity | null;
