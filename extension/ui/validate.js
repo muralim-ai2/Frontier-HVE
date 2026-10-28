@@ -69,9 +69,8 @@ function message(value) {
   const action = text(data.action, 'Webview action');
   /** @type {Record<string, string[]>} */
   const fields = {
-    ready: [], refresh: [], selectWorkspace: [], newTask: [], continue: [], editPlan: [],
-    navigate: ['page'], inspectCheck: ['name'], openFile: ['path'], baseCommand: ['command'],
-    review: ['item', 'revision', 'value'],
+    ready: [], refresh: [], selectWorkspace: [], newTask: [], editPlan: [], loadPacks: [],
+    openDashboard: ['page'], openFile: ['path'], command: ['name'], telemetry: ['value'], review: ['item', 'revision', 'value'],
   };
   if (!Object.hasOwn(fields, action)) throw new Error(`Unknown UI action: ${action}`);
   const expected = ['action', ...fields[action]];

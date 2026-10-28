@@ -25,25 +25,89 @@ export interface Snapshot {
   workspace: string;
   revision: string;
   project: { name: string; goal: string } | null;
-  ask: { id: string; request: string; agent: string; lifecycle: string; current: string | null } | null;
+  ask: { id: string; title: string; request: string; agent: string; lifecycle: string; created: string; current: string | null } | null;
   features: Feature[];
   reviews: Review[];
   files: string[];
   planState: 'missing' | 'unsynced' | 'synced';
   plan: Plan | null;
   pendingPlanTicks: boolean;
-  skills: { name: string; status: string; reason: string }[];
+  skills: { name: string; status: string; reason: string; why: string; tokens: number }[];
+  skillLoad: { tokens: number; maxTokens: number; maxSkills: number; overBudget: boolean; choice: string | null } | null;
+  pluginSkills: string[];
+  options: { item: string; value: string }[];
+  stages: { name: string; goal: string; status: string; persona: string }[];
   decisions: { ts: string; stage: string; choice: string; why: string }[];
 }
-export interface ViewState {
-  snapshot: Snapshot | null;
-  connection: string;
-  python: string;
-  guard: string;
-  telemetry: boolean;
+export interface Pack {
+  id: string;
+  name: string;
+  version: string;
+  enabled: boolean;
+  disabledReason: string | null;
+  source: string;
+  agents: string[];
+  lifecycles: string[];
+  knowledge: string[];
+  templates: string[];
+}
+export type Page = 'live' | 'plan' | 'progress' | 'skills' | 'settings';
+export interface Model {
+  now: string;
+  surface: 'sidebar' | 'editor';
   busy: boolean;
   error: string | null;
+  workspace: { name: string; path: string } | null;
   workspaceMessage: string | null;
+  connection: { version: string; python: string | null; guard: 'advise' | 'enforce' | null };
+  telemetry: { enabled: boolean; file: string | null };
+  snapshot: Snapshot | null;
+  snapshotError: string | null;
+  activity: Activity | null;
+  activityError: string | null;
+  packs: Pack[] | null;
+  packsError: string | null;
+  navigate: { page: Page; seq: number };
+}
+export interface UiState {
+  page: Page;
+  filter: 'all' | 'edits' | 'commands' | 'conversation' | 'problems';
+  open: Record<string, boolean>;
+  seq: number;
+}
+export interface Need {
+  tone: 'error' | 'warn' | 'info';
+  icon: string;
+  title: string;
+  detail: string;
+  page?: string;
+}
+export interface Views {
+  ICONS: Record<string, (string | { cx: number; cy: number; r: number })[]>;
+  PAGES: [Page, string, string][];
+  icon(name: string, extra?: string): VNode;
+  ago(iso: string, now: number): string;
+  count(value: number): string;
+  plural(value: number, noun: string): string;
+  pretty(slug: string): string;
+  button(label: string, action: string, options?: { kind?: string; icon?: string; data?: Record<string, string>; disabled?: boolean; title?: string }): VNode;
+  chip(model: Model): VNode;
+  needs(model: Model): Need[];
+  attention(items: Need[], compact: boolean): VNode | null;
+  eventRow(event: ActivityEvent, now: number, compact: boolean): VNode;
+  todoList(todos: Todo[], limit: number): VNode;
+  bar(done: number, total: number, label: string): VNode;
+  telemetrySwitch(model: Model): VNode;
+  sessionState(model: Model): { key: string; label: string };
+  sidebar(model: Model, ui: UiState, now: number): VNode;
+}
+export interface Pages {
+  dashboard(model: Model, ui: UiState, now: number): VNode;
+  live(model: Model, ui: UiState, now: number): Child[];
+  plan(model: Model, ui: UiState, now: number): Child[];
+  progress(model: Model, ui: UiState, now: number): Child[];
+  skills(model: Model): Child[];
+  settings(model: Model): Child[];
 }
 export interface ActivityEvent {
   at: string;
@@ -100,6 +164,8 @@ declare global {
     mount(node: VNode | string, doc: Document): Node;
   };
   var hveMarkdown: { render(source: string): VNode[]; inline(source: string): Child[] };
+  var hveViews: Views;
+  var hvePages: Pages;
 }
 export interface VNode {
   tag: string;

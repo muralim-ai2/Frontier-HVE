@@ -12,7 +12,7 @@ test('connects to the bundled runtime without creating workspace state', async t
   t.after(() => removeWorkspace(folder));
   assert.equal(await inspect(bundled(), folder), 'Direct delivery');
   assert.deepEqual(fs.readdirSync(folder), []);
-  assert.equal(guardMode(bundled()), 'advise');
+  assert.equal(guardMode(EXTENSION), 'advise');
   assert.equal(bundled().script, path.join(EXTENSION, 'runtime', 'tools', 'loop', 'lifecycle.py'));
 });
 
@@ -25,7 +25,7 @@ test('requires a launcher and the bundled lifecycle entry point', () => {
 test('an unusable Python launcher surfaces the failing operation', async t => {
   const folder = workspace();
   t.after(() => removeWorkspace(folder));
-  await assert.rejects(lifecycle(runtime(EXTENSION, ['hve-no-such-python']), folder, ['list']), /Harness list failed/);
+  await assert.rejects(lifecycle(runtime(EXTENSION, ['hve-no-such-python']), folder, ['list']), /Harness lifecycle\.py list failed/);
 });
 
 test('only allowlisted lifecycle operations can execute', () => {
@@ -41,6 +41,6 @@ test('only allowlisted lifecycle operations can execute', () => {
 test('a live command failure is not converted into successful state', async t => {
   const folder = workspace();
   t.after(() => removeWorkspace(folder));
-  await assert.rejects(lifecycle(bundled(), folder, ['where', path.join(folder, 'missing-request.txt')]), /Harness where failed/);
+  await assert.rejects(lifecycle(bundled(), folder, ['where', path.join(folder, 'missing-request.txt')]), /Harness lifecycle\.py where failed/);
   assert.deepEqual(fs.readdirSync(folder), []);
 });

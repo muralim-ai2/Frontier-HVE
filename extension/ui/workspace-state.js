@@ -3,6 +3,7 @@
 const path = require('node:path');
 const { Reader, digest } = require('./file-access');
 const { record, text, list, flag, integer } = require('./validate');
+const { headline } = require('./activity');
 const ASK = /^\d{8}-\d{4}-[a-z0-9][a-z0-9-]{0,40}$/;
 const FEATURE = /^[a-z0-9][a-z0-9_-]{0,40}$/;
 const SKILLS_BLOCK = /<!-- hve:skills -->\n?([\s\S]*?)<!-- \/hve:skills -->\n?/;
@@ -88,7 +89,7 @@ function snapshot(workspace) {
   const reader = new Reader(workspace);
   /** @type {import('./types').Snapshot} */
   const state = { workspace: reader.root, revision: '', project: null, ask: null, features: [], reviews: [], files: [],
-    planState: 'missing', plan: null, pendingPlanTicks: false, decisions: [], skills: [] };
+    planState: 'missing', plan: null, pendingPlanTicks: false, decisions: [], skills: [], skillLoad: null, pluginSkills: [], options: [], stages: [] };
   const projectPath = path.join('.hve', 'project', 'project.json');
   const projectValue = reader.json(projectPath, true);
   /** @type {string[]} */
@@ -108,8 +109,9 @@ function snapshot(workspace) {
     activeFolder = path.join('.hve', 'asks', active);
     contract = record(reader.json(path.join(activeFolder, 'contract.json')), 'Ask contract');
     if (contract.ask !== active) throw new Error('Active ask and contract identities differ.');
-    state.ask = { id: active, request: text(contract.request, 'Ask request'), agent: text(contract.agent, 'Ask agent'),
-      lifecycle: text(contract.lifecycle, 'Ask lifecycle'), current: contract.current === null ? null : text(contract.current, 'Current stage') };
+    state.ask = { id: active, title: headline(text(contract.request, 'Ask request')), request: text(contract.request, 'Ask request'),
+      agent: text(contract.agent, 'Ask agent'), lifecycle: text(contract.lifecycle, 'Ask lifecycle'), created: text(contract.created, 'Ask creation time'),
+      current: contract.current === null ? null : text(contract.current, 'Current stage') };
     const planFile = path.join(activeFolder, 'plan.md');
     const plan = reader.text(planFile, true);
     if (plan !== undefined) {
@@ -156,11 +158,27 @@ function snapshot(workspace) {
     state.files.push(...state.features.flatMap(feature => feature.check ? [feature.check.source] : []));
   }
   if (contract) {
-    state.skills = list(record(contract.skills, 'Ask skills').selected, 'Selected skills').map(value => {
+    const skills = record(contract.skills, 'Ask skills');
+    state.skills = list(skills.selected, 'Selected skills').map(value => {
       const skill = record(value, 'Selected skill');
-      return { name: text(skill.name, 'Skill name'), status: text(skill.status, 'Skill status'), reason: text(skill.reason, 'Skill selection reason') };
+      return { name: text(skill.name, 'Skill name'), status: text(skill.status, 'Skill status'), reason: text(skill.reason, 'Skill selection reason'),
+        why: typeof skill.why === 'string' ? skill.why : '', tokens: integer(skill.skill_tokens, 'Skill tokens') };
     });
+    const budget = record(skills.budget, 'Skill budget');
+    state.skillLoad = { tokens: integer(skills.tokens, 'Skill load tokens'), maxTokens: integer(budget.max_tokens, 'Token guideline'),
+      maxSkills: integer(budget.max_skills, 'Skill limit'), overBudget: flag(skills.over_budget, 'Over budget'),
+      choice: skills.choice ? text(record(skills.choice, 'Skill choice').choice, 'Skill choice') : null };
+    const environment = record(contract.environment, 'Ask environment');
+    state.pluginSkills = environment.plugin_skills === undefined ? [] : list(environment.plugin_skills, 'Plugin skills').map(value => text(value, 'Plugin skill'));
     const checklist = record(contract.checklist, 'Ask checklist');
+    state.options = Object.keys(record(contract.checklist_rendered, 'Rendered checklist')).filter(item => item.startsWith('opt:') && item !== 'opt:telemetry')
+      .map(item => ({ item, value: Object.hasOwn(checklist, item) ? text(record(checklist[item], item).value, `${item} value`) : 'not answered' }));
+    state.stages = list(contract.stages, 'Ask stages').map(value => {
+      const stage = record(value, 'Stage');
+      const agent = text(stage.agent, 'Stage agent');
+      return { name: text(stage.name, 'Stage name'), goal: text(stage.goal, 'Stage goal'), status: text(stage.status, 'Stage status'),
+        persona: agent === 'self' ? text(contract.agent, 'Ask agent') : agent };
+    });
     state.reviews = list(contract.stages, 'Ask stages').map(value => {
       const stage = record(value, 'Stage');
       const name = text(stage.name, 'Stage name');

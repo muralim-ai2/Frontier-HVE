@@ -67,13 +67,15 @@ function clip(value, limit) {
   return `${cut.slice(0, Math.max(cut.lastIndexOf(' '), limit * 0.6))}…`;
 }
 
-/** Return the first meaningful line of a message as a short headline.
+/** Return the first meaningful line of a message as a short headline, cut at a natural break when long.
  * @param {string} value
  * @returns {string}
  */
 function headline(value) {
   const line = value.split(/\r?\n/).map(row => row.replace(/^#+\s*/, '').replace(/[*_`]/g, '').trim()).find(Boolean) || '';
-  return clip(line, 110);
+  if (line.length <= 80) return line;
+  const cut = /^(.{30,80}?)(?:\s\(|:\s|;\s|\s[-—–]\s|\.\s)/.exec(line);
+  return cut ? cut[1] : clip(line, 80);
 }
 
 /** Return a path relative to the workspace with forward slashes, or null when it lies outside.
@@ -206,13 +208,13 @@ function parse(file, workspace) {
       const content = text(data.content, 'Your message', true);
       if (content.trim()) {
         s.title ||= headline(content);
-        s.events.push({ at, kind: 'prompt', title: 'You wrote', detail: headline(content), files: [], state: 'ok' });
+        s.events.push({ at, kind: 'prompt', title: headline(content), detail: '', files: [], state: 'ok' });
       }
     } else if (type === 'assistant.turn_start') { s.turnOpen = true; s.turns += 1; }
     else if (type === 'assistant.turn_end') s.turnOpen = false;
     else if (type === 'assistant.message') {
       const content = text(data.content, 'Agent message', true);
-      if (content.trim()) s.events.push({ at, kind: 'message', title: 'Agent said', detail: clip(content, 240), files: [], state: 'ok' });
+      if (content.trim()) s.events.push({ at, kind: 'message', title: clip(content, 160), detail: '', files: [], state: 'ok' });
     } else if (type === 'tool.execution_start') {
       const tool = text(data.toolName, 'Tool name');
       const args = data.arguments === undefined ? {} : record(data.arguments, `${tool} arguments`);
@@ -280,7 +282,7 @@ function runFiles(workspace, id) {
     const value = record(errorsValue, 'Error guard state');
     return { paused: flag(value.paused, 'Error guard paused'), failures: list(value.failures, 'Error guard failures').map(row => {
       const failure = record(row, 'Failed command');
-      return { command: text(failure.command, 'Failed command'), output: text(failure.output, 'Failed command output', true) };
+      return { command: shortCommand(text(failure.command, 'Failed command')), output: text(failure.output, 'Failed command output', true) };
     }) };
   })();
   const loadValue = reader.json(path.join(runs, `${id}.skills.json`), true);

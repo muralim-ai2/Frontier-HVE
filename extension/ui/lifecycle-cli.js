@@ -10,8 +10,6 @@ const BASE_COMMANDS = Object.freeze({
   setup: 'frontierHve.setup',
   installPack: 'frontierHve.installPlugin',
   managePacks: 'frontierHve.managePlugins',
-  telemetryOn: 'frontierHve.researchTelemetry',
-  telemetryOff: 'frontierHve.researchTelemetryOff',
   installHarnesses: 'frontierHve.installHarnesses',
 });
 
@@ -47,6 +45,27 @@ function validateOperation(args) {
   throw new Error(`Unsupported lifecycle operation: ${args[0]}. Mission Control cannot run arbitrary commands or change workflow stages.`);
 }
 
+/** Run a bundled Python tool in the workspace and return its JSON output.
+ * @param {Runtime} connection
+ * @param {string} workspace
+ * @param {string} script
+ * @param {string[]} args
+ * @returns {Promise<unknown>}
+ */
+async function runTool(connection, workspace, script, args) {
+  if (!path.isAbsolute(workspace) || !fs.statSync(workspace).isDirectory()) throw new Error('An existing absolute workspace directory is required.');
+  try {
+    const result = await execute(connection.python, [...connection.pythonArguments, '-B', script, ...args], {
+      cwd: workspace, timeout: 60000, maxBuffer: 8 * 1024 * 1024, windowsHide: true,
+      env: { ...process.env, PYTHONUTF8: '1', PYTHONDONTWRITEBYTECODE: '1' },
+    });
+    if (result.stderr.trim()) throw new Error(`Harness wrote diagnostics: ${result.stderr.trim()}`);
+    return /** @type {unknown} */ (JSON.parse(result.stdout));
+  } catch (error) {
+    throw new Error(`Harness ${path.basename(script)} ${args[0]} failed in ${workspace}: ${errorText(error)}`, { cause: error });
+  }
+}
+
 /** Execute an allowlisted lifecycle command in the explicit target workspace.
  * @param {Runtime} connection
  * @param {string} workspace
@@ -55,17 +74,25 @@ function validateOperation(args) {
  */
 async function lifecycle(connection, workspace, args) {
   validateOperation(args);
-  if (!path.isAbsolute(workspace) || !fs.statSync(workspace).isDirectory()) throw new Error('An existing absolute workspace directory is required.');
-  try {
-    const result = await execute(connection.python, [...connection.pythonArguments, '-B', connection.script, ...args], {
-      cwd: workspace, timeout: 60000, maxBuffer: 8 * 1024 * 1024, windowsHide: true,
-      env: { ...process.env, PYTHONUTF8: '1', PYTHONDONTWRITEBYTECODE: '1' },
-    });
-    if (result.stderr.trim()) throw new Error(`Harness wrote diagnostics: ${result.stderr.trim()}`);
-    return /** @type {unknown} */ (JSON.parse(result.stdout));
-  } catch (error) {
-    throw new Error(`Harness ${args[0]} failed in ${workspace}: ${errorText(error)}`, { cause: error });
-  }
+  return runTool(connection, workspace, connection.script, args);
+}
+
+/** Return the installed expertise packs from the pack store (read-only).
+ * @param {Runtime} connection
+ * @param {string} workspace
+ * @returns {Promise<import('./types').Pack[]>}
+ */
+async function packs(connection, workspace) {
+  const script = path.join(connection.extensionPath, 'runtime', 'tools', 'plugins', 'plugin.py');
+  /** @type {(value: unknown, context: string) => string[]} */
+  const names = (value, context) => list(value, context).map(item => text(item, context));
+  return list(await runTool(connection, workspace, script, ['list']), 'Installed packs').map(value => {
+    const pack = record(value, 'Installed pack');
+    return { id: text(pack.id, 'Pack id'), name: text(pack.name, 'Pack name'), version: text(pack.version, 'Pack version'),
+      enabled: pack.enabled === true, disabledReason: pack.disabledReason ? text(pack.disabledReason, 'Disabled reason') : null,
+      source: text(pack.source, 'Pack source'), agents: names(pack.agents, 'Pack agents'), lifecycles: names(pack.lifecycles, 'Pack lifecycles'),
+      knowledge: names(pack.knowledge, 'Pack knowledge'), templates: names(pack.templates, 'Pack templates') };
+  });
 }
 
 /** Return the title of the bundled direct lifecycle after checking the catalogue runs.
@@ -81,15 +108,15 @@ async function inspect(connection, workspace) {
 }
 
 /** Read the bundled loop guard mode without claiming that every guard blocks.
- * @param {Runtime} connection
+ * @param {string} extensionPath
  * @returns {'advise' | 'enforce'}
  */
-function guardMode(connection) {
-  const file = path.join(connection.extensionPath, 'runtime', 'hooks', 'guard_mode.json');
+function guardMode(extensionPath) {
+  const file = path.join(extensionPath, 'runtime', 'hooks', 'guard_mode.json');
   const value = record(JSON.parse(fs.readFileSync(file, 'utf8')), file);
   const mode = text(value.loop_guard, `${file}: loop_guard`);
   if (mode !== 'advise' && mode !== 'enforce') throw new Error(`Unrecognized loop guard mode: ${mode}`);
   return mode;
 }
 
-module.exports = { BASE_COMMANDS, runtime, validateOperation, lifecycle, inspect, guardMode };
+module.exports = { BASE_COMMANDS, runtime, validateOperation, lifecycle, packs, inspect, guardMode };

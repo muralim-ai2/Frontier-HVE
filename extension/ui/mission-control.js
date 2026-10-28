@@ -1,16 +1,35 @@
 'use strict';
-/** Mission Control: the Frontier HVE sidebar and editor views with explicit user confirmations. */
+/** Mission Control: the Frontier HVE sidebar and dashboard, kept live from the harness files and this window's chat transcripts. */
 const vscode = require('vscode');
 const path = require('node:path');
 const { randomBytes } = require('node:crypto');
-const { BASE_COMMANDS, runtime, inspect, guardMode } = require('./lifecycle-cli');
+const { BASE_COMMANDS, runtime, inspect, guardMode, packs } = require('./lifecycle-cli');
 const { snapshot } = require('./workspace-state');
+const { activity } = require('./activity');
 const { containedPath } = require('./file-access');
 const { Workflow } = require('./workflow');
-const { render, documentHtml, PAGES } = require('./render');
 const { record, text, message, errorText } = require('./validate');
+const PAGES = ['live', 'plan', 'progress', 'skills', 'settings'];
+const SCRIPTS = ['vnode.js', 'markdown.js', 'views.js', 'pages.js', 'app.js'];
+const REFRESH_DELAY_MS = 400;
 
-/** Coordinate Mission Control's views, workspace selection and confirmed harness actions. */
+/** Return the restricted webview document that loads Mission Control's styles and scripts.
+ * @param {{cspSource: string, asWebviewUri: (uri: vscode.Uri) => vscode.Uri}} webview
+ * @param {vscode.Uri} media
+ * @returns {string}
+ */
+function documentHtml(webview, media) {
+  const nonce = randomBytes(18).toString('hex');
+  /** @param {string} name @returns {string} */
+  const uri = name => webview.asWebviewUri(vscode.Uri.joinPath(media, name)).toString();
+  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src ${webview.cspSource}; style-src ${webview.cspSource}; script-src 'nonce-${nonce}';">
+<title>Frontier HVE Mission Control</title><link rel="stylesheet" href="${uri('app.css')}"></head>
+<body><div id="root" aria-busy="true"><p class="loading">Connecting to the harness…</p></div><div id="announce" class="sr-only" role="status" aria-live="polite"></div>
+${SCRIPTS.map(name => `<script nonce="${nonce}" src="${uri(name)}"></script>`).join('\n')}</body></html>`;
+}
+
+/** Coordinate Mission Control's views, live refresh, workspace selection and confirmed harness actions. */
 class MissionControl {
   /**
    * @param {vscode.ExtensionContext} context
@@ -28,19 +47,21 @@ class MissionControl {
     this.panel = null;
     /** @type {vscode.WorkspaceFolder | null} */
     this.workspace = null;
-    /** @type {vscode.FileSystemWatcher | null} */
-    this.watcher = null;
+    /** @type {vscode.FileSystemWatcher[]} */
+    this.watchers = [];
     /** @type {NodeJS.Timeout | null} */
     this.timer = null;
     /** @type {Workflow | null} */
     this.flow = null;
-    this.page = 'overview';
     /** @type {string | null} */
-    this.check = null;
+    this.python = null;
+    /** @type {{page: import('./types').Page, seq: number}} */
+    this.navigate = { page: 'live', seq: 0 };
     this.disposed = false;
-    /** @type {import('./types').ViewState} */
-    this.state = { snapshot: null, connection: 'Not connected', python: 'Not checked', guard: 'Unavailable',
-      telemetry: false, busy: false, error: null, workspaceMessage: null };
+    const version = text(record(context.extension.packageJSON, 'Extension manifest').version, 'Extension version');
+    /** @type {Omit<import('./types').Model, 'now' | 'surface' | 'workspace' | 'telemetry' | 'navigate'>} */
+    this.state = { busy: false, error: null, workspaceMessage: null, connection: { version, python: null, guard: guardMode(context.extensionPath) },
+      snapshot: null, snapshotError: null, activity: null, activityError: null, packs: null, packsError: null };
     this.restoreWorkspace();
   }
 
@@ -51,23 +72,47 @@ class MissionControl {
     const folders = vscode.workspace.workspaceFolders || [];
     const saved = this.context.workspaceState.get('selectedWorkspace');
     this.workspace = folders.find(folder => folder.uri.toString() === saved) || (folders.length === 1 ? folders[0] : null);
-    this.bindWatcher();
+    this.flow = null;
+    this.bindWatchers();
   }
 
-  /** Watch only project and ask state in the selected workspace.
+  /** Return this window's Copilot Chat transcript folder, a sibling of the extension's workspace storage.
+   * @returns {string | null}
+   */
+  transcripts() {
+    const storage = this.context.storageUri;
+    return storage ? path.join(path.dirname(storage.fsPath), 'GitHub.copilot-chat', 'transcripts') : null;
+  }
+
+  /** Return the research telemetry switch and its export file.
+   * @returns {import('./types').Model['telemetry']}
+   */
+  telemetry() {
+    const otel = vscode.workspace.getConfiguration('github.copilot.chat.otel');
+    const file = otel.get('outfile');
+    return { enabled: otel.get('enabled') === true, file: typeof file === 'string' && file ? file : null };
+  }
+
+  /** Watch the workspace's harness state and this window's chat transcripts.
    * @returns {void}
    */
-  bindWatcher() {
-    this.watcher?.dispose();
-    this.watcher = null;
+  bindWatchers() {
+    this.watchers.forEach(watcher => watcher.dispose());
+    this.watchers = [];
     if (this.workspace?.uri.scheme !== 'file') return;
-    this.watcher = vscode.workspace.createFileSystemWatcher(new vscode.RelativePattern(this.workspace, '.hve/{project,asks}/**/*'));
-    this.watcher.onDidCreate(() => this.scheduleRefresh());
-    this.watcher.onDidChange(() => this.scheduleRefresh());
-    this.watcher.onDidDelete(() => this.scheduleRefresh());
+    const patterns = [new vscode.RelativePattern(this.workspace, '.hve/**/*')];
+    const storage = this.context.storageUri;
+    if (storage) patterns.push(new vscode.RelativePattern(vscode.Uri.file(path.dirname(storage.fsPath)), 'GitHub.copilot-chat/transcripts/*.jsonl'));
+    for (const pattern of patterns) {
+      const watcher = vscode.workspace.createFileSystemWatcher(pattern);
+      watcher.onDidCreate(() => this.scheduleRefresh());
+      watcher.onDidChange(() => this.scheduleRefresh());
+      watcher.onDidDelete(() => this.scheduleRefresh());
+      this.watchers.push(watcher);
+    }
   }
 
-  /** Coalesce filesystem notifications into one refresh of a visible view; a view refreshes itself when it is shown again.
+  /** Coalesce change notifications into one refresh of a visible view; a hidden view refreshes itself when shown again.
    * @returns {void}
    */
   scheduleRefresh() {
@@ -75,66 +120,99 @@ class MissionControl {
     if (this.timer) clearTimeout(this.timer);
     this.timer = setTimeout(() => {
       this.timer = null;
-      if (!this.state.busy) void vscode.commands.executeCommand('frontierHve.refreshMissionControl');
-    }, 250);
+      if (!this.state.busy) this.refresh().catch(error => this.show(error));
+    }, REFRESH_DELAY_MS);
   }
 
-  /** Require a trusted local workspace before reading state or executing code.
+  /** Require a trusted local workspace before reading state or running harness tools.
    * @returns {vscode.WorkspaceFolder}
    */
   target() {
-    if (!vscode.workspace.isTrusted) throw new Error('Trust this workspace before using the live harness.');
+    if (!vscode.workspace.isTrusted) throw new Error('Trust this workspace to use Mission Control.');
     if (!this.workspace) throw new Error('Select a workspace folder first.');
-    if (this.workspace.uri.scheme !== 'file') throw new Error('This release requires a local filesystem workspace.');
+    if (this.workspace.uri.scheme !== 'file') throw new Error('Mission Control needs a local folder.');
     return this.workspace;
   }
 
-  /** Connect to this extension's bundled runtime with the detected Python launcher.
+  /** Connect the task and review workflow to this extension's runtime with the detected Python launcher.
    * @returns {Promise<Workflow>}
    */
   async connect() {
-    this.target();
+    const root = this.target().uri.fsPath;
     if (this.flow) return this.flow;
     const python = await this.findPython();
     if (!python) throw new Error('Mission Control needs Python 3.11+ on PATH (python, python3 or py -3). Install it, then run "Frontier HVE: Set up".');
     const connection = runtime(this.context.extensionPath, python.split(' '));
-    await inspect(connection, this.target().uri.fsPath);
+    await inspect(connection, root);
+    this.python = python;
+    this.state.connection.python = python;
     this.flow = new Workflow(connection, this.context.globalStorageUri.fsPath);
-    this.state.connection = `HVE ${text(record(this.context.extension.packageJSON, 'Extension manifest').version, 'Extension version')}`;
-    this.state.python = python;
-    this.state.guard = guardMode(connection) === 'advise' ? 'Advisory (not an enforced block)' : 'Enforced';
     return this.flow;
   }
 
-  /** Re-read passive state without reconciling plan checkboxes.
+  /** Re-read the harness state and live activity; a section that cannot be read shows its own error.
    * @returns {Promise<import('./types').Snapshot | null>}
    */
   async refresh() {
-    if (!vscode.workspace.isTrusted) throw new Error('Workspace trust is required.');
+    if (!vscode.workspace.isTrusted) throw new Error('Trust this workspace to use Mission Control.');
     this.state.workspaceMessage = null;
     if (!this.workspace) {
-      this.state.snapshot = null;
+      Object.assign(this.state, { snapshot: null, activity: null, snapshotError: null, activityError: null });
       this.state.workspaceMessage = (vscode.workspace.workspaceFolders?.length || 0) > 1
-        ? 'Select one workspace explicitly; the UI will not assume the first folder.'
-        : 'Open a local project folder to connect to the harness.';
-    } else {
-      await this.connect();
-      this.state.snapshot = snapshot(this.target().uri.fsPath);
+        ? 'Choose which workspace folder Mission Control follows.' : 'Open a project folder to use Mission Control.';
+      this.paint();
+      return null;
     }
-    this.state.telemetry = vscode.workspace.getConfiguration('github.copilot.chat.otel').get('enabled') === true;
-    this.state.error = null;
+    const root = this.target().uri.fsPath;
+    this.python ||= await this.findPython();
+    this.state.connection.python = this.python;
+    try {
+      this.state.snapshot = snapshot(root);
+      this.state.snapshotError = null;
+    } catch (error) {
+      this.state.snapshot = null;
+      this.state.snapshotError = errorText(error);
+      this.output.appendLine(`Harness state: ${this.state.snapshotError}`);
+    }
+    try {
+      this.state.activity = activity(root, this.transcripts(), this.telemetry().file, Date.now());
+      this.state.activityError = null;
+    } catch (error) {
+      this.state.activity = null;
+      this.state.activityError = errorText(error);
+      this.output.appendLine(`Live activity: ${this.state.activityError}`);
+    }
     this.paint();
     return this.state.snapshot;
   }
 
-  /** Publish escaped content to each currently open surface.
+  /** Return the model a surface renders.
+   * @param {'sidebar' | 'editor'} surface
+   * @returns {import('./types').Model}
+   */
+  model(surface) {
+    return { ...this.state, now: new Date().toISOString(), surface, navigate: this.navigate, telemetry: this.telemetry(),
+      workspace: this.workspace ? { name: this.workspace.name, path: this.workspace.uri.fsPath } : null };
+  }
+
+  /** Send the current model to each open surface.
    * @returns {void}
    */
   paint() {
     if (this.disposed) return;
-    for (const [view, surface] of this.views) {
-      void view.postMessage({ type: 'render', html: render(this.state, surface, this.page, this.check), busy: this.state.busy });
-    }
+    for (const [view, surface] of this.views) void view.postMessage({ type: 'model', model: this.model(surface) });
+  }
+
+  /** Show a failure in the views and the output channel.
+   * @param {unknown} error
+   * @returns {Error}
+   */
+  show(error) {
+    const contextual = new Error(`Frontier HVE Mission Control: ${errorText(error)}`, { cause: error });
+    this.state.error = contextual.message;
+    this.output.appendLine(contextual.message);
+    this.paint();
+    return contextual;
   }
 
   /** Attach a restricted webview and its message handler.
@@ -145,8 +223,7 @@ class MissionControl {
   attach(webview, surface) {
     const media = vscode.Uri.joinPath(this.context.extensionUri, 'ui', 'media');
     webview.options = { enableScripts: true, localResourceRoots: [media] };
-    webview.html = documentHtml(webview.asWebviewUri(vscode.Uri.joinPath(media, 'app.css')).toString(),
-      webview.asWebviewUri(vscode.Uri.joinPath(media, 'app.js')).toString(), webview.cspSource, randomBytes(18).toString('hex'));
+    webview.html = documentHtml(webview, media);
     this.views.set(webview, surface);
     const listener = webview.onDidReceiveMessage(async value => { await this.execute(value); });
     return new vscode.Disposable(() => { listener.dispose(); this.views.delete(webview); });
@@ -162,118 +239,58 @@ class MissionControl {
     view.onDidDispose(() => { attached.dispose(); this.sidebar = null; });
   }
 
-  /** Open or reveal the shared editor detail view.
-   * @param {string} [page]
+  /** Open or reveal the dashboard on a page.
+   * @param {string} page
    * @returns {void}
    */
-  open(page = 'overview') {
+  open(page) {
     if (!PAGES.includes(page)) throw new Error(`Unknown page: ${page}`);
-    this.page = page;
+    this.navigate = { page: /** @type {import('./types').Page} */ (page), seq: this.navigate.seq + 1 };
     if (!this.panel) {
-      this.panel = vscode.window.createWebviewPanel('frontierHve.missionControlDetail', 'HVE Mission Control', vscode.ViewColumn.Active, {});
-      const attached = this.attach(this.panel.webview, 'editor');
-      this.panel.onDidDispose(() => { attached.dispose(); this.panel = null; });
-    } else this.panel.reveal(vscode.ViewColumn.Active, true);
+      const panel = vscode.window.createWebviewPanel('frontierHve.missionControlDetail', 'HVE Mission Control', vscode.ViewColumn.Active, {});
+      this.panel = panel;
+      const attached = this.attach(panel.webview, 'editor');
+      panel.onDidDispose(() => { attached.dispose(); this.panel = null; });
+    } else this.panel.reveal(vscode.ViewColumn.Active, false);
     this.paint();
   }
 
-  /** Ask the user to select a workspace without changing VS Code's folder order.
+  /** Ask which workspace folder to follow without changing VS Code's folder order.
    * @returns {Promise<void>}
    */
   async selectWorkspace() {
     const folders = vscode.workspace.workspaceFolders || [];
     if (!folders.length) throw new Error('Open a local folder in VS Code first.');
     const selected = await vscode.window.showQuickPick(folders.map(folder => ({ label: folder.name, description: folder.uri.fsPath, folder })),
-      { title: 'Frontier HVE Mission Control: target workspace', ignoreFocusOut: true });
+      { title: 'Frontier HVE: which folder should Mission Control follow?', ignoreFocusOut: true });
     if (!selected) return;
-    if (selected.folder.uri.scheme !== 'file') throw new Error('Choose a local filesystem workspace.');
+    if (selected.folder.uri.scheme !== 'file') throw new Error('Choose a local folder.');
     this.workspace = selected.folder;
     this.flow = null;
     await this.context.workspaceState.update('selectedWorkspace', selected.folder.uri.toString());
-    this.bindWatcher();
-    await this.refresh();
+    this.bindWatchers();
   }
 
-  /** Collect and confirm an actual task creation request.
+  /** Collect and confirm a new task, then create it with the harness.
    * @returns {Promise<void>}
    */
   async newTask() {
     const target = this.target();
     const flow = await this.connect();
-    const request = await vscode.window.showInputBox({ title: 'New HVE task', prompt: 'What outcome should HVE creator deliver? This creates a real direct-delivery ask.',
-      ignoreFocusOut: true, validateInput: value => !value.trim() || value.length > 20000 ? 'Enter a request of 1-20,000 characters.' : null });
+    const request = await vscode.window.showInputBox({ title: 'New task (1 of 2): what should be delivered?', prompt: 'Describe the outcome. HVE creator plans and builds it in a new ask.',
+      ignoreFocusOut: true, validateInput: value => !value.trim() || value.length > 20000 ? 'Enter 1-20,000 characters.' : null });
     if (request === undefined) return;
-    const slug = await vscode.window.showInputBox({ title: 'Task identifier', prompt: 'Use a short identifier for the ask folder.',
+    const slug = await vscode.window.showInputBox({ title: 'New task (2 of 2): short name', prompt: 'Used for the task folder, for example pawstagram-feed.',
       ignoreFocusOut: true, validateInput: value => /^[a-z0-9][a-z0-9-]{0,40}$/.test(value) ? null : 'Use 1-41 lowercase letters, digits or hyphens.' });
     if (slug === undefined) return;
     const description = await flow.describeTask(target.uri.fsPath, request);
-    const confirm = await vscode.window.showWarningMessage(`Create "${slug}" in ${target.uri.fsPath}?`,
-      { modal: true, detail: `${description.why}\n${description.activeAsk ? `Current ask ${description.activeAsk} will no longer be active.\n` : ''}The existing harness will create an ask, record the project and install selected skills locally. It will not start an agent, enable telemetry, commit or push.` }, 'Create task');
+    const confirm = await vscode.window.showWarningMessage(`Create task "${slug}" in ${target.uri.fsPath}?`,
+      { modal: true, detail: `${description.why}.\n${description.activeAsk ? `The current task ${description.activeAsk} stays on disk but is no longer active.\n` : ''}This writes the task's contract and plan under .hve/ and copies its skills. No agent starts.` }, 'Create task');
     if (confirm !== 'Create task') return;
     this.target();
-    this.state.snapshot = await flow.createTask(target.uri.fsPath, description.revision, slug, request);
-    this.check = null;
-    this.open('overview');
-    void vscode.window.showInformationMessage(`Created ${this.state.snapshot.ask?.id}. Use Continue in Chat to plan and execute the work.`);
-  }
-
-  /** Open a real Chat draft with the exact current ask context.
-   * @returns {Promise<void>}
-   */
-  async continueInChat() {
-    const target = this.target();
-    const state = snapshot(target.uri.fsPath);
-    if (!state.ask) throw new Error('Create or open a task before continuing in Chat.');
-    const available = await vscode.commands.getCommands(true);
-    if (!available.includes('workbench.action.chat.open')) throw new Error('This VS Code host does not expose the supported Chat opening command.');
-    const query = `Continue the existing Frontier HVE ask ${state.ask.id} in workspace ${target.uri.fsPath} using ${state.ask.agent}. `
-      + `Read its contract and plan first. Request: ${state.ask.request}. Do not create a replacement ask. `
-      + 'Check the active ask identity, plan status, evidence and pending human decisions before continuing.';
-    await vscode.commands.executeCommand('workbench.action.chat.open', { query, isPartialQuery: true });
-    void vscode.window.showInformationMessage(`The draft is in Chat. Select ${state.ask.agent}, review it, and press Send. No agent was started automatically.`);
-  }
-
-  /** Confirm and persist a human decision through the guarded core API.
-   * @param {Record<string, string>} data
-   * @returns {Promise<void>}
-   */
-  async review(data) {
-    if (data.value !== 'accepted' && data.value !== 'changes') throw new Error('Unknown review decision.');
-    const target = this.target();
-    const flow = await this.connect();
-    const ticket = await flow.prepareReview(target.uri.fsPath, data.revision, data.item, data.value);
-    const note = await vscode.window.showInputBox({ title: data.value === 'accepted' ? 'What evidence did you review?' : 'What needs to change?',
-      ignoreFocusOut: true, validateInput: value => !value.trim() ? 'A human review note is required.' : value.length > 4000 ? 'Use at most 4,000 characters.' : null });
-    if (note === undefined) return;
-    const label = data.value === 'accepted' ? 'Record acceptance' : 'Request changes';
-    const confirm = await vscode.window.showWarningMessage(`${label} for ${data.item}?`, { modal: true,
-      detail: `Workspace: ${target.uri.fsPath}\nAsk: ${ticket.ask}\n${note}\n\nThis records a real human decision. It does not push code or advance workflow stages.` }, label);
-    if (confirm !== label) return;
-    this.target();
-    this.state.snapshot = await flow.recordReview(target.uri.fsPath, ticket, note);
-    void vscode.window.showInformationMessage(`${label} saved for ${ticket.ask}.`);
-  }
-
-  /** Invoke only existing harness commands in their actual workspace context.
-   * @param {string} name
-   * @returns {Promise<void>}
-   */
-  async baseCommand(name) {
-    if (!Object.hasOwn(BASE_COMMANDS, name)) throw new Error('Unknown harness command.');
-    const target = this.target();
-    await this.connect();
-    const first = vscode.workspace.workspaceFolders?.[0];
-    if (first?.uri.toString() !== target.uri.toString()) {
-      throw new Error('The original harness setup/pack commands target the first workspace folder. Open the selected folder in its own window before using these controls.');
-    }
-    const command = BASE_COMMANDS[/** @type {keyof typeof BASE_COMMANDS} */ (name)];
-    if (!(await vscode.commands.getCommands(true)).includes(command)) throw new Error(`The installed harness did not register ${command}.`);
-    const confirm = await vscode.window.showWarningMessage(`Run the existing harness command "${name}"?`, {
-      modal: true, detail: `Target workspace: ${target.uri.fsPath}\nThe original harness owns this command and its configuration changes.`,
-    }, 'Run command');
-    if (confirm !== 'Run command') return;
-    this.target();
-    await vscode.commands.executeCommand(command);
+    await flow.createTask(target.uri.fsPath, description.revision, slug, request);
+    this.open('plan');
+    void vscode.window.showInformationMessage(`Task "${slug}" is ready. In Copilot Chat, pick HVE creator and describe the work; it continues this task.`);
   }
 
   /** Open the active ask's plan.md in a text editor beside Mission Control.
@@ -285,53 +302,111 @@ class MissionControl {
     await vscode.window.showTextDocument(vscode.Uri.file(containedPath(state.workspace, state.plan.path)), { viewColumn: vscode.ViewColumn.Beside, preview: false });
   }
 
-  /** Open only a file listed in the latest validated workspace snapshot.
+  /** Confirm and record a human sign-off through the guarded review commands.
+   * @param {Record<string, string>} data
+   * @returns {Promise<void>}
+   */
+  async review(data) {
+    if (data.value !== 'accepted' && data.value !== 'changes') throw new Error('Unknown review decision.');
+    const target = this.target();
+    const flow = await this.connect();
+    const ticket = await flow.prepareReview(target.uri.fsPath, data.revision, data.item, data.value);
+    const note = await vscode.window.showInputBox({ title: data.value === 'accepted' ? `Accept ${data.item}: what did you check?` : `Changes for ${data.item}: what needs to change?`,
+      ignoreFocusOut: true, validateInput: value => !value.trim() ? 'A note is required.' : value.length > 4000 ? 'Use at most 4,000 characters.' : null });
+    if (note === undefined) return;
+    const label = data.value === 'accepted' ? 'Accept' : 'Request changes';
+    const confirm = await vscode.window.showWarningMessage(`${label}: ${data.item}?`, { modal: true,
+      detail: `Task ${ticket.ask} in ${target.uri.fsPath}\n\n“${note}”\n\nThis records your decision in the task. It does not push code or start the next stage.` }, label);
+    if (confirm !== label) return;
+    this.target();
+    await flow.recordReview(target.uri.fsPath, ticket, note);
+    void vscode.window.showInformationMessage(`${label === 'Accept' ? 'Accepted' : 'Changes requested for'} ${data.item}.`);
+  }
+
+  /** Run one of the extension's own commands; it asks its own questions.
+   * @param {string} name
+   * @returns {Promise<void>}
+   */
+  async command(name) {
+    if (!Object.hasOwn(BASE_COMMANDS, name)) throw new Error('Unknown harness command.');
+    const target = this.target();
+    if (vscode.workspace.workspaceFolders?.[0]?.uri.toString() !== target.uri.toString()) {
+      throw new Error('Set-up and pack commands act on the first folder of this window. Open the selected folder in its own window to use them.');
+    }
+    await vscode.commands.executeCommand(BASE_COMMANDS[/** @type {keyof typeof BASE_COMMANDS} */ (name)]);
+    if (name === 'installPack' || name === 'managePacks') await this.loadPacks();
+  }
+
+  /** Turn research telemetry on (the extension's own warning explains what it records) or off.
+   * @param {string} value
+   * @returns {Promise<void>}
+   */
+  async telemetrySwitch(value) {
+    if (value !== 'on' && value !== 'off') throw new Error('Telemetry must be on or off.');
+    await vscode.commands.executeCommand(value === 'on' ? 'frontierHve.researchTelemetry' : 'frontierHve.researchTelemetryOff');
+  }
+
+  /** Read the installed expertise packs; a failure shows on the Skills and packs page.
+   * @returns {Promise<void>}
+   */
+  async loadPacks() {
+    try {
+      const flow = await this.connect();
+      this.state.packs = await packs(flow.connection, this.target().uri.fsPath);
+      this.state.packsError = null;
+    } catch (error) {
+      this.state.packs = null;
+      this.state.packsError = errorText(error);
+      this.output.appendLine(`Expertise packs: ${this.state.packsError}`);
+    }
+    this.paint();
+  }
+
+  /** Open a file Mission Control lists: evidence, the plan, files the agent changed, or a loaded skill.
    * @param {string} relative
    * @returns {Promise<void>}
    */
   async openFile(relative) {
-    const state = snapshot(this.target().uri.fsPath);
-    if (!state.files.includes(relative)) throw new Error('The requested file is not in the current evidence snapshot.');
-    const file = containedPath(state.workspace, relative);
-    const uri = vscode.Uri.file(file);
-    if (['.png', '.jpg', '.jpeg', '.webp'].includes(path.extname(file).toLowerCase())) await vscode.commands.executeCommand('vscode.open', uri);
-    else await vscode.window.showTextDocument(await vscode.workspace.openTextDocument(uri), { preview: true });
+    const root = this.target().uri.fsPath;
+    const state = snapshot(root);
+    const listed = [...state.files, ...(this.state.activity?.session?.files.map(file => file.path) || []),
+      ...state.skills.map(skill => path.join('.hve', 'skills', skill.name, 'SKILL.md'))].map(file => path.normalize(file));
+    if (!listed.includes(path.normalize(relative))) throw new Error('That file is not listed in Mission Control.');
+    const uri = vscode.Uri.file(containedPath(state.workspace, relative));
+    if (['.png', '.jpg', '.jpeg', '.webp', '.gif'].includes(path.extname(relative).toLowerCase())) await vscode.commands.executeCommand('vscode.open', uri);
+    else await vscode.window.showTextDocument(uri, { viewColumn: vscode.ViewColumn.Beside, preview: true });
   }
 
-  /** Dispatch a validated UI action and expose failures before rejecting them.
+  /** Dispatch a validated view action and show failures before rejecting them.
    * @param {unknown} raw
    * @returns {Promise<import('./types').Snapshot | null>}
    */
   async execute(raw) {
     if (this.disposed) throw new Error('Mission Control has been disposed.');
     const data = message(raw);
-    const mutating = ['newTask', 'review', 'baseCommand', 'selectWorkspace'].includes(data.action);
-    if (mutating && this.state.busy) throw new Error('Another UI operation is still in progress.');
+    const mutating = ['newTask', 'review', 'command', 'telemetry', 'selectWorkspace'].includes(data.action);
+    if (mutating && this.state.busy) throw new Error('Another Mission Control action is still running.');
     if (mutating) { this.state.busy = true; this.paint(); }
     try {
       switch (data.action) {
-        case 'ready': case 'refresh': await this.refresh(); break;
-        case 'navigate': this.open(data.page); break;
-        case 'inspectCheck':
-          if (!this.state.snapshot?.features.some(feature => feature.name === data.name)) throw new Error('This feature is not in the current workspace.');
-          this.check = data.name; this.open('evidence'); break;
+        case 'ready': case 'refresh': break;
+        case 'openDashboard': this.open(data.page); break;
         case 'selectWorkspace': await this.selectWorkspace(); break;
-        case 'newTask': await this.newTask(); await this.refresh(); break;
-        case 'continue': await this.continueInChat(); break;
-        case 'review': await this.review(data); await this.refresh(); break;
-        case 'baseCommand': await this.baseCommand(data.command); this.flow = null; await this.refresh(); break;
-        case 'openFile': await this.openFile(data.path); break;
+        case 'newTask': await this.newTask(); break;
         case 'editPlan': await this.editPlan(); break;
-        default: throw new Error('Unsupported UI action.');
+        case 'review': await this.review(data); break;
+        case 'command': await this.command(data.name); break;
+        case 'telemetry': await this.telemetrySwitch(data.value); break;
+        case 'loadPacks': await this.loadPacks(); break;
+        case 'openFile': await this.openFile(data.path); break;
+        default: throw new Error('Unsupported Mission Control action.');
       }
-      return this.state.snapshot;
+      this.state.error = null;
+      return await this.refresh();
     } catch (error) {
-      const contextual = new Error(`Frontier HVE Mission Control: ${errorText(error)}`, { cause: error });
-      this.state.error = contextual.message;
-      this.output.appendLine(contextual.message);
-      this.paint();
-      void vscode.window.showErrorMessage(contextual.message);
-      throw contextual;
+      const shown = this.show(error);
+      void vscode.window.showErrorMessage(shown.message);
+      throw shown;
     } finally {
       if (mutating) { this.state.busy = false; this.paint(); }
     }
@@ -344,7 +419,7 @@ class MissionControl {
     if (this.disposed) return;
     this.disposed = true;
     if (this.timer) clearTimeout(this.timer);
-    this.watcher?.dispose();
+    this.watchers.forEach(watcher => watcher.dispose());
     this.panel?.dispose();
     this.views.clear();
     this.output.dispose();
@@ -360,16 +435,16 @@ function register(context, findPython) {
   const ui = new MissionControl(context, findPython);
   return [ui,
     vscode.window.registerWebviewViewProvider('frontierHve.missionControl', ui),
-    vscode.commands.registerCommand('frontierHve.openMissionControl', async () => { ui.open(); return ui.execute({ action: 'refresh' }); }),
+    vscode.commands.registerCommand('frontierHve.openMissionControl', () => ui.execute({ action: 'openDashboard', page: 'live' })),
     vscode.commands.registerCommand('frontierHve.refreshMissionControl', () => ui.execute({ action: 'refresh' })),
     vscode.commands.registerCommand('frontierHve.selectWorkspace', () => ui.execute({ action: 'selectWorkspace' })),
     vscode.commands.registerCommand('frontierHve.newTask', () => ui.execute({ action: 'newTask' })),
     vscode.commands.registerCommand('frontierHve.editPlan', () => ui.execute({ action: 'editPlan' })),
-    vscode.commands.registerCommand('frontierHve.continueInChat', () => ui.execute({ action: 'continue' })),
-    vscode.workspace.onDidChangeWorkspaceFolders(() => { ui.restoreWorkspace(); ui.flow = null; ui.scheduleRefresh(); }),
+    vscode.commands.registerCommand('frontierHve.missionControlModel', () => ui.model('editor')),
+    vscode.workspace.onDidChangeWorkspaceFolders(() => { ui.restoreWorkspace(); ui.scheduleRefresh(); }),
     vscode.workspace.onDidChangeConfiguration(event => {
       if (event.affectsConfiguration('github.copilot.chat.otel')) ui.scheduleRefresh();
     })];
 }
 
-module.exports = { MissionControl, register };
+module.exports = { MissionControl, register, documentHtml };

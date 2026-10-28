@@ -16,10 +16,13 @@ function project(root) {
   json(root, '.hve\\project\\project.json', { name: 'Client onboarding', goal: 'Build the onboarding workspace', asks: [ASK] });
   json(root, '.hve\\asks\\active.json', { active: ASK });
   json(root, path.join(folder, 'contract.json'), {
-    ask: ASK, request: 'Build the onboarding workspace', agent: 'HVE creator', lifecycle: 'direct', current: 'deliver',
-    stages: [{ name: 'deliver', goal: 'Deliver the workspace policy', status: 'done' }],
-    tasks: [{ name: 'policy', passes: true }], checklist: {}, checklist_rendered: {},
-    plan: { sha256: planDigest(plan), revisions: [] }, decisions: [], skills: { selected: [] },
+    ask: ASK, request: 'Build the onboarding workspace', agent: 'HVE creator', lifecycle: 'direct', current: 'deliver', created: '2026-10-28T12:00:00+00:00',
+    stages: [{ name: 'deliver', goal: 'Deliver the workspace policy', agent: 'self', status: 'done' }],
+    tasks: [{ name: 'policy', passes: true }], checklist: {}, checklist_rendered: { 'opt:evaluation': false, 'stage:deliver': false, 'task:policy': false },
+    plan: { sha256: planDigest(plan), revisions: [] }, decisions: [],
+    skills: { selected: [{ name: 'ux-flows', status: 'admitted', reason: 'required', skill_tokens: 382 }], tokens: 382, over_budget: false,
+      budget: { max_skills: 10, max_tokens: 32000 } },
+    environment: { plugin_skills: ['feature-checklist', 'wow-uplift'] },
   });
   fs.writeFileSync(path.join(root, folder, 'plan.md'), plan);
   fs.writeFileSync(path.join(root, folder, 'request.md'), 'Build the onboarding workspace');

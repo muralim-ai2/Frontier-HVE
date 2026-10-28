@@ -20,13 +20,13 @@ class Disposable {
  */
 function uri(file) { return { fsPath: file, scheme: 'file', toString: () => pathToFileURL(file).href }; }
 
-/** Return a webview double that records rendered messages.
+/** Return a webview double that records the messages posted to it.
  * @param {unknown[][]} calls
  * @returns {object}
  */
 function webview(calls) {
   return { options: {}, html: '', cspSource: 'https://local.test', asWebviewUri: file => file,
-    postMessage: async value => { calls.push(['render', value]); return true; }, onDidReceiveMessage: () => new Disposable() };
+    postMessage: async value => { calls.push(['post', value]); return true; }, onDidReceiveMessage: () => new Disposable() };
 }
 
 /** Create a host double scoped to explicitly supplied test directories.
@@ -37,7 +37,7 @@ function webview(calls) {
 function host(roots, storage) {
   const commands = new Map();
   const settings = new Map();
-  const controls = { commands, settings, provider: null, inputs: [], confirmations: [], calls: [], watchers: [], errors: [], statusItems: [],
+  const controls = { commands, settings, provider: null, inputs: [], confirmations: [], calls: [], watchers: [], errors: [], statusItems: [], panels: [],
     /** Return a Primary Side Bar view double. @param {boolean} [visible] @returns {object} */
     view: (visible = false) => ({ visible, webview: webview(controls.calls), onDidDispose: () => new Disposable() }) };
   const folders = roots.map((root, index) => ({ name: path.basename(root), uri: uri(root), index }));
@@ -88,8 +88,10 @@ function host(roots, storage) {
       showTextDocument: async (document, options) => { controls.calls.push(['document', document, options]); },
       createWebviewPanel: () => {
         let close = () => {};
-        return { webview: webview(controls.calls), onDidDispose: callback => { close = callback; return new Disposable(); },
-          reveal: () => {}, dispose: () => close() };
+        const panel = { visible: true, webview: webview(controls.calls), onDidDispose: callback => { close = callback; return new Disposable(); },
+          reveal: () => { controls.calls.push(['reveal']); }, dispose: () => close() };
+        controls.panels.push(panel);
+        return panel;
       },
     },
     commands: {
@@ -109,6 +111,7 @@ function host(roots, storage) {
   };
   const context = {
     subscriptions: [], extensionPath: EXTENSION, extensionUri: uri(EXTENSION), globalStorageUri: uri(storage),
+    storageUri: uri(path.join(storage, 'window', 'muralim-ai2.frontier-hve')),
     extension: { packageJSON: JSON.parse(fs.readFileSync(path.join(EXTENSION, 'package.json'), 'utf8')) },
     workspaceState: memento(), globalState: memento(),
   };
@@ -138,7 +141,7 @@ function mission(t, count = 1) {
     fixture.context.subscriptions.forEach(resource => resource.dispose());
     [...roots, storage].forEach(removeWorkspace);
   });
-  return { ...fixture, root: roots[0], storage };
+  return { ...fixture, root: roots[0], storage, transcripts: path.join(storage, 'window', 'GitHub.copilot-chat', 'transcripts') };
 }
 
 module.exports = { host, mission };

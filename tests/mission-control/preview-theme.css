@@ -1,0 +1,60 @@
+/* Representative VS Code tokens for isolated rendering tests. */
+:root {
+  --vscode-font-family: "Segoe UI", sans-serif;
+  --vscode-font-size: 13px;
+  --vscode-editor-font-family: Consolas, monospace;
+  --vscode-editor-background: #1f1f1f;
+  --vscode-sideBar-background: #181818;
+  --vscode-foreground: #cccccc;
+  --vscode-descriptionForeground: #a0a0a0;
+  --vscode-widget-border: #454545;
+  --vscode-panel-border: #454545;
+  --vscode-textLink-foreground: #4daafc;
+  --vscode-testing-iconPassed: #89d185;
+  --vscode-editorWarning-foreground: #cca700;
+  --vscode-toolbar-hoverBackground: #2a2d2e;
+  --vscode-focusBorder: #007fd4;
+  --vscode-button-secondaryBackground: #313131;
+  --vscode-button-secondaryForeground: #cccccc;
+  --vscode-button-background: #0078d4;
+  --vscode-button-foreground: #ffffff;
+  --vscode-button-hoverBackground: #026ec1;
+  --vscode-list-activeSelectionForeground: #ffffff;
+  --vscode-list-activeSelectionBackground: #04395e;
+  --vscode-badge-background: #616161;
+  --vscode-badge-foreground: #ffffff;
+  --vscode-progressBar-background: #0e70c0;
+  --vscode-input-background: #313131;
+  --vscode-errorForeground: #f48771;
+  --vscode-inputValidation-errorBorder: #be1100;
+}
+:root.vscode-light {
+  --vscode-editor-background: #ffffff;
+  --vscode-sideBar-background: #f8f8f8;
+  --vscode-foreground: #333333;
+  --vscode-descriptionForeground: #616161;
+  --vscode-widget-border: #cecece;
+  --vscode-panel-border: #cecece;
+  --vscode-textLink-foreground: #005fb8;
+  --vscode-testing-iconPassed: #388a34;
+  --vscode-editorWarning-foreground: #806600;
+  --vscode-toolbar-hoverBackground: #e8e8e8;
+  --vscode-button-secondaryBackground: #e5e5e5;
+  --vscode-button-secondaryForeground: #333333;
+  --vscode-input-background: #ffffff;
+}
+:root.vscode-high-contrast {
+  --vscode-editor-background: #000000;
+  --vscode-sideBar-background: #000000;
+  --vscode-foreground: #ffffff;
+  --vscode-descriptionForeground: #ffffff;
+  --vscode-widget-border: #6fc3df;
+  --vscode-contrastBorder: #6fc3df;
+  --vscode-contrastActiveBorder: #f38518;
+  --vscode-textLink-foreground: #3794ff;
+  --vscode-focusBorder: #f38518;
+  --vscode-button-background: #000000;
+  --vscode-button-secondaryBackground: #000000;
+  --vscode-button-secondaryForeground: #ffffff;
+}
+.fixture-notice { padding: 8px 14px; border-bottom: 1px solid var(--vscode-widget-border); font-size: 11px; }

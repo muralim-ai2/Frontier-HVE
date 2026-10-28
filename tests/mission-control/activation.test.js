@@ -13,7 +13,15 @@ const manifest = JSON.parse(fs.readFileSync(path.join(EXTENSION, 'package.json')
 const ORIGINAL = ['frontierHve.setup', 'frontierHve.installHarnesses', 'frontierHve.researchTelemetry', 'frontierHve.researchTelemetryOff',
   'frontierHve.installPlugin', 'frontierHve.managePlugins'];
 const MISSION = ['frontierHve.openMissionControl', 'frontierHve.refreshMissionControl', 'frontierHve.selectWorkspace', 'frontierHve.newTask',
-  'frontierHve.continueInChat'];
+  'frontierHve.editPlan'];
+
+/** Return the models posted to views so far.
+ * @param {{calls: unknown[][]}} controls
+ * @returns {import('../../extension/ui/types').Model[]}
+ */
+function posted(controls) {
+  return controls.calls.filter(call => call[0] === 'post').map(call => /** @type {{model: import('../../extension/ui/types').Model}} */ (call[1]).model);
+}
 
 test('the existing extension contributes Mission Control, keeps its commands and has no Copilot extension dependency', () => {
   assert.equal(manifest.name, 'frontier-hve');
@@ -24,10 +32,12 @@ test('the existing extension contributes Mission Control, keeps its commands and
   assert.deepEqual(manifest.contributes.viewsContainers.activitybar, [{ id: 'frontierHve', title: 'Frontier HVE', icon: 'ui/media/hve.svg' }]);
   assert.deepEqual(manifest.contributes.views.frontierHve, [{ type: 'webview', id: 'frontierHve.missionControl', name: 'Mission Control' }]);
   assert.ok(manifest.contributes.configuration.properties['frontierHve.pluginIndex']);
-  for (const file of ['ui/media/hve.svg', 'ui/media/app.css', 'ui/media/app.js']) assert.ok(fs.statSync(path.join(EXTENSION, file)).isFile(), file);
+  for (const file of ['hve.svg', 'app.css', 'app.js', 'vnode.js', 'markdown.js', 'views.js', 'pages.js']) {
+    assert.ok(fs.statSync(path.join(EXTENSION, 'ui', 'media', file)).isFile(), file);
+  }
 });
 
-test('full activation registers Mission Control before setup work and keeps every original behaviour', async t => {
+test('full activation registers Mission Control before setup work, keeps every original behaviour and shows state without Python', async t => {
   const root = workspace();
   const storage = workspace();
   const fixture = host([root], storage);
@@ -45,23 +55,28 @@ test('full activation registers Mission Control before setup work and keeps ever
   assert.ok(fs.statSync(path.join(storage, 'plugin', 'plugin.json')).isFile());
   assert.deepEqual(fixture.controls.settings.get('chat.pluginLocations'), { [path.join(storage, 'plugin')]: true });
   assert.ok(fixture.controls.statusItems.some(item => item.visible && item.text.includes('guards off')));
-  await assert.rejects(fixture.controls.commands.get('frontierHve.refreshMissionControl')(), /needs Python 3\.11\+/);
+  assert.equal((await fixture.controls.commands.get('frontierHve.refreshMissionControl')()).ask, null);
+  assert.equal(fixture.controls.commands.get('frontierHve.missionControlModel')().connection.python, null);
+  await assert.rejects(fixture.controls.commands.get('frontierHve.newTask')(), /needs Python 3\.11\+/);
   assert.deepEqual(fs.readdirSync(root), []);
 });
 
-test('registration is passive and renders the bundled runtime state without creating project files', async t => {
+test('registration is passive, watches harness state and chat transcripts, and posts the model without creating project files', async t => {
   const fixture = mission(t);
   assert.ok(!fixture.controls.calls.some(call => call[0] !== 'provider'));
+  assert.deepEqual(fixture.controls.watchers.map(watcher => watcher.pattern.pattern), ['.hve/**/*', 'GitHub.copilot-chat/transcripts/*.jsonl']);
+  assert.equal(fixture.controls.watchers[1].pattern.base.fsPath, path.join(fixture.storage, 'window'));
   const view = fixture.controls.view();
   fixture.controls.provider.resolveWebviewView(view);
   assert.ok(view.webview.options.localResourceRoots[0].fsPath.endsWith(path.join('extension', 'ui', 'media')));
-  assert.match(view.webview.html, /app\.css/);
+  for (const script of ['vnode.js', 'markdown.js', 'views.js', 'pages.js', 'app.js']) assert.match(view.webview.html, new RegExp(script.replace('.', '\\.')));
   const result = await fixture.controls.commands.get('frontierHve.refreshMissionControl')();
   assert.equal(result.ask, null);
   assert.deepEqual(fs.readdirSync(fixture.root), []);
-  assert.equal(fixture.controls.watchers[0].pattern.pattern, '.hve/{project,asks}/**/*');
-  const rendered = fixture.controls.calls.filter(call => call[0] === 'render').at(-1);
-  assert.match(rendered[1].html, new RegExp(`HVE ${manifest.version.replace(/\./g, '\\.')}`));
+  const model = posted(fixture.controls).at(-1);
+  assert.equal(model.surface, 'sidebar');
+  assert.equal(model.connection.version, manifest.version);
+  assert.match(model.activity.reason, /No Copilot Chat session/);
 });
 
 test('multi-root requires selection and untrusted workspaces are rejected', async t => {
@@ -73,35 +88,31 @@ test('multi-root requires selection and untrusted workspaces are rejected', asyn
   assert.deepEqual(fs.readdirSync(fixture.root), []);
 });
 
-test('webview messages reject arbitrary commands and unexpected fields', () => {
+test('view messages are an allowlist: no arbitrary commands, no Chat drafts, no unexpected fields', () => {
   assert.throws(() => message({ action: 'execute', command: 'arbitrary' }), /Unknown UI/);
-  assert.throws(() => message({ action: 'configurePython' }), /Unknown UI/);
+  assert.throws(() => message({ action: 'continue' }), /Unknown UI/);
   assert.throws(() => message({ action: 'refresh', shell: 'arbitrary' }), /Unexpected fields/);
   assert.throws(() => message({ action: 'review', item: 'stage:deliver' }), /Unexpected fields/);
-  assert.equal(message({ action: 'navigate', page: 'evidence' }).page, 'evidence');
+  assert.equal(message({ action: 'openDashboard', page: 'plan' }).page, 'plan');
+  assert.equal(message({ action: 'telemetry', value: 'on' }).value, 'on');
 });
 
-test('background file changes refresh only a visible Mission Control, so hidden views never run the harness or raise errors', async t => {
+test('background changes refresh only a visible Mission Control, so hidden views never run the harness or raise errors', async t => {
   const fixture = mission(t);
-  const changed = () => fixture.controls.watchers[0].listeners.forEach(listener => listener());
-  const refreshes = () => fixture.controls.calls.filter(call => call[0] === 'frontierHve.refreshMissionControl').length;
-  const settle = () => new Promise(resolve => setTimeout(resolve, 400));
+  const changed = () => fixture.controls.watchers.forEach(watcher => watcher.listeners.forEach(listener => listener()));
+  const settle = () => new Promise(resolve => setTimeout(resolve, 600));
   changed();
   await settle();
-  assert.equal(refreshes(), 0);
+  assert.equal(posted(fixture.controls).length, 0);
   const view = fixture.controls.view(true);
   fixture.controls.provider.resolveWebviewView(view);
   changed();
   await settle();
-  assert.equal(refreshes(), 1);
-  for (let waited = 0; !fixture.controls.calls.some(call => call[0] === 'render'); waited += 100) {
-    if (waited > 10000) throw new Error('The visible view was not refreshed.');
-    await new Promise(resolve => setTimeout(resolve, 100));
-  }
+  assert.equal(posted(fixture.controls).length, 1);
   view.visible = false;
   changed();
   await settle();
-  assert.equal(refreshes(), 1);
+  assert.equal(posted(fixture.controls).length, 1);
   assert.deepEqual(fixture.controls.errors, []);
 });
 

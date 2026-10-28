@@ -97,7 +97,8 @@ test('a working session shows its current step, to-do list, files changed, failu
   assert.equal(session.events[0].title, 'Edited index.html');
   assert.equal(session.events[0].state, 'running');
   assert.equal(session.events.find(event => event.kind === 'run').state, 'failed');
-  assert.equal(session.events.at(-1).title, 'You wrote');
+  assert.equal(session.events.at(-1).title, 'Build: Pawstagram, a social photo app for dogs');
+  assert.equal(session.events.at(-1).kind, 'prompt');
 });
 
 test('an open question means the agent is waiting for you', t => {
@@ -158,9 +159,9 @@ test('an unfinished last line is read once complete and malformed lines fail exp
   const file = write(busy(root));
   const partial = JSON.stringify(row('assistant.message', 40, { content: 'Almost there.' }));
   fs.appendFileSync(file, partial.slice(0, 20));
-  assert.ok(!activity(root, transcripts, null, START).session.events.some(event => event.detail === 'Almost there.'));
+  assert.ok(!activity(root, transcripts, null, START).session.events.some(event => event.title === 'Almost there.'));
   fs.appendFileSync(file, partial.slice(20) + '\n');
-  assert.equal(activity(root, transcripts, null, START).session.events[0].detail, 'Almost there.');
+  assert.equal(activity(root, transcripts, null, START).session.events[0].title, 'Almost there.');
   fs.writeFileSync(file, '{"type":\n' + JSON.stringify(row('assistant.turn_start', 1)) + '\n');
   assert.throws(() => activity(root, transcripts, null, START), /Invalid JSON on line 1/);
 });

@@ -1,35 +1,116 @@
 'use strict';
-/** Exchange allowlisted UI actions and escaped render updates with the extension host. */
-const api = acquireVsCodeApi();
-const root = document.getElementById('root');
-const announcement = document.getElementById('announcement');
-if (!root || !announcement) throw new Error('Mission Control document is incomplete.');
+/** Mission Control webview: render the host's model, keep page, filter and section choices, and send allowlisted actions. */
+(function () {
+  const api = acquireVsCodeApi();
+  const { mount } = globalThis.hveVnode;
+  const { sidebar } = globalThis.hveViews;
+  const { dashboard } = globalThis.hvePages;
+  const root = document.getElementById('root');
+  const announce = document.getElementById('announce');
+  if (!root || !announce) throw new Error('Mission Control document is incomplete.');
+  const PAGES = ['live', 'plan', 'progress', 'skills', 'settings'];
+  const FILTERS = ['all', 'edits', 'commands', 'conversation', 'problems'];
+  const saved = /** @type {Partial<import('../types').UiState> | undefined} */ (api.getState());
+  /** @type {import('../types').UiState} */
+  const ui = { page: 'live', filter: 'all', open: {}, seq: 0, ...saved };
+  /** @type {(import('../types').Model & {navigate: {page: import('../types').Page, seq: number}}) | null} */
+  let model = null;
+  let status = '';
+  let packsAsked = false;
 
-document.addEventListener('click', event => {
-  if (!(event.target instanceof Element)) return;
-  const button = event.target.closest('button[data-action]');
-  if (!(button instanceof HTMLButtonElement) || button.disabled) return;
-  const { action, ...data } = button.dataset;
-  if (!action) throw new Error('Missing button action.');
-  api.postMessage({ action, ...data });
-});
-
-window.addEventListener('message', event => {
-  const message = event.data;
-  if (!message || typeof message !== 'object' || message.type !== 'render' || typeof message.html !== 'string'
-      || typeof message.busy !== 'boolean') throw new Error('Unexpected message from the extension host.');
-  const active = document.activeElement;
-  const focused = active instanceof HTMLButtonElement ? { ...active.dataset } : null;
-  const top = document.documentElement.scrollTop;
-  root.innerHTML = message.html;
-  root.setAttribute('aria-busy', String(message.busy));
-  if (focused) {
-    const replacement = [...root.querySelectorAll('button')].find(button =>
-      Object.entries(focused).every(([key, value]) => button.dataset[key] === value));
-    if (replacement && !replacement.disabled) replacement.focus({ preventScroll: true });
+  /** Return a key that finds the same control after a redraw.
+   * @param {Element | null} element
+   * @returns {string | null}
+   */
+  function controlKey(element) {
+    return element instanceof HTMLElement && element.dataset.action ? JSON.stringify(element.dataset) : null;
   }
-  document.documentElement.scrollTop = top;
-  announcement.textContent = message.busy ? 'Harness operation in progress.' : 'Mission Control updated.';
-});
 
-api.postMessage({ action: 'ready' });
+  /** Redraw the whole view from the model, keeping focus and scroll position.
+   * @returns {void}
+   */
+  function draw() {
+    if (!model || !root) return;
+    const focused = controlKey(document.activeElement);
+    const scroller = document.scrollingElement || document.documentElement;
+    const top = scroller.scrollTop;
+    const tree = model.surface === 'sidebar' ? sidebar(model, ui, Date.now()) : dashboard(model, ui, Date.now());
+    root.replaceChildren(mount(tree, document));
+    root.setAttribute('aria-busy', String(model.busy));
+    if (focused) {
+      const match = [...root.querySelectorAll('[data-action]')].find(element => controlKey(element) === focused);
+      if (match instanceof HTMLElement && !(match instanceof HTMLButtonElement && match.disabled)) match.focus({ preventScroll: true });
+    }
+    scroller.scrollTop = top;
+    api.setState(ui);
+  }
+
+  /** Show a page here on the dashboard, or ask the host to open the dashboard from the sidebar.
+   * @param {string} page
+   * @returns {void}
+   */
+  function go(page) {
+    if (!PAGES.includes(page)) throw new Error(`Unknown page: ${page}`);
+    if (model?.surface === 'sidebar') {
+      api.postMessage({ action: 'openDashboard', page });
+      return;
+    }
+    ui.page = /** @type {import('../types').Page} */ (page);
+    document.documentElement.scrollTop = 0;
+    askForPacks();
+    draw();
+  }
+
+  /** Ask the host for the installed packs the first time the Skills and packs page shows.
+   * @returns {void}
+   */
+  function askForPacks() {
+    if (model?.surface === 'editor' && ui.page === 'skills' && model.packs === null && !model.packsError && !packsAsked) {
+      packsAsked = true;
+      api.postMessage({ action: 'loadPacks' });
+    }
+  }
+
+  document.addEventListener('click', event => {
+    const target = event.target instanceof Element ? event.target.closest('[data-action]') : null;
+    if (!(target instanceof HTMLElement) || (target instanceof HTMLButtonElement && target.disabled)) return;
+    const { action, ...data } = target.dataset;
+    if (action === 'go') go(data.page || '');
+    else if (action === 'filter') {
+      if (!FILTERS.includes(data.value || '')) throw new Error('Unknown activity filter.');
+      ui.filter = /** @type {import('../types').UiState['filter']} */ (data.value);
+      draw();
+    } else api.postMessage({ action, ...data });
+  });
+
+  document.addEventListener('toggle', event => {
+    const target = event.target;
+    if (target instanceof HTMLDetailsElement && target.dataset.key) {
+      ui.open[target.dataset.key] = target.open;
+      api.setState(ui);
+    }
+  }, true);
+
+  window.addEventListener('message', event => {
+    const message = event.data;
+    if (!message || typeof message !== 'object' || message.type !== 'model' || !message.model || typeof message.model !== 'object') {
+      throw new Error('Unexpected message from the extension host.');
+    }
+    model = message.model;
+    if (!model) return;
+    if (model.surface === 'editor' && model.navigate.seq !== ui.seq) {
+      ui.seq = model.navigate.seq;
+      ui.page = model.navigate.page;
+    }
+    const next = model.activity?.session?.status || 'none';
+    if (next !== status) {
+      announce.textContent = { working: 'The agent is working.', waiting: 'The agent is waiting for your answer in Chat.', idle: 'The agent is idle.', none: '' }[next] || '';
+      status = next;
+    }
+    askForPacks();
+    draw();
+  });
+
+  setInterval(draw, 15000);
+  api.postMessage({ action: 'ready' });
+})();

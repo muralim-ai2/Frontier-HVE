@@ -37,19 +37,17 @@ test('cancelled creation does not modify the target project', async t => {
   assert.deepEqual(fs.readdirSync(fixture.root), []);
 });
 
-test('requested changes persist through the guarded API and Chat receives a draft, not a sent request', async t => {
+test('requested changes persist through the guarded API and the new task opens on its plan', async t => {
   const fixture = mission(t);
   const state = await create(fixture, 'review');
+  assert.deepEqual(fixture.controls.commands.get('frontierHve.missionControlModel')().navigate, { page: 'plan', seq: 1 });
   fixture.controls.inputs.push('Clarify the policy acceptance criteria.');
   fixture.controls.confirmations.push('Request changes');
   await fixture.controls.provider.execute({ action: 'review', item: 'stage:deliver', value: 'changes', revision: state.revision });
   const saved = snapshot(fixture.root);
   assert.equal(saved.reviews[0].decision, 'changes');
   assert.equal(saved.reviews[0].note, 'Clarify the policy acceptance criteria.');
-  await fixture.controls.commands.get('frontierHve.continueInChat')();
-  const chat = fixture.controls.calls.find(call => call[0] === 'workbench.action.chat.open');
-  assert.equal(chat[1].isPartialQuery, true);
-  assert.ok(chat[1].query.includes(state.ask.id));
+  assert.ok(!fixture.controls.calls.some(call => call[0] === 'workbench.action.chat.open'));
 });
 
 test('accepting unfinished work is refused before any confirmation or write', async t => {
