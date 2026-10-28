@@ -31,5 +31,3 @@ graphify-out/
 *.key
 *.pfx
 
-.harness/
-.hve/

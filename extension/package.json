@@ -13,10 +13,15 @@
     "vscode": "^1.100.0"
   },
   "categories": ["AI", "Chat"],
-  "extensionDependencies": ["GitHub.copilot-chat"],
   "main": "./extension.js",
   "activationEvents": ["onStartupFinished"],
   "contributes": {
+    "viewsContainers": {
+      "activitybar": [{ "id": "frontierHve", "title": "Frontier HVE", "icon": "ui/media/hve.svg" }]
+    },
+    "views": {
+      "frontierHve": [{ "type": "webview", "id": "frontierHve.missionControl", "name": "Mission Control" }]
+    },
     "commands": [
       {
         "command": "frontierHve.setup",
@@ -41,6 +46,26 @@
       {
         "command": "frontierHve.managePlugins",
         "title": "Frontier HVE: Manage plugins (expertise packs)"
+      },
+      {
+        "command": "frontierHve.openMissionControl",
+        "title": "Frontier HVE: Open Mission Control"
+      },
+      {
+        "command": "frontierHve.refreshMissionControl",
+        "title": "Frontier HVE: Refresh Mission Control"
+      },
+      {
+        "command": "frontierHve.selectWorkspace",
+        "title": "Frontier HVE: Select Mission Control workspace"
+      },
+      {
+        "command": "frontierHve.newTask",
+        "title": "Frontier HVE: New task"
+      },
+      {
+        "command": "frontierHve.continueInChat",
+        "title": "Frontier HVE: Continue in Chat"
       }
     ],
     "configuration": {
