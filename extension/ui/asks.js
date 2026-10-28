@@ -55,7 +55,8 @@ function askTree(workspace, ask) {
   if (!ASK.test(ask)) throw new Error(`Invalid ask identifier: ${ask}`);
   const root = fs.realpathSync(workspace);
   const folder = path.join('.hve', 'asks', ask);
-  if (!fs.statSync(containedPath(root, folder)).isDirectory()) throw new Error(`Ask folder is not a directory: ${folder}`);
+  const absolute = containedPath(root, folder);
+  if (!fs.existsSync(absolute) || !fs.statSync(absolute).isDirectory()) throw new Error(`No ask folder: ${folder}`);
   let count = 0;
   let truncated = false;
   /** @param {string} relative @param {number} depth @returns {import('./types').FileNode[]} */

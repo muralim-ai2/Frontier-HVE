@@ -231,6 +231,36 @@ details.card > summary { cursor: pointer; font-weight: 600; }
 .action .muted { font-size: 12px; }
 .busy .btn, .busy .action { cursor: progress; }
 
+/* Asks, chats and files */
+.ask-picker { display: grid; gap: 4px; min-width: 0; }
+.ask-picker select { width: 100%; min-width: 0; padding: 4px 6px; border-radius: 4px; font: inherit; color: var(--vscode-dropdown-foreground, var(--text));
+  background: var(--vscode-dropdown-background, var(--raised)); border: 1px solid var(--vscode-dropdown-border, var(--border)); }
+.ask-picker select:focus-visible { outline: 1px solid var(--focus); outline-offset: 1px; }
+.notice.viewing { color: var(--text); border-color: color-mix(in srgb, var(--info) 55%, transparent); background: color-mix(in srgb, var(--info) 8%, transparent); }
+.notice.viewing > span { flex: 1 1 160px; }
+.notice.viewing > .icon { color: var(--info); }
+.chats { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+.chat { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; border-radius: 4px; }
+.chat.on { background: color-mix(in srgb, var(--accent) 10%, transparent); }
+.chat-pick { flex: 1 1 220px; display: grid; grid-template-columns: 10px 1fr; gap: 0 8px; align-items: center; min-width: 0; padding: 6px; border-radius: 4px; }
+button.chat-pick:hover { background: var(--hover); }
+.chat-pick strong { overflow-wrap: anywhere; }
+.chat-pick .muted { grid-column: 2; font-size: 11.5px; }
+.chat .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); }
+.chat .dot.status-working { background: var(--good); }
+.chat .dot.status-waiting { background: var(--warn); }
+details.others { margin-top: 6px; }
+details.others > summary, details.folder > summary { cursor: pointer; color: var(--muted); }
+.tree { list-style: none; margin: 0; padding: 0 0 0 14px; display: grid; gap: 1px; }
+.tree.root { padding-left: 0; }
+details.folder > summary { display: flex; align-items: center; gap: 8px; padding: 4px 6px; border-radius: 4px; color: var(--text); }
+details.folder > summary:hover { background: var(--hover); }
+details.folder > summary .name, .tree .file .name { flex: 0 1 auto; font-weight: 600; overflow-wrap: anywhere; }
+details.folder > summary .muted, .tree .file .muted { flex: 1; font-size: 11px; white-space: normal; }
+.tree .file { width: 100%; }
+.tree .file .name { font-weight: 400; }
+.tree .other { display: flex; align-items: center; gap: 8px; padding: 4px 6px; font-size: 12px; }
+
 @media (max-width: 760px) {
   .dashboard { padding: 12px 14px 32px; }
   .grid.two { grid-template-columns: 1fr; }
