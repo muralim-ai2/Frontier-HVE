@@ -284,9 +284,8 @@
     const session = model.activity?.session;
     if (!snap?.ask) {
       return h('section', { class: 'card task empty' }, h('strong', null, model.asks?.length ? 'No ask is active' : 'No ask in this project yet'),
-        h('p', { class: 'muted' }, model.asks?.length ? 'Choose an earlier ask above, or start a new one.'
-          : 'An ask is one piece of work in this project. Start one here, or pick an HVE agent in Copilot Chat and describe what to build.'),
-        button('New ask', 'newAsk', { kind: 'primary', icon: 'plus', disabled: model.busy || !model.workspace }));
+        h('p', { class: 'muted' }, model.asks?.length ? 'Choose an earlier ask above, or start one with New ask.'
+          : 'An ask is one piece of work in this project. Start one with New ask, or pick an HVE agent in Copilot Chat. Chat activity shows below either way.'));
     }
     const done = session ? session.todos.filter(todo => todo.status === 'completed').length : 0;
     const stage = snap.stages.find(row => row.name === snap.ask?.current) || snap.stages[0];
@@ -354,9 +353,10 @@
       h('header', { class: 'top' }, icon('logo', 'brand'), h('strong', null, 'Frontier HVE'), chip(model),
         button('', 'refresh', { kind: 'icon', icon: 'refresh', title: 'Refresh', disabled: model.busy })),
       model.workspaceMessage ? h('div', { class: 'notice' }, model.workspaceMessage, button('Choose folder', 'selectWorkspace')) : null,
+      button('New ask', 'newAsk', { kind: 'primary new-ask', icon: 'plus', disabled: model.busy || !model.workspace,
+        title: 'Start a new piece of work in this project; the harness first checks whether it continues the open ask' }),
       askPicker(model), viewing(model), askCard(model, now), attention(needs(model), true), nowSection(model, now), recent(model, now), pageLinks(model),
-      h('footer', null, telemetrySwitch(model), button('New ask', 'newAsk', { icon: 'plus', disabled: model.busy || !model.workspace,
-        title: 'Start a new piece of work in this project; the harness first checks whether it continues the open ask' })));
+      h('footer', null, telemetrySwitch(model)));
   }
 
   const api = { ICONS, PAGES, icon, ago, count, plural, pretty, button, chip, needs, attention, eventRow, todoList, bar, telemetrySwitch, sessionState,
