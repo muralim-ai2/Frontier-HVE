@@ -304,6 +304,32 @@ def reopen(ask: str) -> Json:
     return {"active": ask, "paths": data["paths"], "current": data["current"], "unfinished": unfinished(data)}
 
 
+def forget(ask: str) -> Json:
+    """Remove an ask whose files were deleted from the project record and the active pointer, and its empty folder; refuse an ask that
+    still has its contract or owns features."""
+    if (ask_dir(ask) / "contract.json").is_file():
+        raise ValueError(f"ask {ask} still has its contract.json; only an ask whose files were deleted can be forgotten")
+    path = project_folder(WORKSPACE) / "project.json"
+    project = json.loads(path.read_text(encoding="utf-8"))
+    if ask not in project["asks"]:
+        raise ValueError(f"ask {ask} is not in {path}")
+    state = state_file(WORKSPACE)
+    owned = [name for name, row in json.loads(state.read_text(encoding="utf-8"))["lock"].items() if row.get("ask") == ask] if state.is_file() else []
+    if owned:
+        raise ValueError(f"ask {ask} owns features {', '.join(owned)}; restore its folder (for example from git) instead of forgetting it")
+    project["asks"].remove(ask)
+    path.write_text(json.dumps(project, indent=2), encoding="utf-8")
+    pointer = ASKS / "active.json"
+    was_active = pointer.is_file() and json.loads(pointer.read_text(encoding="utf-8"))["active"] == ask
+    if was_active:
+        pointer.unlink()
+    folder = ask_dir(ask)
+    removed = folder.is_dir() and not any(folder.iterdir())
+    if removed:
+        folder.rmdir()
+    return {"forgotten": ask, "was_active": was_active, "folder_removed": removed}
+
+
 def current_skills() -> list[str]:
     """Return the active ask's current stage skills and contract skills, or none when no ask is active."""
     if not (ASKS / "active.json").exists():
@@ -415,7 +441,7 @@ def main() -> None:
     | skills suggested|all|<skill,...> | skills score <scores.json> | shift <prompt>
     | where [request-file]
     | plan-sync <note> | plan-status | tasks-sync [project] | brief <persona> [stage=<s>] [task=<t>] | used <persona> <task|-> <skill,...|none>
-    | report <session> | close | open <ask-id>."""
+    | report <session> | close | open <ask-id> | forget <ask-id>."""
     args = sys.argv[1:]
     sys.stdout.reconfigure(encoding="utf-8")  # type: ignore[union-attr]  # Windows pipes default to cp1252
     if args[:1] == ["list"]:
@@ -474,6 +500,8 @@ def main() -> None:
         out = close()
     elif args[:1] == ["open"] and len(args) == 2:
         out = reopen(args[1])
+    elif args[:1] == ["forget"] and len(args) == 2:
+        out = forget(args[1])
     elif args[:1] == ["report"] and len(args) == 2:
         from ask_report import report  # ask_report imports this module
         print(report(args[1]))

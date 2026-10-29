@@ -7,6 +7,8 @@ const path = require('node:path');
 const { mission } = require('./vscode-stub');
 const { listAsks, askRequest, scopeText } = require('../../extension/ui/asks');
 const { snapshot } = require('../../extension/ui/workspace-state');
+const { lifecycle } = require('../../extension/ui/lifecycle-cli');
+const { bundled, json } = require('./helpers');
 
 /** Return the input boxes shown so far.
  * @param {{calls: unknown[][]}} controls
@@ -112,4 +114,34 @@ test('the saved request and the scope text are built from the title and descript
   assert.equal(askRequest({ title: 'Feed speed', description: 'Load photos in under a second' }), '# Feed speed\n\nLoad photos in under a second');
   assert.equal(scopeText({ title: 'Feed speed', description: '' }), 'Feed speed');
   assert.equal(scopeText({ title: 'Feed speed', description: 'Create a faster feed' }), 'Create a faster feed\n\nFeed speed');
+});
+
+test('an ask whose files were deleted is reported clearly, and New ask forgets it after confirmation, then starts the new ask', async t => {
+  const fixture = mission(t);
+  await create(fixture, 'Creative ideas', 'Come up with 3 creative ideas for the feed');
+  const [gone] = listAsks(fixture.root);
+  const folder = path.join(fixture.root, '.hve', 'asks', gone.id);
+  for (const name of fs.readdirSync(folder)) fs.rmSync(path.join(folder, name), { recursive: true });
+  assert.throws(() => snapshot(fixture.root), new RegExp(`Ask ${gone.id} has no contract.json: its files were deleted`));
+  await fixture.controls.commands.get('frontierHve.newAsk')();
+  const asked = confirmations(fixture.controls).at(-1);
+  assert.equal(asked[1], `The ask ${gone.id} was deleted.`);
+  assert.match(asked[2].detail, /cannot start a new ask/);
+  assert.deepEqual(asked.slice(3), ['Forget and continue']);
+  assert.ok(fs.existsSync(folder));
+  await create(fixture, 'Dog profile badges', 'Add breed badges to the dog profile', ['Forget and continue', 'Create ask']);
+  assert.ok(!fs.existsSync(folder));
+  const project = JSON.parse(fs.readFileSync(path.join(fixture.root, '.hve', 'project', 'project.json'), 'utf8'));
+  assert.ok(!project.asks.includes(gone.id));
+  assert.equal(snapshot(fixture.root).ask.title, 'Dog profile badges');
+});
+
+test('the harness refuses to forget an ask that still has its contract or owns features', async t => {
+  const fixture = mission(t);
+  await create(fixture, 'Creative ideas', 'Come up with 3 creative ideas for the feed');
+  const [kept] = listAsks(fixture.root);
+  await assert.rejects(lifecycle(bundled(), fixture.root, ['forget', kept.id]), /still has its contract\.json/);
+  fs.rmSync(path.join(fixture.root, '.hve', 'asks', kept.id, 'contract.json'));
+  json(fixture.root, '.hve\\project\\state.json', { lock: { feed: { ask: kept.id, verify: 'node feed.test.js' } } });
+  await assert.rejects(lifecycle(bundled(), fixture.root, ['forget', kept.id]), /owns features feed; restore its folder/);
 });

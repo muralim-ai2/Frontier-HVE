@@ -131,6 +131,18 @@ function starterPrompt(kind, ask, brief) {
   ].filter(Boolean).join('\n\n');
 }
 
+/** Return the asks the project still lists whose contract.json is gone, because their files were deleted.
+ * @param {string} workspace
+ * @returns {string[]}
+ */
+function deletedAsks(workspace) {
+  const reader = new Reader(workspace);
+  const value = reader.json(path.join('.hve', 'project', 'project.json'), true);
+  if (value === undefined) return [];
+  return list(record(value, 'Project record').asks, 'Project asks').map(id => text(id, 'Project ask'))
+    .filter(id => ASK.test(id) && !fs.existsSync(path.join(reader.root, '.hve', 'asks', id, 'contract.json')));
+}
+
 /** Return the brief carried over from another workspace when it was saved for this folder in the last day, or null.
  * @param {unknown} value
  * @param {string} folder This window's workspace folder.
@@ -150,4 +162,4 @@ function handoffFrom(value, folder, now) {
   return { title, description, from: text(row.from, 'Carried-over source'), at };
 }
 
-module.exports = { ASK, askTime, listAsks, askTree, slugFor, askRequest, scopeText, starterPrompt, handoffFrom };
+module.exports = { ASK, askTime, listAsks, askTree, slugFor, askRequest, scopeText, starterPrompt, deletedAsks, handoffFrom };

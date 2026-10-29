@@ -91,6 +91,19 @@ class Workflow {
     });
   }
 
+  /** Remove an ask whose files were deleted from the project record through the harness.
+   * @param {string} workspace
+   * @param {string} ask
+   * @returns {Promise<void>}
+   */
+  async forgetAsk(workspace, ask) {
+    await this.mutate(async () => {
+      const result = record(await lifecycle(this.connection, workspace, ['forget', askId(ask)]), 'Forgotten ask');
+      if (result.forgotten !== ask) throw new Error(`The harness did not forget ${ask}.`);
+      return snapshot(workspace);
+    });
+  }
+
   /** Make an existing ask the active one through the harness and verify the pointer.
    * @param {string} workspace
    * @param {string} ask

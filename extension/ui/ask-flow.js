@@ -3,7 +3,7 @@
 const vscode = require('vscode');
 const fs = require('node:fs');
 const path = require('node:path');
-const { listAsks, slugFor, askRequest, scopeText, starterPrompt, handoffFrom } = require('./asks');
+const { listAsks, slugFor, askRequest, scopeText, starterPrompt, deletedAsks, handoffFrom } = require('./asks');
 const { claimsFrom, chatSessionUri } = require('./chats');
 const { snapshot } = require('./workspace-state');
 const NAME = /^[a-z0-9][a-z0-9-]{0,40}$/;
@@ -38,6 +38,15 @@ async function askBrief(preset = {}) {
 async function newAsk(mc, preset = {}) {
   const root = mc.target().uri.fsPath;
   const flow = await mc.connect();
+  const deleted = deletedAsks(root);
+  if (deleted.length) {
+    const forget = await vscode.window.showWarningMessage(deleted.length === 1 ? `The ask ${deleted[0]} was deleted.` : `${deleted.length} asks were deleted.`,
+      { modal: true, detail: `${deleted.join('\n')}\n\nTheir contract.json is gone, but the project still lists them, so the harness cannot start a new ask. `
+        + 'Forget them: the harness removes them from the project record and as the active ask, and removes their folders if empty. Nothing else changes.' },
+      'Forget and continue');
+    if (forget !== 'Forget and continue') return;
+    for (const ask of deleted) await flow.forgetAsk(root, ask);
+  }
   const brief = await askBrief(preset);
   if (!brief) return;
   const scope = await flow.describeAsk(root, scopeText(brief));

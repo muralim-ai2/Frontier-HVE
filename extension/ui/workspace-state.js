@@ -1,5 +1,6 @@
 'use strict';
 /** Read the current harness project, evidence and sign-offs without reconciling or writing state. */
+const fs = require('node:fs');
 const path = require('node:path');
 const { Reader, digest } = require('./file-access');
 const { record, text, list, flag, integer } = require('./validate');
@@ -109,6 +110,9 @@ function snapshot(workspace, selected = null) {
   if (shown !== null) {
     if (!state.project || !projectAsks.includes(shown)) throw new Error(`Ask ${shown} is missing from the project record.`);
     askFolder = path.join('.hve', 'asks', shown);
+    if (!fs.existsSync(path.join(reader.root, askFolder, 'contract.json'))) {
+      throw new Error(`Ask ${shown} has no contract.json: its files were deleted. New ask offers to forget it so the harness can start another ask.`);
+    }
     contract = record(reader.json(path.join(askFolder, 'contract.json')), 'Ask contract');
     if (contract.ask !== shown) throw new Error('Ask folder and contract identities differ.');
     state.ask = { id: shown, title: headline(text(contract.request, 'Ask request')), request: text(contract.request, 'Ask request'),
