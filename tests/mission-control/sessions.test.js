@@ -188,7 +188,7 @@ test('a follow-up request continues the open ask in a new chat instead of creati
   const follow = fixture.controls.calls.filter(call => call[0] === 'confirmation').at(-1);
   assert.equal(follow[1], '“Policy checker messages” looks like a follow-up to the open ask “Onboarding policy checker”.');
   assert.deepEqual(follow.slice(3), ['Continue the open ask', 'Create a separate ask']);
-  assert.equal(fixture.controls.calls.filter(call => call[0] === 'workbench.action.chat.newChat').length, 2);
+  assert.equal(fixture.controls.calls.filter(call => call[0] === 'workbench.action.chat.newLocalChat').length, 2);
   assert.equal(fixture.context.workspaceState.get('pendingChat').ask, ask);
 });
 

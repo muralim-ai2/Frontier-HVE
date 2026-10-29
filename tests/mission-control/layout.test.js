@@ -78,3 +78,18 @@ test('New ask is disabled while another action runs or no folder is followed', a
   assert.equal(parts(tree)[1], 'notice');
   assert.equal(parts(tree)[2], 'newAsk');
 });
+
+test('Other asks lists the asks besides the one on screen with their status only, and Track switches the details to it', async t => {
+  const { realAsks } = require('./fixtures');
+  const { dashboard } = require('../../extension/ui/media/pages');
+  const fixture = mission(t);
+  const [first] = await realAsks(fixture.root, fixture.storage, [['onboarding', 'Build an onboarding policy checker'], ['reporting', 'Write the quarterly revenue report']]);
+  const model = (await draw(fixture), fixture.controls.commands.get('frontierHve.missionControlModel')());
+  const page = dashboard(model, { ...UI, page: 'others' }, Date.now());
+  assert.match(text(page), /Other asks \(1\)Build an onboarding policy checkeridle . no chat yetTrack/);
+  assert.match(text(page), /use a separate workspace or git worktree/);
+  const track = find(page, node => node.attrs['data-action'] === 'selectAsk' && node.tag === 'button');
+  assert.deepEqual(track.map(node => [node.attrs['data-ask'], node.attrs['data-go']]), [[first, 'live']]);
+  await fixture.controls.provider.execute({ action: 'selectAsk', ask: first });
+  assert.equal(fixture.controls.commands.get('frontierHve.missionControlModel')().snapshot.ask.id, first);
+});

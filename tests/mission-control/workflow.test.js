@@ -26,7 +26,7 @@ test('new ask creates a real ask only after a confirmation, then opens an empty 
   assert.equal(state.ask.agent, 'HVE creator');
   assert.ok(fixture.controls.calls.some(call => call[0] === 'confirmation' && call[1].includes(path.basename(fixture.root))));
   const chat = fixture.controls.calls.filter(call => String(call[0]).startsWith('workbench.action.chat.'));
-  assert.deepEqual(chat.map(call => call[0]), ['workbench.action.chat.open', 'workbench.action.chat.newChat', 'workbench.action.chat.open']);
+  assert.deepEqual(chat.map(call => call[0]), ['workbench.action.chat.open', 'workbench.action.chat.newLocalChat', 'workbench.action.chat.open']);
   assert.equal(chat[2][1].isPartialQuery, true);
   assert.equal(fixture.context.workspaceState.get('pendingChat').ask, state.ask.id);
   assert.deepEqual(fs.readdirSync(fixture.storage), []);

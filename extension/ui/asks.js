@@ -117,18 +117,11 @@ function scopeText(brief) {
  * @returns {string}
  */
 function starterPrompt(kind, ask, brief) {
-  const folder = `.hve/asks/${ask.id}/`;
-  if (kind === 'resume') {
-    return [`Continue the ask “${ask.title}” (${folder}, its request and plan are attached).`,
-      'Tell me in a few lines where it stands (plan, progress, open items), then ask me what to do next and whether I have references to add.'].join('\n\n');
-  }
+  const use = `If you are an HVE agent, use the ask in .hve/asks/${ask.id}/ (request and plan attached) and do not create another; otherwise ignore this.`;
+  if (kind === 'resume') return [`Continue: ${ask.title}`, use, 'Say where it stands, then ask me what next.'].join('\n');
   if (!brief) throw new Error('A new ask or a follow-up needs a title.');
-  return [kind === 'new' ? `New ask: ${brief.title}` : `Follow-up for the ask “${ask.title}” (${folder}, its request and plan are attached): ${brief.title}`,
-    brief.description,
-    kind === 'new' ? `This ask is already created and active in ${folder} (its request and plan are attached). Work in this ask; do not create another one.`
-      : 'Continue this ask; do not create another one.',
-    'First ask me for any references (files, screenshots, links, examples) or constraints, then confirm the scope and plan in a few lines before you build.',
-  ].filter(Boolean).join('\n\n');
+  return [kind === 'new' ? brief.title : `${ask.title}, follow-up: ${brief.title}`, brief.description, use,
+    'Ask me for references or constraints first, then confirm the scope.'].filter(Boolean).join('\n');
 }
 
 /** Return the asks the project still lists whose contract.json is gone, because their files were deleted.

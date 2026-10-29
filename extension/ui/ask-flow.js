@@ -8,6 +8,7 @@ const { claimsFrom, chatSessionUri } = require('./chats');
 const { snapshot } = require('./workspace-state');
 const NAME = /^[a-z0-9][a-z0-9-]{0,40}$/;
 const HANDOFF = 'askHandoff';
+const AGENT = 'Frontier HVE Collab';
 
 /** @typedef {import('./mission-control').MissionControl} MissionControl */
 /** @typedef {{title: string, description: string}} Brief */
@@ -164,15 +165,15 @@ async function startChat(mc, ask, kind, brief, choice) {
   if (choice.target === 'new') {
     await mc.context.workspaceState.update('pendingChat', { ask: ask.id, at: new Date().toISOString() });
     await vscode.commands.executeCommand('workbench.action.chat.open');
-    await vscode.commands.executeCommand('workbench.action.chat.newChat');
-    await vscode.commands.executeCommand('workbench.action.chat.open', { query, isPartialQuery: true, mode: ask.agent, attachFiles });
+    await vscode.commands.executeCommand('workbench.action.chat.newLocalChat');
+    await vscode.commands.executeCommand('workbench.action.chat.open', { query, isPartialQuery: true, mode: AGENT, attachFiles });
   } else {
     const chat = /** @type {import('./types').Chat} */ (choice.chat);
     if (choice.target === 'own') await vscode.commands.executeCommand('vscode.open', vscode.Uri.parse(chatSessionUri(chat.id)));
     else if (!chat.asks.some(link => link.ask === ask.id)) {
       await mc.context.workspaceState.update('chatAsks', { ...claimsFrom(mc.context.workspaceState.get('chatAsks')), [chat.id]: { ask: ask.id, how: 'continued' } });
     }
-    await vscode.commands.executeCommand('workbench.action.chat.open', { query, isPartialQuery: true, attachFiles });
+    await vscode.commands.executeCommand('workbench.action.chat.open', { query, isPartialQuery: true, mode: AGENT, attachFiles });
   }
   mc.open('live');
   void vscode.window.showInformationMessage(`The chat for “${brief ? brief.title : ask.title}” has a starter message filled in, with the ask's request and plan attached. `

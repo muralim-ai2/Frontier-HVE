@@ -245,6 +245,30 @@
     button('Show in Explorer', 'revealAsk', { icon: 'folder', title: 'Reveal this ask\'s folder in VS Code\'s Explorer' }))];
   }
 
+  /** Render the Other asks page: every ask besides the one on screen with only its chat status, and Track to show its details instead.
+   * @param {Model} model
+   * @param {UiState} ui
+   * @param {number} now
+   * @returns {Child[]}
+   */
+  function others(model, ui, now) {
+    const shown = model.snapshot?.ask?.id;
+    const order = { waiting: 0, working: 1, idle: 2 };
+    const rows = (model.asks || []).filter(ask => ask.id !== shown).map(ask => {
+      const chats = (model.activity?.chats || []).filter(chat => chat.asks.some(link => link.ask === ask.id));
+      const state = chats.some(chat => chat.status === 'waiting') ? 'waiting' : chats.some(chat => chat.status === 'working') ? 'working' : 'idle';
+      return { ask, state: /** @type {'waiting' | 'working' | 'idle'} */ (state), last: chats[0]?.lastAt || null };
+    }).sort((a, b) => order[a.state] - order[b.state]);
+    const note = h('p', { class: 'muted' }, 'Only the ask on screen shows details. One ask is active at a time: agents, hooks and guards work on it. '
+      + 'For asks that must run at the same time, use a separate workspace or git worktree for each.');
+    if (!rows.length) return [empty('No other asks', 'Other asks of this project appear here with their status. Track one to see its details.'), note];
+    return [card(`Other asks (${rows.length})`, h('ul', { class: 'chats' }, ...rows.map(row => h('li', { class: 'chat' },
+      h('div', { class: 'chat-pick' }, h('span', { class: `dot status-${row.state}`, 'aria-hidden': 'true' }), h('strong', null, row.ask.title),
+        h('span', { class: 'muted' }, [row.ask.active ? 'active' : null, { working: 'working', waiting: 'waiting for you', idle: 'idle' }[row.state],
+          row.last ? `last activity ${ago(row.last, now)}` : 'no chat yet'].filter(Boolean).join(' · '))),
+      button('Track', 'selectAsk', { data: { ask: row.ask.id, go: 'live' }, disabled: model.busy, title: 'Show this ask\'s details in Mission Control' }))))), note];
+  }
+
   /** Render the Skills and packs page: what loads into every request, and the expertise packs installed.
    * @param {Model} model
    * @returns {Child[]}
@@ -316,7 +340,7 @@
    */
   function dashboard(model, ui, now) {
     const snap = model.snapshot;
-    const pages = { live, plan, progress, files, skills: () => skills(model), settings: () => settings(model) };
+    const pages = { live, plan, progress, files, others, skills: () => skills(model), settings: () => settings(model) };
     return h('div', { class: `dashboard ${model.busy ? 'busy' : ''}`.trim() },
       h('header', { class: 'dash-head' }, h('div', { class: 'dash-title' }, icon('logo', 'brand'),
         h('div', null, h('span', { class: 'section-label' }, snap?.project ? pretty(snap.project.name) : 'Frontier HVE'), h('h1', null, snap?.ask?.title || 'Mission Control')), chip(model),
@@ -331,7 +355,7 @@
       h('main', { class: `page page-${ui.page}` }, ...pages[ui.page](model, ui, now)));
   }
 
-  const api = { dashboard, live, plan, progress, files, skills, settings };
+  const api = { dashboard, live, plan, progress, files, others, skills, settings };
   if (modular) module.exports = api;
   else root.hvePages = api;
 })(globalThis);

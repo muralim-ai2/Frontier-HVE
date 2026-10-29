@@ -43,7 +43,7 @@
   const KIND_ICON = { prompt: 'user', message: 'chat', read: 'eye', edit: 'pencil', run: 'terminal', search: 'search', ask: 'question',
     delegate: 'users', todo: 'list', guard: 'shield', tool: 'tool' };
   /** @type {[import('../types').Page, string, string][]} */
-  const PAGES = [['live', 'Live', 'pulse'], ['plan', 'Plan', 'map'], ['progress', 'Progress', 'flag'], ['files', 'Files', 'folder'], ['skills', 'Skills & packs', 'box'],
+  const PAGES = [['live', 'Live', 'pulse'], ['plan', 'Plan', 'map'], ['progress', 'Progress', 'flag'], ['files', 'Files', 'folder'], ['others', 'Other asks', 'list'], ['skills', 'Skills & packs', 'box'],
     ['settings', 'Settings', 'gear']];
 
   /** Return a decorative line icon.

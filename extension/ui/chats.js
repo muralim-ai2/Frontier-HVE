@@ -3,7 +3,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const { record, text } = require('./validate');
-const { describe, headline, status } = require('./activity');
+const { describe, headline, status, stillRunning } = require('./activity');
 const { ASK, askTime } = require('./asks');
 const CHAT_LIMIT = 30;
 const CHUNK_BYTES = 4 * 1024 * 1024;
@@ -16,7 +16,7 @@ const ASK_PATH = /(?:^|[\\/])\.hve[\\/]asks[\\/](\d{8}-\d{4}-[a-z0-9][a-z0-9-]{0
 const HOW = ['started', 'linked', 'continued'];
 
 /** @typedef {{offset: number, size: number, mtime: number, lines: number, id: string, title: string | null, started: string, lastAt: string,
- *   turnOpen: boolean, running: Map<string, string>, contracts: {slug: string, at: number}[], opened: Set<string>, edited: Set<string>}} Scan */
+ *   turnOpen: boolean, running: Map<string, {tool: string, at: string}>, contracts: {slug: string, at: number}[], opened: Set<string>, edited: Set<string>}} Scan */
 /** @type {Map<string, Scan>} */
 const scans = new Map();
 
@@ -43,7 +43,7 @@ function apply(s, row, workspace) {
   else if (type === 'tool.execution_start') {
     const tool = text(data.toolName, 'Tool name');
     const args = data.arguments === undefined ? {} : record(data.arguments, `${tool} arguments`);
-    s.running.set(text(data.toolCallId, 'Tool call id'), tool);
+    s.running.set(text(data.toolCallId, 'Tool call id'), { tool, at });
     const command = tool === 'run_in_terminal' && typeof args.command === 'string' ? args.command : '';
     if (/lifecycle\.py/.test(command)) {
       for (const match of command.matchAll(CONTRACT)) s.contracts.push({ slug: match[1], at: Date.parse(at) });
@@ -142,7 +142,7 @@ function chatList(transcripts, workspace, asks, claims, pending, now) {
     .sort((a, b) => a.started.localeCompare(b.started))[0] : undefined;
   const claimed = pending && fresh ? { chat: fresh.id, ask: pending.ask } : null;
   const chats = scanned.map(s => ({ id: s.id, title: s.title, started: s.started, lastAt: s.lastAt,
-    status: status([...s.running.values()].at(-1) || null, s.turnOpen, s.lastAt, now),
+    status: (() => { const open = [...s.running.values()].at(-1); return status(open && stillRunning(open.tool, open.at, now) ? open.tool : null, s.turnOpen, s.lastAt, now); })(),
     asks: links(s, asks, claimed?.chat === s.id ? { ask: claimed.ask, how: 'started' } : claims[s.id] || null) }));
   return { chats: chats.sort((a, b) => b.lastAt.localeCompare(a.lastAt)), claimed };
 }

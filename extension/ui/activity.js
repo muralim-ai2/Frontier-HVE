@@ -6,7 +6,10 @@ const { Reader, containedPath } = require('./file-access');
 const { record, text, list, flag, integer } = require('./validate');
 const TAIL_BYTES = 8 * 1024 * 1024;
 const TELEMETRY_TAIL_BYTES = 4 * 1024 * 1024;
-const IDLE_AFTER_MS = 10 * 60 * 1000;
+const IDLE_AFTER_MS = 5 * 60 * 1000;
+const QUICK_TOOL_MS = 60 * 1000;
+const LONG_TOOLS = new Set(['run_in_terminal', 'get_terminal_output', 'runSubagent', 'execution_subagent', 'search_subagent', 'explore_subagent',
+  'run_playwright_code', 'vscode_askQuestions', 'ask_user']);
 const EVENT_LIMIT = 80;
 const SESSION = /^[\w-]+$/;
 const ASK_TOOLS = new Set(['vscode_askQuestions', 'ask_user']);
@@ -266,7 +269,18 @@ function parsed(file, workspace) {
   return result;
 }
 
-/** Return a chat's state: waiting for your answer, working, or idle after ten quiet minutes.
+/** Return whether a tool call without a result may still be running: commands, sub-agents and questions can take long; a read, edit or search
+ * that has reported nothing for a minute has stopped (Copilot sometimes never records its result).
+ * @param {string} tool
+ * @param {string} at When the call started.
+ * @param {number} now
+ * @returns {boolean}
+ */
+function stillRunning(tool, at, now) {
+  return LONG_TOOLS.has(tool) || now - Date.parse(at) <= QUICK_TOOL_MS;
+}
+
+/** Return a chat's state: waiting for your answer, working, or idle after five quiet minutes.
  * @param {string | null} openTool The tool still running, if any.
  * @param {boolean} turnOpen
  * @param {string} lastAt
@@ -278,15 +292,17 @@ function status(openTool, turnOpen, lastAt, now) {
   return openTool && ASK_TOOLS.has(openTool) ? 'waiting' : !quiet && (openTool || turnOpen) ? 'working' : 'idle';
 }
 
-/** Return the session as shown: working, waiting for you, or idle after ten quiet minutes.
+/** Return the session as shown: working, waiting for you, or idle after five quiet minutes; a stale quick call shows as stopped.
  * @param {Parsed} s
  * @param {number} now
  * @returns {import('./types').Session}
  */
 function session(s, now) {
-  const state = status(s.open?.tool || null, s.turnOpen, s.lastAt, now);
-  const events = s.events.slice(-EVENT_LIMIT).reverse().map(event => ({ ...event, state: event.state === 'running' && state === 'idle' ? 'stopped' : event.state }));
-  return { id: s.id, title: s.title, started: s.started, lastAt: s.lastAt, status: state, current: state === 'idle' ? null : s.open?.event || null,
+  const open = s.open && stillRunning(s.open.tool, s.open.event.at, now) ? s.open : null;
+  const state = status(open?.tool || null, s.turnOpen, s.lastAt, now);
+  const events = s.events.slice(-EVENT_LIMIT).reverse()
+    .map(event => ({ ...event, state: event.state === 'running' && (state === 'idle' || event !== open?.event) ? 'stopped' : event.state }));
+  return { id: s.id, title: s.title, started: s.started, lastAt: s.lastAt, status: state, current: state === 'idle' ? null : open?.event || null,
     turns: s.turns, tools: s.tools, failures: s.failures, commands: s.commands, todos: s.todos, events,
     files: [...s.files].map(([file, row]) => ({ path: file, ...row })).sort((a, b) => b.last.localeCompare(a.last)) };
 }
@@ -369,4 +385,4 @@ function activity(workspace, file, telemetryFile, now) {
   return { session: current, errors: run.errors, loadout: run.loadout, tokens: telemetryFile ? usage(workspace, telemetryFile, current.id) : null };
 }
 
-module.exports = { activity, describe, status, headline, clip, jsonLines };
+module.exports = { activity, describe, status, stillRunning, headline, clip, jsonLines };

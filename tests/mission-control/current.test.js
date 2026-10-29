@@ -102,3 +102,16 @@ test('the chat list status follows the same rule, and an open question still mea
   assert.equal(chatList(transcripts, root, [], {}, null, now).chats[0].status, 'waiting');
   assert.equal(activity(root, file, null, now).session.status, 'waiting');
 });
+
+test('a read or view with no result after a minute shows as stopped, while a long command stays current', t => {
+  const { root, file } = setup(t, dropped);
+  const stale = activity(root, file, null, START + 26_000 + 61_000).session;
+  assert.equal(stale.current, null);
+  assert.equal(stale.events[0].state, 'stopped');
+  assert.equal(stale.status, 'working');
+  assert.equal(activity(root, file, null, START + 26_000 + 6 * 60_000).session.status, 'idle');
+  fs.appendFileSync(file, JSON.stringify(row('tool.execution_start', 30, { toolCallId: 'r', toolName: 'run_in_terminal', arguments: { command: 'npm test', explanation: 'Run the deck checks' } })) + '\n');
+  const long = activity(root, file, null, START + 30_000 + 3 * 60_000).session;
+  assert.equal(long.current.title, 'Run the deck checks');
+  assert.equal(long.status, 'working');
+});

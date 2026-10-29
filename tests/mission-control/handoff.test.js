@@ -98,7 +98,7 @@ test('choosing a folder keeps the title and description for it and opens it in a
   const saved = storage.get('askHandoff');
   assert.deepEqual({ ...saved, at: undefined }, { folder: target, title: TRADING[0], description: TRADING[1], from: path.basename(fixture.root), at: undefined });
   assert.equal(listAsks(fixture.root).length, 1);
-  assert.ok(!fixture.controls.calls.some(call => call[0] === 'workbench.action.chat.newChat' && fixture.controls.calls.indexOf(call) > fixture.controls.calls.indexOf(open)));
+  assert.ok(!fixture.controls.calls.some(call => call[0] === 'workbench.action.chat.newLocalChat' && fixture.controls.calls.indexOf(call) > fixture.controls.calls.indexOf(open)));
 });
 
 test('a folder inside this workspace, or the workspace itself, is refused', async t => {
@@ -132,7 +132,7 @@ test('the window that opens the folder offers to start the ask, with the title a
   fixture.context.subscriptions.forEach(resource => resource.dispose());
   const again = fixture.load(path.join('ui', 'mission-control.js')).register(fixture.context, async () => 'python');
   t.after(() => again.forEach(resource => resource.dispose()));
-  await until(() => listAsks(fixture.root).length === 1 && fixture.controls.calls.some(call => call[0] === 'workbench.action.chat.newChat'));
+  await until(() => listAsks(fixture.root).length === 1 && fixture.controls.calls.some(call => call[0] === 'workbench.action.chat.newLocalChat'));
   const offer = fixture.controls.calls.find(call => call[0] === 'information');
   assert.equal(offer[1], 'Start the ask “Paws trading platform” here? You began it in pawstagram, where Mission Control recommended a workspace of its own.');
   assert.deepEqual(offer.slice(2), ['Start the ask', 'Not now']);

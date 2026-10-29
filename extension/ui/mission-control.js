@@ -13,7 +13,7 @@ const { HarnessTree } = require('./harness-tree');
 const actions = require('./actions');
 const askFlow = require('./ask-flow');
 const { record, text, message, errorText } = require('./validate');
-const PAGES = ['live', 'plan', 'progress', 'files', 'skills', 'settings'];
+const PAGES = ['live', 'plan', 'progress', 'files', 'others', 'skills', 'settings'];
 const SCRIPTS = ['vnode.js', 'markdown.js', 'views.js', 'pages.js', 'app.js'];
 const REFRESH_DELAY_MS = 400;
 

@@ -8,7 +8,7 @@
   const root = document.getElementById('root');
   const announce = document.getElementById('announce');
   if (!root || !announce) throw new Error('Mission Control document is incomplete.');
-  const PAGES = ['live', 'plan', 'progress', 'files', 'skills', 'settings'];
+  const PAGES = ['live', 'plan', 'progress', 'files', 'others', 'skills', 'settings'];
   const FILTERS = ['all', 'edits', 'commands', 'conversation', 'problems'];
   const saved = /** @type {Partial<import('../types').UiState> | undefined} */ (api.getState());
   /** @type {import('../types').UiState} */
@@ -80,13 +80,16 @@
   document.addEventListener('click', event => {
     const target = event.target instanceof Element ? event.target.closest('[data-action]') : null;
     if (!(target instanceof HTMLElement) || target instanceof HTMLSelectElement || (target instanceof HTMLButtonElement && target.disabled)) return;
-    const { action, ...data } = target.dataset;
+    const { action, go: next, ...data } = target.dataset;
     if (action === 'go') go(data.page || '');
     else if (action === 'filter') {
       if (!FILTERS.includes(data.value || '')) throw new Error('Unknown activity filter.');
       ui.filter = /** @type {import('../types').UiState['filter']} */ (data.value);
       draw();
-    } else api.postMessage({ action, ...data });
+    } else {
+      api.postMessage({ action, ...data });
+      if (next) go(next);
+    }
   });
 
   document.addEventListener('change', event => {

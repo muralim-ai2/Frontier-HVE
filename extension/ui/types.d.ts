@@ -51,7 +51,7 @@ export interface Pack {
   knowledge: string[];
   templates: string[];
 }
-export type Page = 'live' | 'plan' | 'progress' | 'files' | 'skills' | 'settings';
+export type Page = 'live' | 'plan' | 'progress' | 'files' | 'others' | 'skills' | 'settings';
 export interface AskSummary {
   id: string;
   title: string;
@@ -169,6 +169,7 @@ export interface Pages {
   plan(model: Model, ui: UiState, now: number): Child[];
   progress(model: Model, ui: UiState, now: number): Child[];
   files(model: Model, ui: UiState, now: number): Child[];
+  others(model: Model, ui: UiState, now: number): Child[];
   skills(model: Model): Child[];
   settings(model: Model): Child[];
 }

@@ -78,7 +78,7 @@ test('the sidebar shows live status, the ask, what needs you, the current step a
   assert.match(shown, /1 of 2 to-dos done/);
   assert.match(shown, /Research telemetry/);
   assert.equal(find(tree, node => node.attrs.role === 'switch')[0].attrs['aria-checked'], 'false');
-  assert.deepEqual(actions(tree, 'go').map(node => node.attrs['data-page']).filter((page, index, all) => all.indexOf(page) === index), ['live', 'plan', 'progress', 'files', 'skills', 'settings']);
+  assert.deepEqual(actions(tree, 'go').map(node => node.attrs['data-page']).filter((page, index, all) => all.indexOf(page) === index), ['live', 'plan', 'progress', 'files', 'others', 'skills', 'settings']);
   assert.doesNotMatch(shown, /Continue in Chat/);
 });
 

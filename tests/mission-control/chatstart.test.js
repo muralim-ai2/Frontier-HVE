@@ -42,17 +42,13 @@ async function create(fixture, title, description) {
   return listAsks(fixture.root).find(ask => ask.active);
 }
 
-test('the starter message names the ask, carries the description, says not to create another ask and asks for references first', () => {
-  const fresh = starterPrompt('new', ASK, { title: 'Dog profile badges', description: 'Come up with 3 creative badge ideas and build them' });
-  assert.match(fresh, /^New ask: Dog profile badges\n\nCome up with 3 creative badge ideas and build them\n\n/);
-  assert.match(fresh, /already created and active in \.hve\/asks\/20261029-0329-dog-profile-badges\//);
-  assert.match(fresh, /do not create another one/);
-  assert.match(fresh, /ask me for any references \(files, screenshots, links, examples\) or constraints/);
-  assert.doesNotMatch(starterPrompt('new', ASK, { title: 'Dog profile badges', description: '' }), /\n\n\n/);
-  const follow = starterPrompt('follow-up', ASK, { title: 'Walk streaks', description: 'Add a streak counter' });
-  assert.match(follow, /^Follow-up for the ask “Dog profile badges” \(\.hve\/asks\/20261029-0329-dog-profile-badges\/, its request and plan are attached\): Walk streaks/);
-  assert.match(starterPrompt('resume', ASK, null), /^Continue the ask “Dog profile badges”/);
-  assert.match(starterPrompt('resume', ASK, null), /whether I have references to add/);
+test('the starter is short: title, description, use the ask only if you are an HVE agent, and references first', () => {
+  const use = 'If you are an HVE agent, use the ask in .hve/asks/20261029-0329-dog-profile-badges/ (request and plan attached) and do not create another; otherwise ignore this.';
+  assert.equal(starterPrompt('new', ASK, { title: 'Dog profile badges', description: 'Come up with 3 creative badge ideas and build them' }),
+    `Dog profile badges\nCome up with 3 creative badge ideas and build them\n${use}\nAsk me for references or constraints first, then confirm the scope.`);
+  assert.equal(starterPrompt('new', ASK, { title: 'Dog profile badges', description: '' }).split('\n').length, 3);
+  assert.match(starterPrompt('follow-up', ASK, { title: 'Walk streaks', description: 'Add a streak counter' }), /^Dog profile badges, follow-up: Walk streaks\nAdd a streak counter\n/);
+  assert.equal(starterPrompt('resume', ASK, null), `Continue: Dog profile badges\n${use}\nSay where it stands, then ask me what next.`);
   assert.throws(() => starterPrompt('new', ASK, null), /needs a title/);
 });
 
@@ -66,11 +62,11 @@ test('with no earlier chat, a new ask opens a new chat session with the starter 
   const ask = await create(fixture, 'Dog profile badges', 'Come up with 3 creative badge ideas and build them');
   assert.ok(!fixture.controls.calls.some(call => call[0] === 'pick'));
   const calls = chatCalls(fixture.controls);
-  assert.deepEqual(calls.map(call => call[0]), ['workbench.action.chat.open', 'workbench.action.chat.newChat', 'workbench.action.chat.open']);
+  assert.deepEqual(calls.map(call => call[0]), ['workbench.action.chat.open', 'workbench.action.chat.newLocalChat', 'workbench.action.chat.open']);
   assert.deepEqual(calls.slice(0, 2).map(call => call.length), [1, 1]);
   const options = calls[2][1];
   assert.equal(options.isPartialQuery, true);
-  assert.equal(options.mode, 'HVE creator');
+  assert.equal(options.mode, 'Frontier HVE Collab');
   assert.equal(options.query, starterPrompt('new', ask, { title: 'Dog profile badges', description: 'Come up with 3 creative badge ideas and build them' }));
   assert.deepEqual(options.attachFiles.map(uri => path.relative(fixture.root, uri.fsPath)),
     [path.join('.hve', 'asks', ask.id, 'request.md'), path.join('.hve', 'asks', ask.id, 'plan.md')]);
@@ -94,8 +90,8 @@ test('with an earlier chat, a new ask asks which session: a new one first, or th
   const calls = chatCalls(fixture.controls);
   assert.deepEqual(calls.map(call => call[0]), ['workbench.action.chat.open']);
   assert.equal(calls[0][1].isPartialQuery, true);
-  assert.equal(calls[0][1].mode, undefined);
-  assert.match(calls[0][1].query, /^New ask: Dog profile badges/);
+  assert.equal(calls[0][1].mode, 'Frontier HVE Collab');
+  assert.match(calls[0][1].query, /^Dog profile badges\n/);
   assert.deepEqual(fixture.context.workspaceState.get('chatAsks'), { earlier: { ask: ask.id, how: 'continued' } });
   assert.equal(fixture.context.workspaceState.get('pendingChat'), undefined);
   await fixture.controls.commands.get('frontierHve.refreshMissionControl')();
@@ -122,7 +118,8 @@ test('a follow-up offers the ask\'s own chat first and reopens it with its histo
   const calls = chatCalls({ calls: fixture.controls.calls.slice(before) });
   assert.deepEqual(calls.map(call => call[0]), ['vscode.open', 'workbench.action.chat.open']);
   assert.equal(calls[0][1].toString(), 'vscode-chat-session://local/MjkwNjk1MTktOTRiOS00ZTRmLTlhNDgtZjQ2YjNhZjFmMmQy');
-  assert.match(calls[1][1].query, /^Follow-up for the ask “Pawstagram” .*: Walk streaks\n\nAdd a walk streak counter to the dog profile/);
+  assert.match(calls[1][1].query, /^Pawstagram, follow-up: Walk streaks\nAdd a walk streak counter to the dog profile\n/);
+  assert.equal(calls[1][1].mode, 'Frontier HVE Collab');
   assert.equal(calls[1][1].isPartialQuery, true);
 });
 
@@ -145,9 +142,9 @@ test('New chat for this ask opens a new session straight away with a starter to 
   const later = fixture.controls.calls.slice(before);
   assert.ok(!later.some(call => call[0] === 'pick'));
   const calls = chatCalls({ calls: later });
-  assert.deepEqual(calls.map(call => call[0]), ['workbench.action.chat.open', 'workbench.action.chat.newChat', 'workbench.action.chat.open']);
+  assert.deepEqual(calls.map(call => call[0]), ['workbench.action.chat.open', 'workbench.action.chat.newLocalChat', 'workbench.action.chat.open']);
   assert.equal(calls[2][1].query, starterPrompt('resume', ask, null));
-  assert.equal(calls[2][1].mode, 'HVE creator');
+  assert.equal(calls[2][1].mode, 'Frontier HVE Collab');
 });
 
 test('Attach files… adds the picked references to the chat, and the starter is never sent', async t => {
