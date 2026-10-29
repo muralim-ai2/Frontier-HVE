@@ -13,9 +13,6 @@ CHECKLIST_BLOCK = re.compile(r"<!-- hve:checklist -->.*?<!-- /hve:checklist -->\
 TICK = re.compile(r"^- \[([ xX])\] ((?:opt|stage|task|gate):[\w.-]+)", re.M)
 OPTIONS = {
     "opt:evaluation": "Output evaluation when the work is done: rubrics, validation and a council of three models",
-    "opt:telemetry": "Research telemetry for this ask: tokens, cost, cache and latency in provenance.md. It records full chat content: run "
-                     "**Frontier HVE: Turn on research telemetry** before the next chat, and **Frontier HVE: Turn off research telemetry** "
-                     "at the end",
 }
 VALUES = {"opt": ("on", "off", "done"), "stage": ("accepted", "changes", "skipped"), "task": ("accepted", "changes", "skipped"),
           "gate": ("on", "off")}

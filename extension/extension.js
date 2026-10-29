@@ -7,6 +7,7 @@ const path = require('path');
 const { execFile } = require('child_process');
 const { renderPlugin } = require('./render');
 const packs = require('./packs');
+const missionControl = require('./ui/mission-control');
 
 const MIN_PYTHON = [3, 11];
 const PYTHON_LAUNCHERS = [['python'], ['python3'], ['py', '-3']];
@@ -297,7 +298,7 @@ async function setUp(context) {
  */
 async function offerReload(message) {
   const reload = await vscode.window.showInformationMessage(
-    `${message} Reload the window, then pick a Frontier agent (E2E Delivery, BYOW or Prototype Creator) or HVE creator in a new chat with Session Target: Local.`,
+    `${message} Reload the window, then pick a Frontier agent (E2E Delivery, BYOW or Prototype Creator) or Frontier Lite in a new chat with Session Target: Local.`,
     'Reload Window');
   if (reload) {
     vscode.commands.executeCommand('workbench.action.reloadWindow');
@@ -317,6 +318,7 @@ async function activate(context) {
     vscode.commands.registerCommand('frontierHve.researchTelemetryOff', disableResearchTelemetry),
     vscode.commands.registerCommand('frontierHve.installPlugin', () => withPython((python) => packs.installPackCommand(context, python, host))),
     vscode.commands.registerCommand('frontierHve.managePlugins', () => withPython((python) => packs.managePacksCommand(context, python, host))));
+  context.subscriptions.push(...missionControl.register(context, findPython));
   const telemetry = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left);
   telemetry.text = '$(record) Research telemetry on';
   telemetry.tooltip = 'Copilot chats are recorded with full content to .hve/runs/copilot-otel.jsonl. Click to turn research telemetry off.';

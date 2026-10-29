@@ -206,7 +206,7 @@ def load_lines(skills: Json, measured: Json | None) -> str:
     budget = skills["budget"]["max_tokens"]
     choice = skills.get("choice")
     chosen = f"; choice: {choice['choice']} ({choice['over_guideline_tokens']:,} tokens over)" if choice else ""
-    cached = ("not measured: turn on research telemetry for this ask (checklist option opt:telemetry)" if measured is None else
+    cached = ("not measured: research telemetry was off (turn it on in Mission Control before the chat)" if measured is None else
               f"{measured['cache_read_tokens']:,} of {measured['prompt_tokens']:,} prompt tokens read from cache ({measured['share']:.0%}) "
               f"over {measured['turns']} turn(s), from {measured['source']}")
     return (f"- Skill load: {len(skills['selected'])} skills, {skills['tokens']:,} tokens against a {budget:,}-token guideline "
@@ -238,15 +238,16 @@ def pillar_rows(q: Json, m: Json | None, skills: Json, created: str) -> list[str
             f"| Cache efficiency | {cache} | {source} |"]
 
 
-def checklist_lines(data: Json) -> list[str]:
-    """Return one line per checklist item with its sign-off, and the telemetry switch-off reminder when the user turned it on."""
+def checklist_lines(data: Json, measured: Json | None) -> list[str]:
+    """Return one line per checklist item with its sign-off, and a switch-off reminder when research telemetry recorded the ask."""
     lines = []
     for i in items(data):
         entry = data["checklist"].get(i)
         detail = f"{entry['value']} ({entry['by']}{': ' + entry['note'] if entry['note'] else ''})" if entry else "open"
         lines.append(f"- [{'x' if ticked(data, i) else ' '}] {i}: {detail}")
-    if ticked(data, "opt:telemetry"):
-        lines.append("\n**Research telemetry is on and records full chat content.** Turn it off now: **Frontier HVE: Turn off research telemetry**.")
+    if measured is not None:
+        lines.append("\n**Research telemetry recorded this ask, with full chat content.** Turn it off when you are done: the switch in Mission "
+                     "Control, or **Frontier HVE: Turn off research telemetry**.")
     return lines
 
 
@@ -272,7 +273,7 @@ def report(session: str) -> str:
             + "\n".join(pillar_rows(quality(WORKSPACE, data), f["cache"], data["skills"], data["created"]))
             + "\n\n## Stages\n\n" + "\n".join(rows)
             + "\n\n## Expertise packs\n\n" + "\n".join(ask_packs.report_lines(f["pack_load"]))
-            + "\n\n## Sign-off checklist\n\n" + "\n".join(checklist_lines(data))
+            + "\n\n## Sign-off checklist\n\n" + "\n".join(checklist_lines(data, f["cache"]))
             + "\n\n## Recommended against used\n\n" + "\n".join(usage_rows(f["usage"]))
             + f"\n\n- Gaps in done stages: {'; '.join(f['gaps']) or 'none'}.\n"
             f"- Recommended skills not used: {', '.join(f['usage']['unused_skills']) or 'none'}.\n"

@@ -5,6 +5,7 @@ How-to pages for people and agents. Each page names the files it describes; the 
 | Page | Covers | Tracker topic |
 |---|---|---|
 | [Install](Install.md) | Requirements, one-step install, what happens without Python, checking it works with the provenance report, updating, building the VSIX | W01 |
+| [Mission Control](Mission-Control.md) | The live HVE sidebar and dashboard: the ask dropdown with Make active, New ask, the Harness files pane (`.hve/` and `.harness/`), each ask's chats and files, what the agent is doing now, what needs you, the plan with Edit, sign-offs, progress, skills and packs, the telemetry switch; limits | W22 |
 | [Ways of working](Ways-of-Working.md) | One ask, one folder; the flow of an ask; skill choice, plans, gates and escalations; switching topics; hooks per agent; checking the five pillars; a ten-minute smoke test of creator, e2e, agile and prototype | W03, W08 |
 | [Agents](Agents.md) | The agents available, their guardrails, how to onboard a new agent; the 18 personas, Collab's stage entry with the project ledger, and Auto's review gates | W02, W21 |
 | [Skills](Skills.md) | Where skills live, seven pathways for adding a skill, onboarding with `HVE skill-evaluator` (blind with/without evaluation), checking it loads | W09 |

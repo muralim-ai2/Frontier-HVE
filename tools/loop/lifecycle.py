@@ -233,11 +233,50 @@ def rework(stage: str, why: str) -> Json:
 def tick(item: str, value: str, note: str) -> Json:
     """Record the user's sign-off of a checklist item (from the agent's form), after taking in any ticks they made in plan.md."""
     path, data = active()
+    return _write_tick(path, data, item, value, note)
+
+
+def _write_tick(path: Path, data: Json, item: str, value: str, note: str) -> Json:
     refresh(path.parent, data)
     entry = record(data, item, value, note, "form")
     refresh(path.parent, data)
     path.write_text(json.dumps(data, indent=2), encoding="utf-8")
     return entry
+
+
+def review_revision(path: Path) -> str:
+    """Return a digest of the selected ask's review inputs and evidence metadata without writing state."""
+    files = [ASKS / "active.json", path, path.parent / "plan.md", project_folder(WORKSPACE) / "feature_list.json",
+             state_file(WORKSPACE)]
+    files += sorted((path.parent / "loop" / "prs").glob("*.json"))
+    files += sorted((path.parent / "loop" / "attempts").glob("*.jsonl"))
+    digest = hashlib.sha256()
+    for file in files:
+        digest.update(file.relative_to(WORKSPACE).as_posix().encode() + b"\0")
+        digest.update(file.read_bytes() if file.is_file() else b"<absent>")
+        digest.update(b"\0")
+    for file in sorted((path.parent / "loop" / "evidence").rglob("*")):
+        stat = file.stat()
+        digest.update(f"{file.relative_to(WORKSPACE).as_posix()}:{stat.st_size}:{stat.st_mtime_ns}:{stat.st_ctime_ns}\n".encode())
+    return digest.hexdigest()
+
+
+def review_status(expected_ask: str) -> Json:
+    """Return a read-only review ticket for the expected active ask."""
+    path, data = active()
+    if data["ask"] != expected_ask:
+        raise RuntimeError("active ask changed; refresh the UI before reviewing")
+    return {"ask": data["ask"], "revision": review_revision(path)}
+
+
+def tick_for(expected_ask: str, revision: str, item: str, value: str, note: str) -> Json:
+    """Record a human review only for the expected ask and unchanged review inputs."""
+    path, data = active()
+    if data["ask"] != expected_ask or review_revision(path) != revision:
+        raise RuntimeError("ask or review inputs changed; refresh the UI and review again")
+    if item not in items(data) or not item.startswith(("stage:", "task:")) or value not in ("accepted", "changes") or not note.strip():
+        raise ValueError("guarded review needs a stage/task, accepted/changes, and a non-empty human note")
+    return {"ask": expected_ask, **_write_tick(path, data, item, value, note)}
 
 
 def checklist() -> Json:
@@ -263,6 +302,32 @@ def reopen(ask: str) -> Json:
     (ASKS / "active.json").write_text(json.dumps({"active": ask}), encoding="utf-8")
     data = active()[1]
     return {"active": ask, "paths": data["paths"], "current": data["current"], "unfinished": unfinished(data)}
+
+
+def forget(ask: str) -> Json:
+    """Remove an ask whose files were deleted from the project record and the active pointer, and its empty folder; refuse an ask that
+    still has its contract or owns features."""
+    if (ask_dir(ask) / "contract.json").is_file():
+        raise ValueError(f"ask {ask} still has its contract.json; only an ask whose files were deleted can be forgotten")
+    path = project_folder(WORKSPACE) / "project.json"
+    project = json.loads(path.read_text(encoding="utf-8"))
+    if ask not in project["asks"]:
+        raise ValueError(f"ask {ask} is not in {path}")
+    state = state_file(WORKSPACE)
+    owned = [name for name, row in json.loads(state.read_text(encoding="utf-8"))["lock"].items() if row.get("ask") == ask] if state.is_file() else []
+    if owned:
+        raise ValueError(f"ask {ask} owns features {', '.join(owned)}; restore its folder (for example from git) instead of forgetting it")
+    project["asks"].remove(ask)
+    path.write_text(json.dumps(project, indent=2), encoding="utf-8")
+    pointer = ASKS / "active.json"
+    was_active = pointer.is_file() and json.loads(pointer.read_text(encoding="utf-8"))["active"] == ask
+    if was_active:
+        pointer.unlink()
+    folder = ask_dir(ask)
+    removed = folder.is_dir() and not any(folder.iterdir())
+    if removed:
+        folder.rmdir()
+    return {"forgotten": ask, "was_active": was_active, "folder_removed": removed}
 
 
 def current_skills() -> list[str]:
@@ -372,10 +437,11 @@ def main() -> None:
     """CLI: list | pick <request> | route <request-file> | show <name>
     | contract <name> <slug> <agent> <request-file> [stage=why ...] [+skill ...] [@pack ... | @core] [only=<s,s>] [for=<lc>:<s>] [gates=ticked]
     | stage <name> <status> <note> | rework <stage> <why> | tick <item> <value> [note] | checklist | ledger [lifecycle]
+    | review-status <expected-ask> | tick-for <expected-ask> <revision> <item> <accepted|changes> <note>
     | skills suggested|all|<skill,...> | skills score <scores.json> | shift <prompt>
     | where [request-file]
     | plan-sync <note> | plan-status | tasks-sync [project] | brief <persona> [stage=<s>] [task=<t>] | used <persona> <task|-> <skill,...|none>
-    | report <session> | close | open <ask-id>."""
+    | report <session> | close | open <ask-id> | forget <ask-id>."""
     args = sys.argv[1:]
     sys.stdout.reconfigure(encoding="utf-8")  # type: ignore[union-attr]  # Windows pipes default to cp1252
     if args[:1] == ["list"]:
@@ -401,6 +467,10 @@ def main() -> None:
         out = rework(args[1], args[2])
     elif args[:1] == ["tick"] and len(args) in (3, 4):
         out = tick(args[1], args[2], args[3] if len(args) == 4 else "")
+    elif args[:1] == ["review-status"] and len(args) == 2:
+        out = review_status(args[1])
+    elif args[:1] == ["tick-for"] and len(args) == 6:
+        out = tick_for(*args[1:])
     elif args[:1] == ["checklist"] and len(args) == 1:
         out = checklist()
     elif args[:1] == ["skills"] and len(args) == 3 and args[1] == "score":
@@ -430,6 +500,8 @@ def main() -> None:
         out = close()
     elif args[:1] == ["open"] and len(args) == 2:
         out = reopen(args[1])
+    elif args[:1] == ["forget"] and len(args) == 2:
+        out = forget(args[1])
     elif args[:1] == ["report"] and len(args) == 2:
         from ask_report import report  # ask_report imports this module
         print(report(args[1]))

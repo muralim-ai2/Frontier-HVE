@@ -2,7 +2,7 @@
   "name": "frontier-hve",
   "displayName": "Frontier HVE",
   "description": "Enterprise AI harness for GitHub Copilot: HVE agents with a verified feature loop, graph workflow, guards and human-ticked PRs.",
-  "version": "0.18.0",
+  "version": "0.22.1",
   "publisher": "muralim-ai2",
   "license": "UNLICENSED",
   "repository": {
@@ -13,10 +13,24 @@
     "vscode": "^1.100.0"
   },
   "categories": ["AI", "Chat"],
-  "extensionDependencies": ["GitHub.copilot-chat"],
   "main": "./extension.js",
   "activationEvents": ["onStartupFinished"],
   "contributes": {
+    "viewsContainers": {
+      "activitybar": [{ "id": "frontierHve", "title": "Frontier HVE", "icon": "ui/media/hve.svg" }]
+    },
+    "views": {
+      "frontierHve": [
+        { "type": "webview", "id": "frontierHve.missionControl", "name": "Mission Control" },
+        { "id": "frontierHve.harnessFiles", "name": "Harness files" }
+      ]
+    },
+    "viewsWelcome": [
+      {
+        "view": "frontierHve.harnessFiles",
+        "contents": "No .hve/ or .harness/ folder in this workspace yet. Asks, plans, evidence, run records and loop files appear here as soon as an agent or the harness writes them.\n[New ask](command:frontierHve.newAsk)"
+      }
+    ],
     "commands": [
       {
         "command": "frontierHve.setup",
@@ -41,6 +55,26 @@
       {
         "command": "frontierHve.managePlugins",
         "title": "Frontier HVE: Manage plugins (expertise packs)"
+      },
+      {
+        "command": "frontierHve.openMissionControl",
+        "title": "Frontier HVE: Open Mission Control"
+      },
+      {
+        "command": "frontierHve.refreshMissionControl",
+        "title": "Frontier HVE: Refresh Mission Control"
+      },
+      {
+        "command": "frontierHve.selectWorkspace",
+        "title": "Frontier HVE: Select Mission Control workspace"
+      },
+      {
+        "command": "frontierHve.newAsk",
+        "title": "Frontier HVE: New ask"
+      },
+      {
+        "command": "frontierHve.editPlan",
+        "title": "Frontier HVE: Edit plan"
       }
     ],
     "configuration": {
@@ -53,5 +87,20 @@
         }
       }
     }
+  },
+  "scripts": {
+    "check": "tsc -p tsconfig.json",
+    "test:release": "npm run check && node ../tests/mission-control/release.js"
+  },
+  "overrides": {
+    "@azure/identity": "4.13.0",
+    "@azure/msal-node": { "uuid": "11.1.1" }
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.0",
+    "@types/vscode": "1.100.0",
+    "@vscode/test-electron": "^2.5.2",
+    "@vscode/vsce": "^3.6.2",
+    "typescript": "^5.9.3"
   }
 }

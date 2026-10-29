@@ -4,14 +4,14 @@
 
 Pick these in a new chat. In VS Code the extension's agents and their agent-scoped hooks appear with Session Target **Local**; for Copilot (CLI or the VS Code Copilot harness), Claude Code, Codex, Cursor and the Copilot cloud agent run **Frontier HVE: Install for other harnesses** ([Adapters](Adapters.md)).
 
-Since 0.15.0 the picker shows only the delivery agents (D-055), and since 0.15.3 `HVE creator` again (D-058). They ask VS Code for a top model in this order: GPT-6 Astra, Gemini 4 Argon, Claude Fable 5, Claude Opus 5.5 (the first one available is used), with `reasoning-effort: high`. VS Code does not apply `reasoning-effort` from agent files (D-020), so also set the effort to high in the model picker. Every deliverable a user sees ends with the **wow uplift** loop (`wow-uplift` skill): a top-model judge (`HVE uplift-judge`) names two or three targeted UI/UX or presentation improvements, the agent applies them, re-runs the checks and captures before and after images, and the judge looks again, up to 3 rounds or until it says done. Any deck follows the `presentation-deck` skill (NorthStar style, discovery form, python-pptx build, lint and previews); when the user picks web slides it routes to `frontend-slides` (animated single-file HTML decks, D-059).
+Since 0.15.0 the picker shows only the delivery agents (D-055), and since 0.15.3 `Frontier Lite` again (D-058; named `HVE creator` until 0.22.1; asks created before keep that name in their contract). They ask VS Code for a top model in this order: GPT-6 Astra, Gemini 4 Argon, Claude Fable 5, Claude Opus 5.5 (the first one available is used), with `reasoning-effort: high`. VS Code does not apply `reasoning-effort` from agent files (D-020), so also set the effort to high in the model picker. Every deliverable a user sees ends with the **wow uplift** loop (`wow-uplift` skill): a top-model judge (`HVE uplift-judge`) names two or three targeted UI/UX or presentation improvements, the agent applies them, re-runs the checks and captures before and after images, and the judge looks again, up to 3 rounds or until it says done. Any deck follows the `presentation-deck` skill (NorthStar style, discovery form, python-pptx build, lint and previews); when the user picks web slides it routes to `frontend-slides` (animated single-file HTML decks, D-059).
 
 | Agent | Use it for | Guard hooks | Needs Python |
 |---|---|---|---|
 | `Frontier HVE Auto` (`hve-e2e`, autonomous; formerly Frontier E2E Delivery) | End-to-end delivery along a lifecycle (SDLC, team delivery, consulting or a plugin/workspace one), pausing only after the milestones you tick in the plan; build stages run as feature loops with their persona. E.g. a leave app from discovery to release with one review after design | as creator | Yes |
 | `Frontier HVE Collab` (`hve-agile`, collaborative; formerly Frontier BYOW) | Come in at any stage and run one, several or all stages of `team-delivery` with the right persona, each visit its own ask with a project ledger; a pack lifecycle can run in place of a stage; or sprints along your team's agile overlay. E.g. data architecture and build with the Oracle pack now, a design review next week | as creator | Yes |
 | `Frontier Prototype Creator` (`hve-prototype`) | Fast UI/UX clickthrough (HTML or TypeScript) in the ask folder's `prototype/`, self-checked (`tools/prototype/check.py`) with a screenshot per screen; no loop; output evaluation on request. E.g. three screens of a leave request flow for a stakeholder demo | loop (safety only) | Yes |
-| `HVE creator` | Build software: verified feature loop, then output evaluation ([Evaluation](Evaluation.md)) | loop, module, error, prototype, template, skill, profile, compaction, choice | Yes |
+| `Frontier Lite` | Build software: verified feature loop, then output evaluation ([Evaluation](Evaluation.md)) | loop, module, error, prototype, template, skill, profile, compaction, choice | Yes |
 
 Hidden in the extension (`user-invocable: false`): the agents below still ship and can be called as sub-agents, but you do not pick them. In this repository the research arms in `.github/agents/` (`minimal`, `single`, `creator`, `creator-flow`, `creator-github`) are the user-invocable versions.
 
@@ -53,7 +53,7 @@ The contract prints `paths` (ask, plan, loop, evidence, project, feature list, f
 | `environment` | Harness, MCP servers per harness with tool load, Frontier HVE hook files, plugin skills |
 | `delegations`, `reported` | Each sub-agent brief and the `SKILLS-USED` line it returned |
 | `previous_ask` | The ask open before this one, with the new-workspace recommendation when this ask starts a different project |
-| `checklist` | Your sign-off of each option (`opt:evaluation`, `opt:telemetry`), milestone (`stage:<name>`) and task (`task:<feature>`): value, note, and whether it came from the agent's form or a tick in `plan.md` ([Ways of working](Ways-of-Working.md#what-you-are-asked-and-why)) |
+| `checklist` | Your sign-off of each option (`opt:evaluation`), milestone (`stage:<name>`) and task (`task:<feature>`): value, note, and whether it came from the agent's form or a tick in `plan.md` ([Ways of working](Ways-of-Working.md#what-you-are-asked-and-why)) |
 
 When another ask is still open (milestones not done, or an evaluation you asked for not run), the new ask still gets its own folder; the contract reports it as `previous_open` and the other chat is told once to run `lifecycle.py open <its ask>` ([Parallel chats](Ways-of-Working.md#parallel-chats)).
 
@@ -108,7 +108,7 @@ Example: a team with a partial build runs data-architecture and data-build with 
 | Guard | File | When | Enforces |
 |---|---|---|---|
 | loop | `hooks/loop_guard.py` | before/after tools, stop | Loop state (`.harness/`, or `.hve/project/` and the ask's `loop/` folder) always, and the loop files `feature_list.json`, `progress.txt` and `tracker.json` while features still fail, change only through `loop.py` (edit targets are matched by path, shell commands only when they write); new features go through `feature_list.add.json` and `loop.py amend`; pushes only for ticked PRs; stop on escalation; a victory check before stopping. **Awareness mode (D-056, `hooks/guard_mode.json`):** loop-file and loop-state edits and the victory check are shown to the user as "Advisory alert (experimental): surfaces LLM behaviour that helps to know" with the change, not blocked; escalation, hook bypass, resume and push rules still block |
-| error | `hooks/error_guard.py` | prompt, before/after tools (Auto, Collab, Prototype Creator, engineer) | After 3 failed terminal commands in a row (feature-loop checks excluded) the agent stops with "Error guard - paused for your attention", the commands and their output; tools other than reading and asking stay held until the user's next prompt |
+| error | `hooks/error_guard.py` | prompt, before/after tools (Auto, Collab, Prototype Creator, engineer) | After 3 failed terminal commands in a row (feature-loop checks excluded) the agent pauses with "Error guard - paused for your attention", the commands and their output, and must ask you for direction (fix the environment, change approach or skip); only reading and asking are allowed until you answer |
 | module | `hooks/module_guard.py` | after edits | No file over 500 lines; the agent proposes a split |
 | prototype | `scripts/guardrail.py` | after tools | Flags code over 5,000 lines, files over 20 MB, non-enterprise components and self-built infrastructure, and names the experts to involve |
 | template | `hooks/template_guard.py` | session start, prompt, stop | Requested PRDs, technical designs and test strategies come from the configured template and validate before the agent may finish |
@@ -126,7 +126,7 @@ Every deny, block or stop is logged to `.hve/runs/<session>.interventions.jsonl`
 
 ## Onboard an agent
 
-Until agent composition lands (tracker `N31`), a new agent is a copy: later changes to `HVE creator` do not reach it.
+Until agent composition lands (tracker `N31`), a new agent is a copy: later changes to `Frontier Lite` do not reach it.
 
 1. Copy the closest agent in `extension/agents/`: `hve-creator.agent.md` for agents that build, `hve-product-manager.agent.md` for agents that write documents. Name it `hve-<name>.agent.md` with `name: HVE <name>`.
 2. Write hook and tool commands as `python "{{RUNTIME}}/<path>.py"`. Never write an absolute path or `python3`: rendering fills in the runtime folder and this machine's Python launcher, and drops the hooks with a warning when Python is missing. Hidden helpers get `user-invocable: false`.

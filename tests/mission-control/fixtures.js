@@ -1,0 +1,58 @@
+'use strict';
+/** Write representative current-layout harness fixtures into disposable projects. */
+const fs = require('node:fs');
+const path = require('node:path');
+const { json, bundled } = require('./helpers');
+const { planDigest, snapshot } = require('../../extension/ui/workspace-state');
+const { Workflow } = require('../../extension/ui/workflow');
+const ASK = '20261028-1200-onboarding';
+
+/** Write a complete project with a verified feature and unreviewed delivery milestone.
+ * @param {string} root
+ * @returns {string}
+ */
+function project(root) {
+  const folder = path.join('.hve', 'asks', ASK);
+  const plan = '# Workspace policy\n\nReject invalid configuration.\n';
+  json(root, '.hve\\project\\project.json', { name: 'Client onboarding', goal: 'Build the onboarding workspace', asks: [ASK] });
+  json(root, '.hve\\asks\\active.json', { active: ASK });
+  json(root, path.join(folder, 'contract.json'), {
+    ask: ASK, request: 'Build the onboarding workspace', agent: 'Frontier Lite', lifecycle: 'direct', current: 'deliver', created: '2026-10-28T12:00:00+00:00',
+    stages: [{ name: 'deliver', goal: 'Deliver the workspace policy', agent: 'self', status: 'done' }],
+    tasks: [{ name: 'policy', passes: true }], checklist: {}, checklist_rendered: { 'opt:evaluation': false, 'stage:deliver': false, 'task:policy': false },
+    plan: { sha256: planDigest(plan), revisions: [] }, decisions: [],
+    skills: { selected: [{ name: 'ux-flows', status: 'admitted', reason: 'required', skill_tokens: 382 }], tokens: 382, over_budget: false,
+      budget: { max_skills: 10, max_tokens: 32000 } },
+    environment: { plugin_skills: ['feature-checklist', 'wow-uplift'] },
+  });
+  fs.writeFileSync(path.join(root, folder, 'plan.md'), plan);
+  fs.writeFileSync(path.join(root, folder, 'request.md'), 'Build the onboarding workspace');
+  json(root, '.hve\\project\\feature_list.json', [{ name: 'policy', description: 'Reject invalid workspace configuration', verify: 'node policy.test.js', passes: true }]);
+  json(root, '.hve\\project\\state.json', { lock: { policy: { ask: ASK, verify: 'node policy.test.js' } } });
+  json(root, path.join(folder, 'loop', 'prs', 'policy.json'), {
+    feature: 'policy', verify: { command: 'node policy.test.js', exit_code: 0, output_tail: '3 checks passed' },
+  });
+  const evidence = path.join(root, folder, 'loop', 'evidence', 'policy');
+  fs.mkdirSync(evidence, { recursive: true });
+  fs.writeFileSync(path.join(evidence, 'check.log'), 'All required checks passed.');
+  return folder;
+}
+
+/** Create real asks one after another through the bundled harness; the last one created is active.
+ * @param {string} root
+ * @param {string} storage
+ * @param {[string, string][]} asks Name and request of each ask.
+ * @returns {Promise<string[]>}
+ */
+async function realAsks(root, storage, asks) {
+  const flow = new Workflow(bundled(), storage);
+  /** @type {string[]} */
+  const ids = [];
+  for (const [slug, request] of asks) {
+    const state = await flow.createAsk(root, snapshot(root).revision, slug, request);
+    ids.push(/** @type {NonNullable<typeof state.ask>} */ (state.ask).id);
+  }
+  return ids;
+}
+
+module.exports = { ASK, project, realAsks };

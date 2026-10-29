@@ -99,5 +99,5 @@ d.save(Path("presentation/leave-sprint-1.pptx"))
 
 ## 6. Finish
 
-- The wow uplift runs next (`wow-uplift` skill): two or three targeted improvements, for decks usually fewer words, a list turned into a flow or cards, better alignment and spacing.
+- Then self-check the deck once against the `ui-ux-uplift` skill: for decks usually fewer words, a list turned into a flow or cards, better alignment and spacing.
 - Hand over: the `.pptx` (or web slides `index.html`) path, the preview folder, the slide count and the words per slide from the lint, and whether notes are in.

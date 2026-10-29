@@ -43,7 +43,7 @@ Five tasks are a small sample, and in-chat answers come from the model you picke
 
 ## Check the skill is used
 
-Ask `HVE creator` (or another agent with `skill_loader`) for a task the skill targets. The session's loadout is in `.hve/runs/<session>.skills.json`; `/recommend-skills` shows the ranking. `provenance.py <agent file> latest --require skills` ([Install](Install.md#check-that-it-works)) confirms the loader ran.
+Ask `Frontier Lite` (or another agent with `skill_loader`) for a task the skill targets. The session's loadout is in `.hve/runs/<session>.skills.json`; `/recommend-skills` shows the ranking. `provenance.py <agent file> latest --require skills` ([Install](Install.md#check-that-it-works)) confirms the loader ran.
 
 ## Ship a skill in the harness library (maintainers)
 

@@ -1,6 +1,6 @@
 # Product Manager
 
-`HVE product-manager` turns a product idea into a validated PRD and a backlog. It does not write code, technical designs, test strategies or UX designs; use `HVE creator` for those.
+`HVE product-manager` turns a product idea into a validated PRD and a backlog. It does not write code, technical designs, test strategies or UX designs; use `Frontier Lite` for those.
 
 ## What it does
 

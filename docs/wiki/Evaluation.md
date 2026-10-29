@@ -1,6 +1,6 @@
 # Evaluation
 
-After the feature loop, `HVE creator` (and the repository's `creator` mode) runs an output reflection loop on what it built. It runs again whenever the user asks to evaluate or improve the build; `prepare` refuses when no delivered file changed since the last evaluation. It has five layers. Each layer writes JSON to `.hve/evaluations/<run>/`, and the script enforces their order.
+After the feature loop, `Frontier Lite` (and the repository's `creator` mode) runs an output reflection loop on what it built. It runs again whenever the user asks to evaluate or improve the build; `prepare` refuses when no delivered file changed since the last evaluation. It has five layers. Each layer writes JSON to `.hve/evaluations/<run>/`, and the script enforces their order.
 
 | Layer | What happens | Command (`reflection.py` = `python <tools>/evaluation/reflection.py`) | Output |
 |---|---|---|---|

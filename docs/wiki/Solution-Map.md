@@ -49,7 +49,7 @@ The script lives in `tools\map\`; `.hve\map\` holds only the output. Running `py
 4. It offers to open the explorer filtered to the concept, or to show what a change would touch (`impact`).
 5. When no concept matches, it lists the closest files and offers to add a concept.
 
-Frontier HVE Auto, Frontier HVE Collab and HVE creator follow the skill whenever you ask how code works.
+Frontier HVE Auto, Frontier HVE Collab and Frontier Lite follow the skill whenever you ask how code works.
 
 **From a terminal:**
 

@@ -45,6 +45,28 @@ def run(command: str, ws: Path, payload: dict[str, object], **env: str) -> dict[
     return json.loads(result.stdout) if result.stdout.strip() else None
 
 
+def test_uplift_skill_polish_contract() -> None:
+    """The uplift skill and read-only judge share ten bounded polish candidates and an honest evidence contract."""
+    skill = (EXTENSION / "skills" / "wow-uplift" / "SKILL.md").read_text(encoding="utf-8")
+    source = REPO / "plugins" / "harness-assist" / "skills" / "wow-uplift" / "SKILL.md"
+    assert skill == source.read_text(encoding="utf-8"), "Rebuild extension skills from the canonical plugin templates"
+    judge = (EXTENSION / "agents" / "hve-uplift-judge.agent.md").read_text(encoding="utf-8")
+    assert re.match(r"---\nname: wow-uplift\ndescription: .+\n---\n", skill)
+    checklist = skill.split("## Ten quick uplift candidates\n", 1)[1].split("\n## ", 1)[0]
+    assert re.findall(r"^\| (\d+) \|", checklist, re.M) == [str(number) for number in range(1, 11)]
+    for candidate in ("Type hierarchy", "Alignment within elements", "Composition and focal balance", "Material layers",
+                      "Focus and highlight borders", "Purposeful icons", "Domain-specific creativity", "Contained theme refinement",
+                      "Dark appearance", "Colourblind-safe treatment"):
+        assert candidate.lower() in checklist.lower() and candidate.lower() in judge.lower(), candidate
+    assert "at most 3 rounds" in skill and "one to three" in skill and "one to three" in judge
+    assert "report the pass as blocked" in skill and "only if that reviewer actually ran" in skill
+    assert "retained/dropped" in skill and "Automated lint is not proof" in skill
+    assert "no new dependencies" in skill and "new settings subsystem" in judge
+    assert "about a 10%" not in judge and "do not manufacture work" in skill
+    assert "tools: [read/" in judge and "agents: []" in judge and "edit/" not in judge
+    assert all(f'"{field}"' in judge for field in ("verdict", "changes", "title", "where", "what", "why", "keep"))
+
+
 def test_extension_js_parses() -> None:
     """Both extension scripts are valid JavaScript."""
     for name in ("extension.js", "render.js"):
@@ -52,15 +74,15 @@ def test_extension_js_parses() -> None:
 
 
 def test_rendered_plugin_shape() -> None:
-    """The plugin has its manifest, 17 skills, guardrail scripts and 39 HVE agents (16 rendered from the persona catalog) with every runtime
-    path filled in; only the three
+    """The plugin has its manifest, 19 skills, guardrail scripts and 41 HVE agents (16 rendered from the persona catalog, 2 benchmark
+    research arms) with every runtime path filled in; only the three
     Frontier agents are user-invocable and they, with the uplift judge, pin top models."""
     with tempfile.TemporaryDirectory() as tmp:
         out = Path(tmp) / "plugin"
         agents = render(out)
-        assert len(agents) == 39, agents
+        assert len(agents) == 41, agents
         assert json.loads((out / "plugin.json").read_text(encoding="utf-8"))["name"] == "frontier-hve"
-        assert len(list((out / "skills").glob("*/SKILL.md"))) == 17
+        assert len(list((out / "skills").glob("*/SKILL.md"))) == 19
         assert (EXTENSION / "runtime" / "tools" / "map" / "explorer" / "app.js").is_file()
         assert (out / "skills" / "deliverable-templates" / "SKILL.md").is_file()
         assert (EXTENSION / "runtime" / "tools" / "templates" / "manage.py").is_file()
@@ -71,7 +93,7 @@ def test_rendered_plugin_shape() -> None:
         assert not (out / "skills" / "ux-flows").exists() and (EXTENSION / "runtime" / "skills" / "admitted" / "ux-flows" / "SKILL.md").is_file()
         assert (out / "scripts" / "guardrail.py").exists()
         restricted = {"council", "evaluation-reviewer", "minimal", "flow-architect", "flow-maintainer", "skill-judge", "skill-worker",
-                      "uplift-judge"}
+                      "uplift-judge", "research-minimal", "research-single"}
         visible, pinned = {"e2e", "agile", "prototype", "creator"}, {"e2e", "agile", "prototype", "creator", "uplift-judge"}
         for name in agents:
             text = (out / "com.github.copilot" / "agents" / name).read_text(encoding="utf-8")
@@ -122,7 +144,7 @@ def test_rerender_updates_in_place() -> None:
         stale = out / "com.github.copilot" / "agents" / "old.agent.md"
         stale.write_text("old", encoding="utf-8")
         (out / "skills" / "old-skill").mkdir()
-        assert len(render(out, "0.1.1")) == 39
+        assert len(render(out, "0.1.1")) == 41
         assert json.loads((out / "plugin.json").read_text(encoding="utf-8"))["version"] == "0.1.1"
         assert not stale.exists() and not (out / "skills" / "old-skill").exists()
 

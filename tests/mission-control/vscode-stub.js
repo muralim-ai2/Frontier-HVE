@@ -1,0 +1,176 @@
+'use strict';
+/** Supply a small VS Code host double while retaining real filesystem and harness operations. */
+const path = require('node:path');
+const fs = require('node:fs');
+const Module = require('node:module');
+const { pathToFileURL } = require('node:url');
+const { EXTENSION, workspace, removeWorkspace } = require('./helpers');
+
+/** Represent an independently disposable host resource. */
+class Disposable {
+  /** @param {() => void} [action] */
+  constructor(action = () => {}) { this.action = action; this.disposed = false; }
+  /** Release the resource once. @returns {void} */
+  dispose() { if (!this.disposed) { this.disposed = true; this.action(); } }
+}
+
+/** Return a local URI double.
+ * @param {string} file
+ * @returns {{fsPath: string, scheme: string, toString: () => string}}
+ */
+function uri(file) { return { fsPath: file, scheme: 'file', toString: () => pathToFileURL(file).href }; }
+
+/** Return a webview double that records the messages posted to it.
+ * @param {unknown[][]} calls
+ * @returns {object}
+ */
+function webview(calls) {
+  return { options: {}, html: '', cspSource: 'https://local.test', asWebviewUri: file => file,
+    postMessage: async value => { calls.push(['post', value]); return true; }, onDidReceiveMessage: () => new Disposable() };
+}
+
+/** Create a host double scoped to explicitly supplied test directories.
+ * @param {string[]} roots
+ * @param {string} storage
+ * @param {object | null} [globalState] Shared across hosts to stand for VS Code's storage shared by windows.
+ * @returns {{api: object, context: object, controls: object, load: (relative: string) => any}}
+ */
+function host(roots, storage, globalState = null) {
+  const commands = new Map();
+  const settings = new Map();
+  const controls = { commands, settings, provider: null, inputs: [], confirmations: [], picks: [], dialogs: [], notices: [], models: [], calls: [], watchers: [], errors: [], statusItems: [],
+    panels: [], trees: [],
+    /** Return a Primary Side Bar view double. @param {boolean} [visible] @returns {object} */
+    view: (visible = false) => ({ visible, webview: webview(controls.calls), onDidDispose: () => new Disposable() }) };
+  const folders = roots.map((root, index) => ({ name: path.basename(root), uri: uri(root), index }));
+  const api = {
+    Disposable,
+    EventEmitter: class {
+      constructor() {
+        /** @type {((value: unknown) => void)[]} */
+        this.listeners = [];
+        this.event = listener => { this.listeners.push(listener); return new Disposable(); };
+      }
+      /** @param {unknown} value */
+      fire(value) { this.listeners.forEach(listener => listener(value)); }
+      dispose() { this.listeners = []; }
+    },
+    TreeItem: class { constructor(label, collapsibleState) { this.label = label; this.collapsibleState = collapsibleState; } },
+    TreeItemCollapsibleState: { None: 0, Collapsed: 1, Expanded: 2 },
+    CancellationTokenSource: class { constructor() { this.token = { isCancellationRequested: false }; } dispose() {} },
+    LanguageModelChatMessage: { User: content => ({ role: 'user', content }) },
+    lm: { selectChatModels: async selector => controls.models.filter(model => !selector.id || model.id === selector.id) },
+    ThemeIcon: Object.assign(class { constructor(id) { this.id = id; } }, { Folder: { id: 'folder' }, File: { id: 'file' } }),
+    Uri: { file: uri, parse: value => ({ toString: () => value }), joinPath: (base, ...parts) => uri(path.join(base.fsPath, ...parts)) },
+    RelativePattern: class { constructor(base, pattern) { this.base = base; this.pattern = pattern; } },
+    ViewColumn: { Active: -1, Beside: -2 },
+    StatusBarAlignment: { Left: 1, Right: 2 },
+    ConfigurationTarget: { Global: 1 },
+    env: { openExternal: async target => { controls.calls.push(['external', target.toString()]); return true; } },
+    workspace: {
+      isTrusted: true, workspaceFolders: folders,
+      getConfiguration: section => ({
+        get: key => settings.get(`${section}.${key}`),
+        update: async (key, value) => { settings.set(`${section}.${key}`, value); },
+      }),
+      createFileSystemWatcher: pattern => {
+        /** @type {(() => void)[]} */
+        const listeners = [];
+        const listen = listener => { listeners.push(listener); return new Disposable(); };
+        const watcher = Object.assign(new Disposable(), { pattern, listeners, onDidCreate: listen, onDidChange: listen, onDidDelete: listen });
+        controls.watchers.push(watcher);
+        return watcher;
+      },
+      onDidChangeWorkspaceFolders: () => new Disposable(),
+      onDidChangeConfiguration: () => new Disposable(),
+      openTextDocument: async file => ({ uri: file }),
+    },
+    window: {
+      createOutputChannel: () => Object.assign(new Disposable(), { appendLine: value => controls.calls.push(['log', value]) }),
+      createStatusBarItem: () => {
+        const item = Object.assign(new Disposable(), { text: '', tooltip: '', command: '', visible: false });
+        Object.assign(item, { show: () => { item.visible = true; }, hide: () => { item.visible = false; } });
+        controls.statusItems.push(item);
+        return item;
+      },
+      registerWebviewViewProvider: (id, provider) => {
+        controls.provider = provider;
+        controls.calls.push(['provider', id]);
+        return new Disposable(() => { controls.provider = null; });
+      },
+      createTreeView: (id, options) => {
+        const view = Object.assign(new Disposable(() => { view.closed = true; }), { id, options, message: undefined, closed: false });
+        controls.trees.push(view);
+        return view;
+      },
+      showErrorMessage: async message => { controls.errors.push(message); },
+      showInformationMessage: async (message, ...items) => { controls.calls.push(['information', message, ...items]); return controls.notices.shift(); },
+      showInputBox: async options => { controls.calls.push(['input', options]); return controls.inputs.shift(); },
+      showWarningMessage: async (...args) => { controls.calls.push(['confirmation', ...args]); return controls.confirmations.shift(); },
+      showQuickPick: async (choices, options) => {
+        controls.calls.push(['pick', choices, options]);
+        const index = controls.picks.length ? controls.picks.shift() : 0;
+        return index === null ? undefined : choices[index];
+      },
+      showOpenDialog: async options => { controls.calls.push(['dialog', options]); return controls.dialogs.shift(); },
+      showTextDocument: async (document, options) => { controls.calls.push(['document', document, options]); },
+      createWebviewPanel: () => {
+        let close = () => {};
+        const panel = { visible: true, webview: webview(controls.calls), onDidDispose: callback => { close = callback; return new Disposable(); },
+          reveal: () => { controls.calls.push(['reveal']); }, dispose: () => close() };
+        controls.panels.push(panel);
+        return panel;
+      },
+    },
+    commands: {
+      registerCommand: (id, action) => { commands.set(id, action); return new Disposable(() => commands.delete(id)); },
+      getCommands: async () => [...commands.keys(), 'workbench.action.chat.open'],
+      executeCommand: async (id, ...args) => {
+        controls.calls.push([id, ...args]);
+        if (commands.has(id)) return commands.get(id)(...args);
+        return undefined;
+      },
+    },
+  };
+  /** @returns {{get: (key: string) => unknown, update: (key: string, value: unknown) => Promise<void>}} */
+  const memento = () => {
+    const memory = new Map();
+    return { get: key => memory.get(key), update: async (key, value) => { memory.set(key, value); } };
+  };
+  const context = {
+    subscriptions: [], extensionPath: EXTENSION, extensionUri: uri(EXTENSION), globalStorageUri: uri(storage),
+    storageUri: uri(path.join(storage, 'window', 'muralim-ai2.frontier-hve')),
+    extension: { packageJSON: JSON.parse(fs.readFileSync(path.join(EXTENSION, 'package.json'), 'utf8')) },
+    workspaceState: memento(), globalState: globalState || memento(),
+  };
+  return { api, context, controls, load: relative => {
+    const original = Module._load;
+    Module._load = function (request, parent, isMain) {
+      return request === 'vscode' ? api : original.call(this, request, parent, isMain);
+    };
+    try {
+      for (const file of Object.keys(require.cache)) if (file.startsWith(EXTENSION + path.sep)) delete require.cache[file];
+      return require(path.join(EXTENSION, relative));
+    } finally { Module._load = original; }
+  } };
+}
+
+/** Register Mission Control alone in a host double with a fixed Python launcher, disposed after the test.
+ * @param {import('node:test').TestContext} t
+ * @param {number} [count]
+ * @param {object | null} [globalState]
+ * @returns {ReturnType<typeof host> & {root: string}}
+ */
+function mission(t, count = 1, globalState = null) {
+  const roots = Array.from({ length: count }, () => workspace());
+  const storage = workspace();
+  const fixture = host(roots, storage, globalState);
+  fixture.context.subscriptions.push(...fixture.load(path.join('ui', 'mission-control.js')).register(fixture.context, async () => 'python'));
+  t.after(() => {
+    fixture.context.subscriptions.forEach(resource => resource.dispose());
+    [...roots, storage].forEach(removeWorkspace);
+  });
+  return { ...fixture, root: roots[0], storage, transcripts: path.join(storage, 'window', 'GitHub.copilot-chat', 'transcripts') };
+}
+
+module.exports = { host, mission };

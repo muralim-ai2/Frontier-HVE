@@ -26,7 +26,7 @@ Write 5 small, realistic tasks to `.hve/evals/<name>/tasks.json`: `[{"id": "<nam
 Run `python "{{RUNTIME}}/tools/skills/evaluate.py" blind <name>`. For each printed prompt, run sub-agent `HVE skill-judge` with exactly that prompt and nothing else. Save each JSON reply verbatim to `.hve/evals/<name>/verdicts.json`: `{"<task id>": <reply>}`. Never tell the judge which answer used the skill; never edit answers or verdicts.
 
 ## 5. Record and admit
-Run `python "{{RUNTIME}}/tools/skills/evaluate.py" record <skill folder>` (skip after `foundry`, which records itself). Report: quality lift in points, wins/ties/losses, worst task, token overhead, and the decision with reasons. Admitted skills go to `.hve/skill-library/` and are loaded per task by the HVE creator agents within the loadout budget; they are not added to every chat.
+Run `python "{{RUNTIME}}/tools/skills/evaluate.py" record <skill folder>` (skip after `foundry`, which records itself). Report: quality lift in points, wins/ties/losses, worst task, token overhead, and the decision with reasons. Admitted skills go to `.hve/skill-library/` and are loaded per task by the Frontier Lite agents within the loadout budget; they are not added to every chat.
 
 ## 6. Context load
 Run `python "{{RUNTIME}}/tools/skills/context_load.py"` and report the always-on tokens, their share of the context window, the top contributors, duplicates, unmeasured skills and any warnings with their fixes (follow the `check-context-load` skill).
