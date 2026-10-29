@@ -13,8 +13,8 @@ const { snapshot } = require('../../extension/ui/workspace-state');
  * @returns {Promise<import('../../extension/ui/types').Snapshot>}
  */
 async function create(fixture, slug) {
-  fixture.controls.inputs.push('Build an onboarding policy checker', slug);
-  fixture.controls.confirmations.push('Change name…', 'Create ask');
+  fixture.controls.inputs.push('Onboarding policy checker', 'Build an onboarding policy checker', slug);
+  fixture.controls.confirmations.push('Change folder name…', 'Create ask');
   await fixture.controls.commands.get('frontierHve.newAsk')();
   return snapshot(fixture.root);
 }
@@ -33,7 +33,7 @@ test('new ask creates a real ask only after a confirmation, then opens an empty 
 
 test('cancelled creation does not modify the target project', async t => {
   const fixture = mission(t);
-  fixture.controls.inputs.push('Build an onboarding policy checker');
+  fixture.controls.inputs.push('Onboarding policy checker');
   await fixture.controls.commands.get('frontierHve.newAsk')();
   await fixture.controls.commands.get('frontierHve.newAsk')();
   assert.deepEqual(fs.readdirSync(fixture.root), []);

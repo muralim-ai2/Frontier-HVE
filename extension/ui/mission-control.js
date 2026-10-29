@@ -11,6 +11,7 @@ const { chatList, shownChat, claimsFrom, pendingFrom } = require('./chats');
 const { Workflow } = require('./workflow');
 const { HarnessTree } = require('./harness-tree');
 const actions = require('./actions');
+const askFlow = require('./ask-flow');
 const { record, text, message, errorText } = require('./validate');
 const PAGES = ['live', 'plan', 'progress', 'files', 'skills', 'settings'];
 const SCRIPTS = ['vnode.js', 'markdown.js', 'views.js', 'pages.js', 'app.js'];
@@ -362,8 +363,8 @@ class MissionControl {
         case 'ready': case 'refresh': break;
         case 'openDashboard': this.open(data.page); break;
         case 'selectWorkspace': await this.selectWorkspace(); break;
-        case 'newAsk': await actions.newAsk(this); break;
-        case 'newChat': await actions.newChat(this); break;
+        case 'newAsk': await askFlow.newAsk(this); break;
+        case 'newChat': await askFlow.newChat(this); break;
         case 'selectAsk': await actions.selectAsk(this, data.ask); break;
         case 'activateAsk': await actions.activateAsk(this, data.ask); break;
         case 'selectChat': actions.selectChat(this, data.chat); break;

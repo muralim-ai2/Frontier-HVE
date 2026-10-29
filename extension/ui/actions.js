@@ -5,10 +5,9 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { BASE_COMMANDS } = require('./lifecycle-cli');
 const { snapshot } = require('./workspace-state');
-const { listAsks, askTree, slugFor } = require('./asks');
+const { listAsks, askTree } = require('./asks');
 const { claimsFrom } = require('./chats');
 const { containedPath } = require('./file-access');
-const NAME = /^[a-z0-9][a-z0-9-]{0,40}$/;
 const IMAGES = ['.png', '.jpg', '.jpeg', '.webp', '.gif'];
 
 /** @typedef {import('./mission-control').MissionControl} MissionControl */
@@ -22,59 +21,6 @@ function askOf(root, ask) {
   const row = listAsks(root).find(item => item.id === ask);
   if (!row) throw new Error(`No ask ${ask} in this project.`);
   return row;
-}
-
-/** Collect a request, follow the harness's recommendation (continue the open ask, or a new ask after confirmation), then open a new chat for it.
- * @param {MissionControl} mc
- * @returns {Promise<void>}
- */
-async function newAsk(mc) {
-  const root = mc.target().uri.fsPath;
-  const flow = await mc.connect();
-  const request = await vscode.window.showInputBox({ title: 'New ask: what should be delivered?', ignoreFocusOut: true,
-    prompt: 'Describe the outcome. The harness checks whether this continues the open ask or is new work in this project.',
-    validateInput: value => !value.trim() || value.length > 20000 ? 'Enter 1-20,000 characters.' : null });
-  if (request === undefined) return;
-  const scope = await flow.describeAsk(root, request);
-  if (scope.verdict === 'continue' && scope.activeAsk) {
-    const choice = await vscode.window.showWarningMessage(`This looks like a follow-up to the open ask ${scope.activeAsk}.`, { modal: true,
-      detail: 'Continue it in a new chat, or create a separate ask for this work. Earlier ask folders always stay on disk.' }, 'Continue the open ask', 'Create a new ask');
-    if (choice === 'Continue the open ask') return newChat(mc);
-    if (choice !== 'Create a new ask') return;
-  }
-  let slug = slugFor(request);
-  for (;;) {
-    const choice = await vscode.window.showWarningMessage(`Create ask "${slug}" in ${path.basename(root)}?`, { modal: true, detail: [
-      scope.verdict === 'new-workspace' ? `The harness recommends a separate workspace: ${scope.why}.` : `Where it lands: ${scope.why}.`,
-      `Folder: .hve/asks/<UTC date-time>-${slug}/ with your request, the contract, the plan and the loop records. Features and progress stay shared across the project.`,
-      scope.activeAsk ? `The open ask ${scope.activeAsk} stays on disk, unfinished items included, but is no longer active.` : '',
-      'A new, empty Copilot Chat then opens for it. No agent starts until you write to it.'].filter(Boolean).join('\n\n') }, 'Create ask', 'Change name…');
-    if (choice === 'Create ask') break;
-    if (choice !== 'Change name…') return;
-    const name = await vscode.window.showInputBox({ title: 'Ask name', value: slug, ignoreFocusOut: true,
-      prompt: 'Lowercase letters, digits and hyphens. The folder name starts with the UTC date and time.',
-      validateInput: value => NAME.test(value) ? null : 'Use 1-41 lowercase letters, digits or hyphens.' });
-    if (name === undefined) return;
-    slug = name;
-  }
-  mc.target();
-  await flow.createAsk(root, scope.revision, slug, request);
-  await mc.view(null);
-  await newChat(mc);
-}
-
-/** Open a new, empty Copilot Chat for the active ask and link the next chat that starts to it.
- * @param {MissionControl} mc
- * @returns {Promise<void>}
- */
-async function newChat(mc) {
-  const active = listAsks(mc.target().uri.fsPath).find(item => item.active);
-  if (!active) throw new Error('No ask is active. Create one, or make an earlier ask active first.');
-  await mc.context.workspaceState.update('pendingChat', { ask: active.id, at: new Date().toISOString() });
-  await vscode.commands.executeCommand('workbench.action.chat.open');
-  await vscode.commands.executeCommand('workbench.action.chat.newChat');
-  mc.open('live');
-  void vscode.window.showInformationMessage(`A new chat is open for "${active.title}". Pick an HVE agent and describe the next step; Mission Control links the chat to this ask when you send it.`);
 }
 
 /** Show an ask in Mission Control without changing which ask is active.
@@ -220,4 +166,4 @@ async function openFile(mc, relative) {
   else await vscode.window.showTextDocument(uri, { viewColumn: vscode.ViewColumn.Beside, preview: true });
 }
 
-module.exports = { newAsk, newChat, selectAsk, activateAsk, selectChat, linkChat, editPlan, revealAsk, review, command, telemetrySwitch, openFile };
+module.exports = { selectAsk, activateAsk, selectChat, linkChat, editPlan, revealAsk, review, command, telemetrySwitch, openFile };

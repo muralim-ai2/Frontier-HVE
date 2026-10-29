@@ -100,7 +100,7 @@ function host(roots, storage) {
       },
       showErrorMessage: async message => { controls.errors.push(message); },
       showInformationMessage: async message => { controls.calls.push(['information', message]); },
-      showInputBox: async () => controls.inputs.shift(),
+      showInputBox: async options => { controls.calls.push(['input', options]); return controls.inputs.shift(); },
       showWarningMessage: async (...args) => { controls.calls.push(['confirmation', ...args]); return controls.confirmations.shift(); },
       showQuickPick: async choices => choices[0],
       showTextDocument: async (document, options) => { controls.calls.push(['document', document, options]); },

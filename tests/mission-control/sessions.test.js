@@ -144,15 +144,15 @@ test('New ask opens a fresh chat, links the next chat that starts to the ask, an
   const fixture = mission(t);
   const before = new Date(Date.now() - 10 * 60_000).toISOString();
   write(fixture.transcripts, 'earlier', [row('session.start', before, { startTime: before }), row('user.message', before, { content: 'Earlier question' })]);
-  fixture.controls.inputs.push('Build an onboarding policy checker', 'onboarding');
-  fixture.controls.confirmations.push('Change name…', 'Create ask');
+  fixture.controls.inputs.push('Onboarding policy checker', 'Build an onboarding policy checker', 'onboarding');
+  fixture.controls.confirmations.push('Change folder name…', 'Create ask');
   await fixture.controls.commands.get('frontierHve.newAsk')();
   const [ask] = listAsks(fixture.root).map(row => row.id);
   assert.match(ask, /^\d{8}-\d{4}-onboarding$/);
   const asked = fixture.controls.calls.filter(call => call[0] === 'confirmation');
-  assert.match(asked[0][1], /Create ask "onboarding-policy-checker"/);
+  assert.match(asked[0][1], /Create ask “Onboarding policy checker”/);
   assert.match(asked[0][2].detail, /\.hve\/asks\/<UTC date-time>-onboarding-policy-checker\//);
-  assert.match(asked[0][2].detail, /A new, empty Copilot Chat then opens for it/);
+  assert.match(asked[0][2].detail, /A Copilot Chat then opens for it/);
   assert.equal(fixture.context.workspaceState.get('pendingChat').ask, ask);
   let model = fixture.controls.commands.get('frontierHve.missionControlModel')();
   assert.equal(model.pending.ask, ask);
@@ -177,17 +177,17 @@ test('New ask opens a fresh chat, links the next chat that starts to the ask, an
 
 test('a follow-up request continues the open ask in a new chat instead of creating another folder', async t => {
   const fixture = mission(t);
-  fixture.controls.inputs.push('Build an onboarding policy checker');
+  fixture.controls.inputs.push('Onboarding policy checker', 'Build an onboarding policy checker');
   fixture.controls.confirmations.push('Create ask');
   await fixture.controls.commands.get('frontierHve.newAsk')();
   const [ask] = listAsks(fixture.root).map(row => row.id);
-  fixture.controls.inputs.push('Tighten the onboarding policy checker messages');
+  fixture.controls.inputs.push('Policy checker messages', 'Tighten the onboarding policy checker messages');
   fixture.controls.confirmations.push('Continue the open ask');
   await fixture.controls.commands.get('frontierHve.newAsk')();
   assert.deepEqual(listAsks(fixture.root).map(row => row.id), [ask]);
   const follow = fixture.controls.calls.filter(call => call[0] === 'confirmation').at(-1);
-  assert.match(follow[1], new RegExp(`follow-up to the open ask ${ask}`));
-  assert.deepEqual(follow.slice(3), ['Continue the open ask', 'Create a new ask']);
+  assert.equal(follow[1], '“Policy checker messages” looks like a follow-up to the open ask “Onboarding policy checker”.');
+  assert.deepEqual(follow.slice(3), ['Continue the open ask', 'Create a separate ask']);
   assert.equal(fixture.controls.calls.filter(call => call[0] === 'workbench.action.chat.newChat').length, 2);
   assert.equal(fixture.context.workspaceState.get('pendingChat').ask, ask);
 });

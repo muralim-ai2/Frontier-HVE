@@ -93,4 +93,20 @@ function slugFor(request) {
   return slug || 'ask';
 }
 
-module.exports = { ASK, askTime, listAsks, askTree, slugFor };
+/** Return the request saved in the ask: the title as a heading, then the description.
+ * @param {{title: string, description: string}} brief
+ * @returns {string}
+ */
+function askRequest(brief) {
+  return brief.description ? `# ${brief.title}\n\n${brief.description}` : `# ${brief.title}`;
+}
+
+/** Return the text the harness's scope check reads: the description first, where a creation verb and the subject usually are, then the title.
+ * @param {{title: string, description: string}} brief
+ * @returns {string}
+ */
+function scopeText(brief) {
+  return brief.description ? `${brief.description}\n\n${brief.title}` : brief.title;
+}
+
+module.exports = { ASK, askTime, listAsks, askTree, slugFor, askRequest, scopeText };
