@@ -14,6 +14,7 @@ One ask can have many chats. Mission Control links a chat to an ask when the cha
 | Ran `lifecycle.py open <ask-id>` (a follow-up that reuses the folder) | reopened it |
 | Edited a file in the ask's folder | edited its files |
 | Was the first chat started after **New ask** or **New chat for this ask** | opened for it here |
+| Was the chat in use when you chose **This chat session** for a new ask | continued here |
 | Was linked by you (**Link to this ask**) | linked by you |
 
 Links made here are kept in this window's Mission Control state; they never change the harness files. Chats with no link are listed under **Chats not linked to any ask**.
@@ -31,7 +32,7 @@ Mission Control updates within a second of any of these files changing while a v
 
 ## The sidebar
 
-From top to bottom: the live status chip; **New ask**; the **ask dropdown** (every ask of the project, newest first, the active one marked "active"); when you view an ask that is not active, a notice with **Make active**; the ask card (project, a short title, agent, stage, how many chats, to-do progress; click for the full activity); **Needs you** (the agent is waiting for an answer in Chat, the error guard paused it or the last commands failed, the plan is a draft or was changed, items are ready for sign-off, the skill load is over the guideline); **Now** (the current step of the ask's latest chat, and its to-do list); **Recent** (the last six steps); links to the six pages with a short status each; and the research telemetry switch.
+From top to bottom: the live status chip; **New ask**; an ask carried over from another workspace, if any; the **ask dropdown** (every ask of the project, newest first, the active one marked "active"); when you view an ask that is not active, a notice with **Make active**; the ask card (project, a short title, agent, stage, how many chats, to-do progress; click for the full activity); **Needs you** (the agent is waiting for an answer in Chat, the error guard paused it or the last commands failed, the plan is a draft or was changed, items are ready for sign-off, the skill load is over the guideline); **Now** (the current step of the ask's latest chat, and its to-do list); **Recent** (the last six steps); links to the six pages with a short status each; and the research telemetry switch.
 
 Choosing an ask in the dropdown only changes what Mission Control shows. **Make active** asks you to confirm, then runs `lifecycle.py open <ask-id>`: agents, hooks and guards then work on that ask, and the ask you leave stays on disk with its unfinished items. Sign-off is available only for the active ask.
 
@@ -43,12 +44,22 @@ It only shows files: it does not create an ask for work an agent did without one
 
 ## New ask
 
-1. Describe the outcome in one box.
-2. The harness checks where it lands (`lifecycle.py where`), as the agents do. If it looks like a follow-up to the open ask, you choose **Continue the open ask** (a new chat for it, no new folder) or **Create a new ask**.
-3. The confirmation shows a proposed name from your request (for example `pawstagram-social-photo-app`), where the ask lands, and that the open ask stays on disk. **Change name…** lets you edit it. A name already used in the same minute fails instead of overwriting.
-4. After **Create ask**, the harness writes the folder, the ask becomes active, and a new, empty Copilot Chat opens. Nothing is typed into it and no agent starts until you write. The first chat you start is linked to the ask (within an hour).
+1. **Title** (box 1 of 2): a short name such as "Dog profile badges" or "Investor pitch deck", 3 to 80 characters. It names the ask's folder and is what Mission Control shows.
+2. **What it should deliver** (box 2 of 2, optional): one or two sentences, for example "Come up with 3 creative ideas for the feed and build them". They help the harness tell a follow-up from new work or a different project; with only a title it cannot tell a different project. Detail, files and screenshots go in the chat afterwards.
+3. The harness checks where it lands (`lifecycle.py where`), as the agents do:
 
-**New chat for this ask** (on Live, for the active ask) opens another empty chat linked the same way.
+| The harness finds | Mission Control asks | Then |
+|---|---|---|
+| A different project, for example a trading platform or a Facebook-style app in the Pawstagram workspace | **Start in a new workspace…** (recommended) or **Keep it in this project**, with the harness's reason | A new workspace: pick an empty folder or make one with **New folder** (it must be outside this workspace). It opens in a new window, whose Mission Control offers **Start the ask** with your title and description filled in. Nothing is created here |
+| A follow-up to the open ask | **Continue the open ask** or **Create a separate ask** | Continue: no new folder; the chat opens with a follow-up message |
+| New work in this project, or a first ask | **Create ask**, or **Change folder name…** | The harness writes `.hve/asks/<UTC date-time>-<name>/` and the ask becomes active; the open ask stays on disk. A name already used in the same minute fails instead of overwriting |
+
+4. **Which chat**: for a new ask, **New chat session** (recommended for unrelated work; the agent does not carry the earlier conversation) or **This chat session** (keep going in the chat you were using; it is linked to the new ask). For a follow-up, **The ask's own chat** (recommended; it reopens with its full history) or **New chat session**. With only one option there is no question.
+5. The chat opens with the ask's agent selected (for a new chat), the ask's `request.md` and `plan.md` attached, and a short starter message filled in: the title, your description, where the ask lives, not to create another ask, and to ask you for references and constraints and confirm the scope before building. **The message is not sent**: edit it, add detail, drag in files or screenshots, then send it. A notification offers **Attach files…** to pick references.
+
+A carried-over ask waits in the new folder's sidebar (**Start the ask** or **Not now**) for a day. **New chat for this ask** (on Live, for the active ask) opens a new chat session straight away with a message to pick the ask up again. A new chat session is linked to its ask when you send the first message (within an hour).
+
+VS Code starts a new chat in the chat view that last had focus, and first asks to keep or undo the previous chat's unaccepted edits; if you cancel that, the earlier chat stays and Mission Control keeps waiting for the new one.
 
 ## The dashboard
 
@@ -81,8 +92,9 @@ The switch turns Copilot's telemetry export on (Frontier HVE first warns that it
 | File | Role |
 |---|---|
 | `extension/ui/mission-control.js` | Views, file watchers, refresh, the ask on screen, commands |
-| `extension/ui/actions.js` | New ask, new chat, Make active, linking chats, sign-offs, opening files, harness commands, with their confirmations |
-| `extension/ui/asks.js` | The project's asks, an ask's folder tree, the proposed name for a new ask |
+| `extension/ui/ask-flow.js` | New ask (title, description, scope check, new-workspace handoff), choosing and opening the chat with its starter message |
+| `extension/ui/actions.js` | Make active, linking chats, sign-offs, opening files, harness commands, with their confirmations |
+| `extension/ui/asks.js` | The project's asks, an ask's folder tree, the folder name, saved request, scope text and starter message of a new ask, the carried-over ask |
 | `extension/ui/chats.js` | This window's chats, read incrementally, and the asks each one is linked to |
 | `extension/ui/activity.js` | Live activity of one chat from its transcript, run files and telemetry |
 | `extension/ui/harness-tree.js` | The Harness files pane: `.hve/` and `.harness/` as a native tree |

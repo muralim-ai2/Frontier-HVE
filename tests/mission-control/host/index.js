@@ -58,7 +58,7 @@ async function run() {
   assert.ok(opened.asks.some(ask => ask.id === state.ask.id && ask.active), 'The ask dropdown must list the active ask.');
   assert.equal(opened.files.ask, state.ask.id, 'The Files page must show the active ask\'s folder.');
   assert.ok(opened.files.entries.some(node => node.name === 'contract.json'), 'The ask folder must list its contract.');
-  for (const id of ['workbench.action.chat.open', 'workbench.action.chat.newChat', 'revealInExplorer']) assert.ok(available.includes(id), `VS Code must provide ${id}`);
+  for (const id of ['workbench.action.chat.open', 'workbench.action.chat.newChat', 'revealInExplorer', 'vscode.open', 'vscode.openFolder']) assert.ok(available.includes(id), `VS Code must provide ${id}`);
   assert.ok(available.includes('frontierHve.harnessFiles.focus'), 'The Harness files pane must be contributed.');
   await vscode.commands.executeCommand('frontierHve.harnessFiles.focus');
   const { HarnessTree } = require(path.join(extension.extensionPath, 'ui', 'harness-tree.js'));
@@ -89,7 +89,7 @@ async function run() {
     checks: ['installed from VSIX', 'Copilot Chat disabled', 'activated on startup without a manual activate call', 'all contributed commands registered',
       'HVE agent plugin rendered and registered (41 agents)', 'current wow-uplift skill rendered', 'no Continue in Chat command',
       'Activity Bar container opened', 'Mission Control editor opened with live ask', 'no passive project mutation',
-      'ask dropdown lists the active ask and the Files page shows its folder', 'chat and Explorer commands used by New ask and Show in Explorer exist',
+      'ask dropdown lists the active ask and the Files page shows its folder', 'chat, folder and Explorer commands used by New ask, the new-workspace handoff and Show in Explorer exist',
       'Harness files pane contributed, focused, and lists .hve/ with the active ask titled and files that open on click',
       'new chat steps appear live through the real file watcher', 'a chat that reopens the ask is linked to it'],
   }, null, 2));
