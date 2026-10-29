@@ -37,7 +37,8 @@ function webview(calls) {
 function host(roots, storage) {
   const commands = new Map();
   const settings = new Map();
-  const controls = { commands, settings, provider: null, inputs: [], confirmations: [], calls: [], watchers: [], errors: [], statusItems: [], panels: [], trees: [],
+  const controls = { commands, settings, provider: null, inputs: [], confirmations: [], picks: [], dialogs: [], notices: [], calls: [], watchers: [], errors: [], statusItems: [],
+    panels: [], trees: [],
     /** Return a Primary Side Bar view double. @param {boolean} [visible] @returns {object} */
     view: (visible = false) => ({ visible, webview: webview(controls.calls), onDidDispose: () => new Disposable() }) };
   const folders = roots.map((root, index) => ({ name: path.basename(root), uri: uri(root), index }));
@@ -99,10 +100,15 @@ function host(roots, storage) {
         return view;
       },
       showErrorMessage: async message => { controls.errors.push(message); },
-      showInformationMessage: async message => { controls.calls.push(['information', message]); },
+      showInformationMessage: async (message, ...items) => { controls.calls.push(['information', message, ...items]); return controls.notices.shift(); },
       showInputBox: async options => { controls.calls.push(['input', options]); return controls.inputs.shift(); },
       showWarningMessage: async (...args) => { controls.calls.push(['confirmation', ...args]); return controls.confirmations.shift(); },
-      showQuickPick: async choices => choices[0],
+      showQuickPick: async (choices, options) => {
+        controls.calls.push(['pick', choices, options]);
+        const index = controls.picks.length ? controls.picks.shift() : 0;
+        return index === null ? undefined : choices[index];
+      },
+      showOpenDialog: async options => { controls.calls.push(['dialog', options]); return controls.dialogs.shift(); },
       showTextDocument: async (document, options) => { controls.calls.push(['document', document, options]); },
       createWebviewPanel: () => {
         let close = () => {};

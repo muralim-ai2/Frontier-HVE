@@ -1,8 +1,10 @@
 'use strict';
 /** New ask: a title, an optional description, the harness's scope check, the ask's creation and its chat. */
 const vscode = require('vscode');
+const fs = require('node:fs');
 const path = require('node:path');
-const { listAsks, slugFor, askRequest, scopeText } = require('./asks');
+const { listAsks, slugFor, askRequest, scopeText, starterPrompt } = require('./asks');
+const { claimsFrom, chatSessionUri } = require('./chats');
 const NAME = /^[a-z0-9][a-z0-9-]{0,40}$/;
 
 /** @typedef {import('./mission-control').MissionControl} MissionControl */
@@ -41,7 +43,7 @@ async function newAsk(mc) {
     const choice = await vscode.window.showWarningMessage(`“${brief.title}” looks like a follow-up to the open ask “${open.title}”.`, { modal: true,
       detail: 'Continue that ask (same folder, plan and evidence), or create a separate ask for this work. Earlier ask folders always stay on disk.' },
     'Continue the open ask', 'Create a separate ask');
-    if (choice === 'Continue the open ask') return newChat(mc);
+    if (choice === 'Continue the open ask') return pickChat(mc, open, 'follow-up', brief);
     if (choice !== 'Create a separate ask') return;
   }
   let slug = slugFor(brief.title);
@@ -62,21 +64,110 @@ async function newAsk(mc) {
   mc.target();
   await flow.createAsk(root, scope.revision, slug, askRequest(brief));
   await mc.view(null);
-  await newChat(mc);
+  const created = listAsks(root).find(ask => ask.active);
+  if (!created) throw new Error('The new ask was created but is not active. Inspect .hve/asks/active.json.');
+  await pickChat(mc, created, 'new', brief);
 }
 
-/** Open a new, empty Copilot Chat for the active ask and link the next chat that starts to it.
+/** Ask which chat should work on the ask and open it; cancelling keeps the ask and says how to open a chat later.
+ * @param {MissionControl} mc
+ * @param {import('./types').AskSummary} ask
+ * @param {'new' | 'follow-up'} kind
+ * @param {Brief} brief
+ * @returns {Promise<void>}
+ */
+async function pickChat(mc, ask, kind, brief) {
+  const choice = await chooseChat(mc, ask, kind, brief);
+  if (!choice) {
+    void vscode.window.showInformationMessage(`No chat opened for “${ask.title}”. Open one any time with New chat for this ask on the Live page.`);
+    return;
+  }
+  await startChat(mc, ask, kind, brief, choice);
+}
+
+/** Open a new chat for the active ask with a starter message, without asking which chat.
  * @param {MissionControl} mc
  * @returns {Promise<void>}
  */
 async function newChat(mc) {
   const active = listAsks(mc.target().uri.fsPath).find(item => item.active);
   if (!active) throw new Error('No ask is active. Create one, or make an earlier ask active first.');
-  await mc.context.workspaceState.update('pendingChat', { ask: active.id, at: new Date().toISOString() });
-  await vscode.commands.executeCommand('workbench.action.chat.open');
-  await vscode.commands.executeCommand('workbench.action.chat.newChat');
-  mc.open('live');
-  void vscode.window.showInformationMessage(`A new chat is open for "${active.title}". Pick an HVE agent and describe the next step; Mission Control links the chat to this ask when you send it.`);
+  await startChat(mc, active, 'resume', null, { target: 'new' });
 }
 
-module.exports = { askBrief, newAsk, newChat };
+/** @typedef {{target: 'new' | 'current' | 'own', chat?: import('./types').Chat}} ChatChoice */
+
+/** Ask which chat should work on the ask: a new one, the chat in use, or the ask's own chat; with only one option, use it.
+ * @param {MissionControl} mc
+ * @param {import('./types').AskSummary} ask
+ * @param {'new' | 'follow-up'} kind
+ * @param {Brief} brief
+ * @returns {Promise<ChatChoice | null>}
+ */
+async function chooseChat(mc, ask, kind, brief) {
+  await mc.refresh();
+  const chats = mc.state.activity?.chats || [];
+  const own = chats.find(chat => chat.asks.some(link => link.ask === ask.id));
+  /** @type {(vscode.QuickPickItem & ChatChoice)[]} */
+  const options = [];
+  const fresh = { label: '$(add) New chat session', target: /** @type {const} */ ('new'),
+    detail: 'A fresh chat that starts from this ask. Best for unrelated work: the agent does not carry the earlier conversation.' };
+  if (kind === 'new') {
+    options.push({ ...fresh, description: 'recommended' });
+    if (chats[0]) options.push({ label: '$(comment-discussion) This chat session', description: chats[0].title || 'Untitled chat', target: 'current', chat: chats[0],
+      detail: 'Keep going in the chat you were using: the agent keeps its earlier conversation, and the chat is linked to the new ask.' });
+  } else {
+    if (own) options.push({ label: '$(history) The ask’s own chat', description: `recommended · ${own.title || 'Untitled chat'}`, target: 'own', chat: own,
+      detail: 'Reopen the chat that worked on this ask, with its full history.' });
+    options.push(fresh);
+  }
+  if (options.length === 1) return options[0];
+  const picked = await vscode.window.showQuickPick(options, { title: `Which chat should work on “${brief.title}”?`, ignoreFocusOut: true,
+    placeHolder: kind === 'new' ? 'A new ask unrelated to the earlier chat works best in a new chat session' : 'A follow-up works best in the ask’s own chat' });
+  return picked ? { target: picked.target, chat: picked.chat } : null;
+}
+
+/** Open the chosen chat with the ask's agent, its request and plan attached and a starter message filled in but not sent, and link the chat to the ask.
+ * @param {MissionControl} mc
+ * @param {import('./types').AskSummary} ask
+ * @param {'new' | 'follow-up' | 'resume'} kind
+ * @param {Brief | null} brief
+ * @param {ChatChoice} choice
+ * @returns {Promise<void>}
+ */
+async function startChat(mc, ask, kind, brief, choice) {
+  const root = mc.target().uri.fsPath;
+  const query = starterPrompt(kind, ask, brief);
+  const attachFiles = ['request.md', 'plan.md'].map(name => path.join(root, '.hve', 'asks', ask.id, name)).filter(file => fs.existsSync(file))
+    .map(file => vscode.Uri.file(file));
+  if (choice.target === 'new') {
+    await mc.context.workspaceState.update('pendingChat', { ask: ask.id, at: new Date().toISOString() });
+    await vscode.commands.executeCommand('workbench.action.chat.open');
+    await vscode.commands.executeCommand('workbench.action.chat.newChat');
+    await vscode.commands.executeCommand('workbench.action.chat.open', { query, isPartialQuery: true, mode: ask.agent, attachFiles });
+  } else {
+    const chat = /** @type {import('./types').Chat} */ (choice.chat);
+    if (choice.target === 'own') await vscode.commands.executeCommand('vscode.open', vscode.Uri.parse(chatSessionUri(chat.id)));
+    else if (!chat.asks.some(link => link.ask === ask.id)) {
+      await mc.context.workspaceState.update('chatAsks', { ...claimsFrom(mc.context.workspaceState.get('chatAsks')), [chat.id]: { ask: ask.id, how: 'continued' } });
+    }
+    await vscode.commands.executeCommand('workbench.action.chat.open', { query, isPartialQuery: true, attachFiles });
+  }
+  mc.open('live');
+  void vscode.window.showInformationMessage(`The chat for “${brief ? brief.title : ask.title}” has a starter message filled in, with the ask's request and plan attached. `
+    + 'Add references (files, screenshots, links) or more detail, then send it.', 'Attach files…')
+    .then(answer => answer === 'Attach files…' ? mc.execute({ action: 'attachReferences' }) : null);
+}
+
+/** Pick files and attach them to the chat that has focus.
+ * @param {MissionControl} mc
+ * @returns {Promise<void>}
+ */
+async function attachReferences(mc) {
+  const files = await vscode.window.showOpenDialog({ canSelectFiles: true, canSelectFolders: false, canSelectMany: true, defaultUri: mc.target().uri,
+    openLabel: 'Attach to the chat', title: 'References for the agent: designs, screenshots, documents or examples' });
+  if (!files?.length) return;
+  await vscode.commands.executeCommand('workbench.action.chat.open', { attachFiles: files });
+}
+
+module.exports = { askBrief, newAsk, newChat, chooseChat, startChat, attachReferences };

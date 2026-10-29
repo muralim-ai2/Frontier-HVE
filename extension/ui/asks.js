@@ -109,4 +109,25 @@ function scopeText(brief) {
   return brief.description ? `${brief.description}\n\n${brief.title}` : brief.title;
 }
 
-module.exports = { ASK, askTime, listAsks, askTree, slugFor, askRequest, scopeText };
+/** Return the short message filled into a chat for an ask; the user edits or sends it, Mission Control never sends it.
+ * @param {'new' | 'follow-up' | 'resume'} kind A new ask, new work on an existing ask, or picking an ask up again.
+ * @param {{id: string, title: string}} ask
+ * @param {{title: string, description: string} | null} brief
+ * @returns {string}
+ */
+function starterPrompt(kind, ask, brief) {
+  const folder = `.hve/asks/${ask.id}/`;
+  if (kind === 'resume') {
+    return [`Continue the ask “${ask.title}” (${folder}, its request and plan are attached).`,
+      'Tell me in a few lines where it stands (plan, progress, open items), then ask me what to do next and whether I have references to add.'].join('\n\n');
+  }
+  if (!brief) throw new Error('A new ask or a follow-up needs a title.');
+  return [kind === 'new' ? `New ask: ${brief.title}` : `Follow-up for the ask “${ask.title}” (${folder}, its request and plan are attached): ${brief.title}`,
+    brief.description,
+    kind === 'new' ? `This ask is already created and active in ${folder} (its request and plan are attached). Work in this ask; do not create another one.`
+      : 'Continue this ask; do not create another one.',
+    'First ask me for any references (files, screenshots, links, examples) or constraints, then confirm the scope and plan in a few lines before you build.',
+  ].filter(Boolean).join('\n\n');
+}
+
+module.exports = { ASK, askTime, listAsks, askTree, slugFor, askRequest, scopeText, starterPrompt };

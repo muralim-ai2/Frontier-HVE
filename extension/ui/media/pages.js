@@ -25,7 +25,7 @@
     agreed: ['Agreed', 'This is the plan the agent works to. If you edit it, the agent reviews your change before it continues.'],
     edited: ['Changed since it was agreed', 'The agent reviews your change and records it (plan-sync) before building further.'],
   };
-  const LINKED = { started: 'opened for it here', linked: 'linked by you', created: 'created it', opened: 'reopened it', edited: 'edited its files' };
+  const LINKED = { started: 'opened for it here', linked: 'linked by you', continued: 'continued here', created: 'created it', opened: 'reopened it', edited: 'edited its files' };
   /** @type {Record<string, string>} */
   const ABOUT = { 'request.md': 'your request as saved', 'contract.json': 'stages, checklist, sign-offs and decisions', 'plan.md': 'the plan the agent works to',
     loop: 'feature checks, evidence and PR notes', evidence: 'what each check recorded', prs: 'PR notes per feature' };

@@ -77,7 +77,7 @@ export interface AskFiles {
 }
 export interface Claim {
   ask: string;
-  how: 'started' | 'linked';
+  how: 'started' | 'linked' | 'continued';
 }
 export interface Pending {
   ask: string;
@@ -85,7 +85,7 @@ export interface Pending {
 }
 export interface ChatLink {
   ask: string;
-  how: 'started' | 'linked' | 'created' | 'opened' | 'edited';
+  how: 'started' | 'linked' | 'continued' | 'created' | 'opened' | 'edited';
 }
 export interface Chat {
   id: string;

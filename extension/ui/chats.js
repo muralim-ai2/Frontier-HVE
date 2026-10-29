@@ -13,7 +13,7 @@ const SESSION = /^[\w-]+$/;
 const CONTRACT = /\bcontract\s+["']?[\w.-]+["']?\s+["']?([a-z0-9][a-z0-9-]{0,40})(?=["'\s;|]|$)/g;
 const OPEN = /\bopen\s+["']?(\d{8}-\d{4}-[a-z0-9][a-z0-9-]{0,40})(?=["'\s;|]|$)/g;
 const ASK_PATH = /(?:^|[\\/])\.hve[\\/]asks[\\/](\d{8}-\d{4}-[a-z0-9][a-z0-9-]{0,40})[\\/]/;
-const HOW = ['started', 'linked'];
+const HOW = ['started', 'linked', 'continued'];
 
 /** @typedef {{offset: number, size: number, mtime: number, lines: number, id: string, title: string | null, started: string, lastAt: string,
  *   turnOpen: boolean, running: Map<string, string>, contracts: {slug: string, at: number}[], opened: Set<string>, edited: Set<string>}} Scan */
@@ -187,4 +187,13 @@ function pendingFrom(value, now) {
   return now - Date.parse(at) < PENDING_MS ? { ask, at } : null;
 }
 
-module.exports = { SESSION, chatList, shownChat, claimsFrom, pendingFrom };
+/** Return VS Code's address of a local chat session, which `vscode.open` opens as a chat editor with its history.
+ * @param {string} id The chat's session id, also its transcript's name.
+ * @returns {string}
+ */
+function chatSessionUri(id) {
+  if (!SESSION.test(id)) throw new Error(`Invalid chat session id: ${id}`);
+  return `vscode-chat-session://local/${Buffer.from(id, 'utf8').toString('base64url')}`;
+}
+
+module.exports = { SESSION, chatList, shownChat, claimsFrom, pendingFrom, chatSessionUri };

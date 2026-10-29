@@ -365,6 +365,7 @@ class MissionControl {
         case 'selectWorkspace': await this.selectWorkspace(); break;
         case 'newAsk': await askFlow.newAsk(this); break;
         case 'newChat': await askFlow.newChat(this); break;
+        case 'attachReferences': await askFlow.attachReferences(this); break;
         case 'selectAsk': await actions.selectAsk(this, data.ask); break;
         case 'activateAsk': await actions.activateAsk(this, data.ask); break;
         case 'selectChat': actions.selectChat(this, data.chat); break;
