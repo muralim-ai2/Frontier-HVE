@@ -138,6 +138,7 @@
     const snap = model.snapshot;
     if (model.error) items.push({ tone: 'error', icon: 'alert', title: 'The last action failed', detail: model.error });
     if (model.asksError) items.push({ tone: 'error', icon: 'alert', title: 'Mission Control cannot list the asks', detail: model.asksError });
+    if (model.handoffError) items.push({ tone: 'error', icon: 'alert', title: 'Mission Control cannot read the ask carried over from another workspace', detail: model.handoffError });
     if (model.snapshotError) items.push({ tone: 'error', icon: 'alert', title: 'Mission Control cannot read the ask files', detail: model.snapshotError });
     if (model.activityError) items.push({ tone: 'error', icon: 'alert', title: 'Mission Control cannot read the live activity', detail: model.activityError });
     if (session?.status === 'waiting') items.push({ tone: 'warn', icon: 'question', title: 'The agent is waiting for your answer in Chat', detail: session.current?.detail || '' });
@@ -244,6 +245,19 @@
     if (!model.transcripts) return 'This window has no workspace storage, so Mission Control cannot follow its chats.';
     if (!model.activity?.chats.length) return 'No Copilot Chat session has run in this workspace yet.';
     return 'No chat is linked to this ask yet. A chat is linked when it creates or reopens the ask, edits its files, or is opened for it here.';
+  }
+
+  /** Return the notice for an ask carried over from another workspace, with Start the ask and Not now.
+   * @param {Model} model
+   * @returns {VNode | null}
+   */
+  function handoffNotice(model) {
+    const carried = model.handoff;
+    if (!carried) return null;
+    return h('div', { class: 'notice handoff' }, icon('spark'),
+      h('span', null, `Ready to start here: “${carried.title}”, carried over from ${carried.from}, where Mission Control recommended a workspace of its own.`),
+      button('Start the ask', 'startHandoff', { kind: 'primary', disabled: model.busy, title: 'New ask with this title and description filled in' }),
+      button('Not now', 'dismissHandoff', { disabled: model.busy }));
   }
 
   /** Return the dropdown of the project's asks; choosing one only changes what Mission Control shows.
@@ -355,12 +369,12 @@
       model.workspaceMessage ? h('div', { class: 'notice' }, model.workspaceMessage, button('Choose folder', 'selectWorkspace')) : null,
       button('New ask', 'newAsk', { kind: 'primary new-ask', icon: 'plus', disabled: model.busy || !model.workspace,
         title: 'Start a new piece of work in this project; the harness first checks whether it continues the open ask' }),
-      askPicker(model), viewing(model), askCard(model, now), attention(needs(model), true), nowSection(model, now), recent(model, now), pageLinks(model),
+      handoffNotice(model), askPicker(model), viewing(model), askCard(model, now), attention(needs(model), true), nowSection(model, now), recent(model, now), pageLinks(model),
       h('footer', null, telemetrySwitch(model)));
   }
 
   const api = { ICONS, PAGES, icon, ago, count, plural, pretty, button, chip, needs, attention, eventRow, todoList, bar, telemetrySwitch, sessionState,
-    askChats, noChat, askPicker, viewing, sidebar };
+    askChats, noChat, askPicker, viewing, handoffNotice, sidebar };
   if (typeof module === 'object' && module.exports) module.exports = api;
   else root.hveViews = api;
 })(globalThis);

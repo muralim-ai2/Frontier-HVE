@@ -72,7 +72,7 @@ class MissionControl {
     const version = text(record(context.extension.packageJSON, 'Extension manifest').version, 'Extension version');
     /** @type {Omit<import('./types').Model, 'now' | 'surface' | 'workspace' | 'telemetry' | 'navigate' | 'transcripts'>} */
     this.state = { busy: false, error: null, workspaceMessage: null, connection: { version, python: null, guard: guardMode(context.extensionPath) },
-      asks: null, asksError: null, snapshot: null, snapshotError: null, activity: null, activityError: null, pending: null, files: null, filesError: null,
+      asks: null, asksError: null, snapshot: null, snapshotError: null, activity: null, activityError: null, pending: null, handoff: null, handoffError: null, files: null, filesError: null,
       packs: null, packsError: null };
     this.restoreWorkspace();
   }
@@ -240,8 +240,10 @@ class MissionControl {
       return { ...activity(root, shown && transcripts ? path.join(transcripts, `${shown.id}.jsonl`) : null, this.telemetry().file, now), chats };
     });
     const files = await this.section('Ask files', async () => viewed ? askTree(root, viewed) : null);
+    const carried = await this.section('Ask carried over', async () => askFlow.handoff(this));
     Object.assign(this.state, { asks: asks.value, asksError: asks.error, snapshot: state.value, snapshotError: state.error,
-      activity: live.value, activityError: live.error, files: files.value, filesError: files.error });
+      activity: live.value, activityError: live.error, files: files.value, filesError: files.error,
+      handoff: carried.value, handoffError: carried.error });
     this.paint();
     return this.state.snapshot;
   }
@@ -355,7 +357,7 @@ class MissionControl {
   async execute(raw) {
     if (this.disposed) throw new Error('Mission Control has been disposed.');
     const data = message(raw);
-    const mutating = ['newAsk', 'newChat', 'activateAsk', 'review', 'command', 'telemetry', 'selectWorkspace'].includes(data.action);
+    const mutating = ['newAsk', 'newChat', 'startHandoff', 'dismissHandoff', 'activateAsk', 'review', 'command', 'telemetry', 'selectWorkspace'].includes(data.action);
     if (mutating && this.state.busy) throw new Error('Another Mission Control action is still running.');
     if (mutating) { this.state.busy = true; this.paint(); }
     try {
@@ -365,6 +367,8 @@ class MissionControl {
         case 'selectWorkspace': await this.selectWorkspace(); break;
         case 'newAsk': await askFlow.newAsk(this); break;
         case 'newChat': await askFlow.newChat(this); break;
+        case 'startHandoff': await askFlow.startHandoff(this); break;
+        case 'dismissHandoff': await askFlow.dismissHandoff(this); break;
         case 'attachReferences': await askFlow.attachReferences(this); break;
         case 'selectAsk': await actions.selectAsk(this, data.ask); break;
         case 'activateAsk': await actions.activateAsk(this, data.ask); break;
@@ -415,6 +419,7 @@ function register(context, findPython) {
   const ui = new MissionControl(context, findPython);
   const files = vscode.window.createTreeView('frontierHve.harnessFiles', { treeDataProvider: ui.tree, showCollapseAll: true });
   ui.tree.view = files;
+  askFlow.offerHandoff(ui).catch(error => ui.show(error));
   return [ui, files,
     vscode.window.registerWebviewViewProvider('frontierHve.missionControl', ui),
     vscode.commands.registerCommand('frontierHve.openMissionControl', () => ui.execute({ action: 'openDashboard', page: 'live' })),

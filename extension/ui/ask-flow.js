@@ -3,9 +3,11 @@
 const vscode = require('vscode');
 const fs = require('node:fs');
 const path = require('node:path');
-const { listAsks, slugFor, askRequest, scopeText, starterPrompt } = require('./asks');
+const { listAsks, slugFor, askRequest, scopeText, starterPrompt, handoffFrom } = require('./asks');
 const { claimsFrom, chatSessionUri } = require('./chats');
+const { snapshot } = require('./workspace-state');
 const NAME = /^[a-z0-9][a-z0-9-]{0,40}$/;
+const HANDOFF = 'askHandoff';
 
 /** @typedef {import('./mission-control').MissionControl} MissionControl */
 /** @typedef {{title: string, description: string}} Brief */
@@ -22,22 +24,32 @@ async function askBrief(preset = {}) {
   if (title === undefined) return null;
   const description = await vscode.window.showInputBox({ title: `New ask (2 of 2): what should “${title.trim()}” deliver?`, value: preset.description,
     placeHolder: 'For example: come up with 3 creative ideas for the feed and build them', ignoreFocusOut: true,
-    prompt: 'Optional. One or two sentences about the outcome. You add detail, files and screenshots in the chat next. Press Enter to skip.',
+    prompt: 'Optional. One or two sentences about the outcome; they help the harness tell a follow-up from new work or a different project. You add detail, files and screenshots in the chat next.',
     validateInput: value => value.length > 4000 ? 'Use at most 4,000 characters.' : null });
   if (description === undefined) return null;
   return { title: title.trim(), description: description.trim() };
 }
 
-/** Collect a brief, follow the harness's recommendation (continue the open ask, or a new ask after confirmation), then open a chat for it.
+/** Collect a brief, follow the harness's recommendation (a new workspace for a different project, continuing the open ask, or a new ask), then open a chat for it.
  * @param {MissionControl} mc
+ * @param {Partial<Brief>} [preset] A title and description carried over from another workspace.
  * @returns {Promise<void>}
  */
-async function newAsk(mc) {
+async function newAsk(mc, preset = {}) {
   const root = mc.target().uri.fsPath;
   const flow = await mc.connect();
-  const brief = await askBrief();
+  const brief = await askBrief(preset);
   if (!brief) return;
   const scope = await flow.describeAsk(root, scopeText(brief));
+  if (scope.verdict === 'new-workspace') {
+    const project = snapshot(root).project;
+    const choice = await vscode.window.showWarningMessage(`“${brief.title}” looks like a different project.`, { modal: true, detail: [`The harness says ${scope.why}.`,
+      `This workspace holds one project${project ? ` (${project.name})` : ''}. A different product belongs in its own workspace, with its own files, skills, checks and history.`,
+      'Recommended: start it in a new workspace. Pick or create a folder; it opens in a new window, and Mission Control there offers to start this ask with the same title and description.',
+    ].join('\n\n') }, 'Start in a new workspace…', 'Keep it in this project');
+    if (choice === 'Start in a new workspace…') return startElsewhere(mc, brief);
+    if (choice !== 'Keep it in this project') return;
+  }
   const open = listAsks(root).find(ask => ask.active);
   if (scope.verdict === 'continue' && open) {
     const choice = await vscode.window.showWarningMessage(`“${brief.title}” looks like a follow-up to the open ask “${open.title}”.`, { modal: true,
@@ -49,7 +61,7 @@ async function newAsk(mc) {
   let slug = slugFor(brief.title);
   for (;;) {
     const choice = await vscode.window.showWarningMessage(`Create ask “${brief.title}” in ${path.basename(root)}?`, { modal: true, detail: [
-      scope.verdict === 'new-workspace' ? `The harness recommends a separate workspace: ${scope.why}.` : `Where it lands: ${scope.why}.`,
+      scope.verdict === 'new-workspace' ? 'You chose to keep it in this project.' : `Where it lands: ${scope.why}.`,
       `Folder: .hve/asks/<UTC date-time>-${slug}/ with your request, the contract, the plan and the loop records. Features and progress stay shared across the project.`,
       open ? `The open ask “${open.title}” stays on disk, unfinished items included, but is no longer active.` : '',
       'A Copilot Chat then opens for it. No agent starts until you send a message.'].filter(Boolean).join('\n\n') }, 'Create ask', 'Change folder name…');
@@ -159,6 +171,66 @@ async function startChat(mc, ask, kind, brief, choice) {
     .then(answer => answer === 'Attach files…' ? mc.execute({ action: 'attachReferences' }) : null);
 }
 
+/** Let the user pick or create a folder outside this workspace for a different project, keep the brief for it, and open it in a new window.
+ * @param {MissionControl} mc
+ * @param {Brief} brief
+ * @returns {Promise<void>}
+ */
+async function startElsewhere(mc, brief) {
+  const here = mc.target().uri.fsPath;
+  const picked = await vscode.window.showOpenDialog({ canSelectFolders: true, canSelectFiles: false, canSelectMany: false, defaultUri: vscode.Uri.file(path.dirname(here)),
+    openLabel: 'Start the project here', title: `Folder for “${brief.title}”: pick an empty folder, or make one with New folder` });
+  if (!picked?.length) return;
+  const folder = picked[0];
+  if (folder.scheme !== 'file') throw new Error('Choose a local folder for the new project.');
+  const inside = path.relative(here, folder.fsPath);
+  if (!inside.startsWith('..') && !path.isAbsolute(inside)) throw new Error(`Choose a folder outside ${path.basename(here)}: a different project needs a folder of its own.`);
+  await mc.context.globalState.update(HANDOFF, { folder: folder.fsPath, title: brief.title, description: brief.description, from: path.basename(here),
+    at: new Date().toISOString() });
+  await vscode.commands.executeCommand('vscode.openFolder', folder, { forceNewWindow: true });
+}
+
+/** Return the brief carried over to this window's folder, or null.
+ * @param {MissionControl} mc
+ * @returns {import('./types').Handoff | null}
+ */
+function handoff(mc) {
+  return mc.workspace ? handoffFrom(mc.context.globalState.get(HANDOFF), mc.workspace.uri.fsPath, Date.now()) : null;
+}
+
+/** When this window opens a folder chosen for a different project, offer once to start its ask here.
+ * @param {MissionControl} mc
+ * @returns {Promise<void>}
+ */
+async function offerHandoff(mc) {
+  const carried = handoff(mc);
+  if (!carried) return;
+  const answer = await vscode.window.showInformationMessage(`Start the ask “${carried.title}” here? You began it in ${carried.from}, where Mission Control recommended `
+    + 'a workspace of its own.', 'Start the ask', 'Not now');
+  if (answer === 'Start the ask') await mc.execute({ action: 'startHandoff' });
+  else if (answer === 'Not now') await mc.execute({ action: 'dismissHandoff' });
+}
+
+/** Start the carried-over ask with its title and description filled in.
+ * @param {MissionControl} mc
+ * @returns {Promise<void>}
+ */
+async function startHandoff(mc) {
+  const carried = handoff(mc);
+  if (!carried) throw new Error('There is no ask waiting to start in this folder.');
+  await mc.context.globalState.update(HANDOFF, undefined);
+  await newAsk(mc, { title: carried.title, description: carried.description });
+}
+
+/** Forget the carried-over ask.
+ * @param {MissionControl} mc
+ * @returns {Promise<void>}
+ */
+async function dismissHandoff(mc) {
+  if (!handoff(mc)) throw new Error('There is no ask waiting to start in this folder.');
+  await mc.context.globalState.update(HANDOFF, undefined);
+}
+
 /** Pick files and attach them to the chat that has focus.
  * @param {MissionControl} mc
  * @returns {Promise<void>}
@@ -170,4 +242,4 @@ async function attachReferences(mc) {
   await vscode.commands.executeCommand('workbench.action.chat.open', { attachFiles: files });
 }
 
-module.exports = { askBrief, newAsk, newChat, chooseChat, startChat, attachReferences };
+module.exports = { HANDOFF, askBrief, newAsk, newChat, chooseChat, startChat, attachReferences, startElsewhere, handoff, offerHandoff, startHandoff, dismissHandoff };

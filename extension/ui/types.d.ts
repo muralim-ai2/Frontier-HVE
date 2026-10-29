@@ -95,6 +95,12 @@ export interface Chat {
   status: 'working' | 'waiting' | 'idle';
   asks: ChatLink[];
 }
+export interface Handoff {
+  title: string;
+  description: string;
+  from: string;
+  at: string;
+}
 export interface Model {
   now: string;
   surface: 'sidebar' | 'editor';
@@ -112,6 +118,8 @@ export interface Model {
   activity: Activity | null;
   activityError: string | null;
   pending: Pending | null;
+  handoff: Handoff | null;
+  handoffError: string | null;
   files: AskFiles | null;
   filesError: string | null;
   packs: Pack[] | null;
@@ -152,6 +160,7 @@ export interface Views {
   noChat(model: Model): string;
   askPicker(model: Model): VNode | null;
   viewing(model: Model): VNode | null;
+  handoffNotice(model: Model): VNode | null;
   sidebar(model: Model, ui: UiState, now: number): VNode;
 }
 export interface Pages {

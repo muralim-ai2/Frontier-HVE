@@ -8,7 +8,8 @@
   const markdown = modular ? require('./markdown') : root.hveMarkdown;
   /** @type {typeof globalThis.hveViews} */
   const views = modular ? require('./views') : root.hveViews;
-  const { icon, ago, count, plural, pretty, button, chip, needs, attention, eventRow, todoList, bar, telemetrySwitch, askChats, noChat, askPicker, viewing, PAGES } = views;
+  const { icon, ago, count, plural, pretty, button, chip, needs, attention, eventRow, todoList, bar, telemetrySwitch, askChats, noChat, askPicker, viewing, handoffNotice,
+    PAGES } = views;
 
   /** @typedef {import('../types').Model} Model */
   /** @typedef {import('../types').UiState} UiState */
@@ -325,6 +326,7 @@
       h('nav', { class: 'tabs', 'aria-label': 'Mission Control pages' }, ...PAGES.map(([page, label, glyph]) => h('button', { class: 'tab', type: 'button', 'data-action': 'go', 'data-page': page,
         'aria-current': ui.page === page ? 'page' : null }, icon(glyph), label)))),
       model.workspaceMessage ? h('div', { class: 'notice' }, model.workspaceMessage, button('Choose folder', 'selectWorkspace')) : null,
+      handoffNotice(model),
       viewing(model),
       h('main', { class: `page page-${ui.page}` }, ...pages[ui.page](model, ui, now)));
   }

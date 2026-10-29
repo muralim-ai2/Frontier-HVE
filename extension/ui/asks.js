@@ -9,6 +9,7 @@ const ASK = /^\d{8}-\d{4}-[a-z0-9][a-z0-9-]{0,40}$/;
 const ASK_LIMIT = 200;
 const TREE_LIMIT = 400;
 const TREE_DEPTH = 6;
+const HANDOFF_MS = 24 * 60 * 60 * 1000;
 const FILLER = new Set(['a', 'an', 'the', 'and', 'or', 'for', 'to', 'of', 'in', 'on', 'with', 'that', 'this', 'it', 'is', 'are', 'be', 'we', 'i', 'me', 'my',
   'our', 'please', 'can', 'you', 'could', 'would', 'should', 'new', 'some', 'into', 'from', 'by', 'as', 'at', 'so', 'just', 'also']);
 const VERBS = new Set(['build', 'create', 'make', 'add', 'implement', 'write', 'design', 'develop', 'set', 'setup', 'update', 'fix', 'improve', 'change',
@@ -130,4 +131,23 @@ function starterPrompt(kind, ask, brief) {
   ].filter(Boolean).join('\n\n');
 }
 
-module.exports = { ASK, askTime, listAsks, askTree, slugFor, askRequest, scopeText, starterPrompt };
+/** Return the brief carried over from another workspace when it was saved for this folder in the last day, or null.
+ * @param {unknown} value
+ * @param {string} folder This window's workspace folder.
+ * @param {number} now
+ * @returns {import('./types').Handoff | null}
+ */
+function handoffFrom(value, folder, now) {
+  if (value === undefined || value === null) return null;
+  const row = record(value, 'Carried-over ask');
+  const title = text(row.title, 'Carried-over title').trim();
+  const description = text(row.description, 'Carried-over description', true);
+  const at = text(row.at, 'Carried-over time');
+  if (title.length < 3 || title.length > 80 || description.length > 4000 || Number.isNaN(Date.parse(at))) throw new Error('Invalid carried-over ask.');
+  /** @param {string} file @returns {string} */
+  const same = file => process.platform === 'win32' ? path.resolve(file).toLowerCase() : path.resolve(file);
+  if (same(text(row.folder, 'Carried-over folder')) !== same(folder) || now - Date.parse(at) > HANDOFF_MS) return null;
+  return { title, description, from: text(row.from, 'Carried-over source'), at };
+}
+
+module.exports = { ASK, askTime, listAsks, askTree, slugFor, askRequest, scopeText, starterPrompt, handoffFrom };

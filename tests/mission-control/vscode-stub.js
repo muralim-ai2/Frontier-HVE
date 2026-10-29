@@ -32,9 +32,10 @@ function webview(calls) {
 /** Create a host double scoped to explicitly supplied test directories.
  * @param {string[]} roots
  * @param {string} storage
+ * @param {object | null} [globalState] Shared across hosts to stand for VS Code's storage shared by windows.
  * @returns {{api: object, context: object, controls: object, load: (relative: string) => any}}
  */
-function host(roots, storage) {
+function host(roots, storage, globalState = null) {
   const commands = new Map();
   const settings = new Map();
   const controls = { commands, settings, provider: null, inputs: [], confirmations: [], picks: [], dialogs: [], notices: [], calls: [], watchers: [], errors: [], statusItems: [],
@@ -137,7 +138,7 @@ function host(roots, storage) {
     subscriptions: [], extensionPath: EXTENSION, extensionUri: uri(EXTENSION), globalStorageUri: uri(storage),
     storageUri: uri(path.join(storage, 'window', 'muralim-ai2.frontier-hve')),
     extension: { packageJSON: JSON.parse(fs.readFileSync(path.join(EXTENSION, 'package.json'), 'utf8')) },
-    workspaceState: memento(), globalState: memento(),
+    workspaceState: memento(), globalState: globalState || memento(),
   };
   return { api, context, controls, load: relative => {
     const original = Module._load;
@@ -154,12 +155,13 @@ function host(roots, storage) {
 /** Register Mission Control alone in a host double with a fixed Python launcher, disposed after the test.
  * @param {import('node:test').TestContext} t
  * @param {number} [count]
+ * @param {object | null} [globalState]
  * @returns {ReturnType<typeof host> & {root: string}}
  */
-function mission(t, count = 1) {
+function mission(t, count = 1, globalState = null) {
   const roots = Array.from({ length: count }, () => workspace());
   const storage = workspace();
-  const fixture = host(roots, storage);
+  const fixture = host(roots, storage, globalState);
   fixture.context.subscriptions.push(...fixture.load(path.join('ui', 'mission-control.js')).register(fixture.context, async () => 'python'));
   t.after(() => {
     fixture.context.subscriptions.forEach(resource => resource.dispose());
