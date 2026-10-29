@@ -8,7 +8,7 @@ from any other installed extension. Only the requested document types are loaded
 ## End-User Workflow
 
 After installing the updated VSIX and running **Frontier HVE: Set up**, ask
-`HVE creator`, `HVE creator-flow`, `HVE creator-github` or `HVE single` to create
+`Frontier Lite`, `HVE creator-flow`, `HVE creator-github` or `HVE single` to create
 the documents. For example: "Create a PRD, technical design specification and
 test strategy for the employee leave portal." `HVE product-manager` authors PRDs
 only (see [Product Manager](Product-Manager.md)).

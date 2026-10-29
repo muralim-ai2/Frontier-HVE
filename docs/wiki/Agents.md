@@ -4,14 +4,14 @@
 
 Pick these in a new chat. In VS Code the extension's agents and their agent-scoped hooks appear with Session Target **Local**; for Copilot (CLI or the VS Code Copilot harness), Claude Code, Codex, Cursor and the Copilot cloud agent run **Frontier HVE: Install for other harnesses** ([Adapters](Adapters.md)).
 
-Since 0.15.0 the picker shows only the delivery agents (D-055), and since 0.15.3 `HVE creator` again (D-058). They ask VS Code for a top model in this order: GPT-6 Astra, Gemini 4 Argon, Claude Fable 5, Claude Opus 5.5 (the first one available is used), with `reasoning-effort: high`. VS Code does not apply `reasoning-effort` from agent files (D-020), so also set the effort to high in the model picker. Every deliverable a user sees ends with the **wow uplift** loop (`wow-uplift` skill): a top-model judge (`HVE uplift-judge`) names two or three targeted UI/UX or presentation improvements, the agent applies them, re-runs the checks and captures before and after images, and the judge looks again, up to 3 rounds or until it says done. Any deck follows the `presentation-deck` skill (NorthStar style, discovery form, python-pptx build, lint and previews); when the user picks web slides it routes to `frontend-slides` (animated single-file HTML decks, D-059).
+Since 0.15.0 the picker shows only the delivery agents (D-055), and since 0.15.3 `Frontier Lite` again (D-058; named `HVE creator` until 0.22.1; asks created before keep that name in their contract). They ask VS Code for a top model in this order: GPT-6 Astra, Gemini 4 Argon, Claude Fable 5, Claude Opus 5.5 (the first one available is used), with `reasoning-effort: high`. VS Code does not apply `reasoning-effort` from agent files (D-020), so also set the effort to high in the model picker. Every deliverable a user sees ends with the **wow uplift** loop (`wow-uplift` skill): a top-model judge (`HVE uplift-judge`) names two or three targeted UI/UX or presentation improvements, the agent applies them, re-runs the checks and captures before and after images, and the judge looks again, up to 3 rounds or until it says done. Any deck follows the `presentation-deck` skill (NorthStar style, discovery form, python-pptx build, lint and previews); when the user picks web slides it routes to `frontend-slides` (animated single-file HTML decks, D-059).
 
 | Agent | Use it for | Guard hooks | Needs Python |
 |---|---|---|---|
 | `Frontier HVE Auto` (`hve-e2e`, autonomous; formerly Frontier E2E Delivery) | End-to-end delivery along a lifecycle (SDLC, team delivery, consulting or a plugin/workspace one), pausing only after the milestones you tick in the plan; build stages run as feature loops with their persona. E.g. a leave app from discovery to release with one review after design | as creator | Yes |
 | `Frontier HVE Collab` (`hve-agile`, collaborative; formerly Frontier BYOW) | Come in at any stage and run one, several or all stages of `team-delivery` with the right persona, each visit its own ask with a project ledger; a pack lifecycle can run in place of a stage; or sprints along your team's agile overlay. E.g. data architecture and build with the Oracle pack now, a design review next week | as creator | Yes |
 | `Frontier Prototype Creator` (`hve-prototype`) | Fast UI/UX clickthrough (HTML or TypeScript) in the ask folder's `prototype/`, self-checked (`tools/prototype/check.py`) with a screenshot per screen; no loop; output evaluation on request. E.g. three screens of a leave request flow for a stakeholder demo | loop (safety only) | Yes |
-| `HVE creator` | Build software: verified feature loop, then output evaluation ([Evaluation](Evaluation.md)) | loop, module, error, prototype, template, skill, profile, compaction, choice | Yes |
+| `Frontier Lite` | Build software: verified feature loop, then output evaluation ([Evaluation](Evaluation.md)) | loop, module, error, prototype, template, skill, profile, compaction, choice | Yes |
 
 Hidden in the extension (`user-invocable: false`): the agents below still ship and can be called as sub-agents, but you do not pick them. In this repository the research arms in `.github/agents/` (`minimal`, `single`, `creator`, `creator-flow`, `creator-github`) are the user-invocable versions.
 
@@ -126,7 +126,7 @@ Every deny, block or stop is logged to `.hve/runs/<session>.interventions.jsonl`
 
 ## Onboard an agent
 
-Until agent composition lands (tracker `N31`), a new agent is a copy: later changes to `HVE creator` do not reach it.
+Until agent composition lands (tracker `N31`), a new agent is a copy: later changes to `Frontier Lite` do not reach it.
 
 1. Copy the closest agent in `extension/agents/`: `hve-creator.agent.md` for agents that build, `hve-product-manager.agent.md` for agents that write documents. Name it `hve-<name>.agent.md` with `name: HVE <name>`.
 2. Write hook and tool commands as `python "{{RUNTIME}}/<path>.py"`. Never write an absolute path or `python3`: rendering fills in the runtime folder and this machine's Python launcher, and drops the hooks with a warning when Python is missing. Hidden helpers get `user-invocable: false`.

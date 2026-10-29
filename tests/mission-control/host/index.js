@@ -51,7 +51,7 @@ async function run() {
   await vscode.commands.executeCommand('workbench.view.extension.frontierHve');
   const state = await vscode.commands.executeCommand('frontierHve.openMissionControl');
   assert.match(state.ask.id, /-pawstagram$/);
-  assert.equal(state.ask.agent, 'HVE creator');
+  assert.equal(state.ask.agent, 'Frontier Lite');
   assert.ok(vscode.window.tabGroups.all.some(group => group.tabs.some(tab => tab.label === 'HVE Mission Control')), 'Mission Control editor must open.');
   assert.equal(snapshot(folder.uri.fsPath).revision, before, 'Opening Mission Control must not change project state.');
   const opened = await vscode.commands.executeCommand('frontierHve.missionControlModel');

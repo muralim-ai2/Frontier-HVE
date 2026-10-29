@@ -17,7 +17,7 @@ function project(root) {
   json(root, '.hve\\project\\project.json', { name: 'Client onboarding', goal: 'Build the onboarding workspace', asks: [ASK] });
   json(root, '.hve\\asks\\active.json', { active: ASK });
   json(root, path.join(folder, 'contract.json'), {
-    ask: ASK, request: 'Build the onboarding workspace', agent: 'HVE creator', lifecycle: 'direct', current: 'deliver', created: '2026-10-28T12:00:00+00:00',
+    ask: ASK, request: 'Build the onboarding workspace', agent: 'Frontier Lite', lifecycle: 'direct', current: 'deliver', created: '2026-10-28T12:00:00+00:00',
     stages: [{ name: 'deliver', goal: 'Deliver the workspace policy', agent: 'self', status: 'done' }],
     tasks: [{ name: 'policy', passes: true }], checklist: {}, checklist_rendered: { 'opt:evaluation': false, 'stage:deliver': false, 'task:policy': false },
     plan: { sha256: planDigest(plan), revisions: [] }, decisions: [],

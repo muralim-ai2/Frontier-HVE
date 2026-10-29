@@ -72,7 +72,7 @@ test('the sidebar shows live status, the ask, what needs you, the current step a
   const shown = text(tree);
   assert.match(shown, /Working/);
   assert.match(shown, /Build the onboarding workspace/);
-  assert.match(shown, /HVE creator · deliver: done · started .* · 1 chat/);
+  assert.match(shown, /Frontier Lite · deliver: done · started .* · 1 chat/);
   assert.match(shown, /2 items ready for your sign-off/);
   assert.match(shown, /The last command failed/);
   assert.match(shown, /Created policy\.js/);

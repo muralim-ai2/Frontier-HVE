@@ -71,7 +71,7 @@ test('a chat is linked to the ask its contract created, the asks it reopened and
     tool('2026-10-29T10:00:05.000Z', 'r', 'read_file', { filePath: path.join(root, '.hve', 'asks', REPORTING, 'plan.md') }),
     tool('2026-10-29T10:00:09.000Z', 'e', 'replace_string_in_file', { filePath: path.join(root, '.hve', 'asks', ONBOARDING, 'plan.md'), oldString: 'a', newString: 'b' })]);
   write(transcripts, 'late-contract', [row('user.message', '2026-10-28T19:00:00.000Z', { content: 'Earlier attempt' }),
-    tool('2026-10-28T19:00:05.000Z', 'c', 'run_in_terminal', { command: `python ${LIFECYCLE} contract direct pawstagram-dog-app "HVE creator" request.md` })]);
+    tool('2026-10-28T19:00:05.000Z', 'c', 'run_in_terminal', { command: `python ${LIFECYCLE} contract direct pawstagram-dog-app "Frontier Lite" request.md` })]);
   write(transcripts, 'plain', [row('user.message', '2026-10-29T11:00:00.000Z', { content: 'What does this repo do?' })]);
   const { chats, claimed } = chatList(transcripts, root, ASKS, {}, null, Date.parse('2026-10-29T12:00:00Z'));
   assert.equal(claimed, null);

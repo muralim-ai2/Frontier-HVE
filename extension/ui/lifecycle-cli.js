@@ -41,7 +41,7 @@ function validateOperation(args) {
   if (args.length === 6 && args[0] === 'tick-for' && ask.test(args[1]) && /^[a-f0-9]{64}$/.test(args[2])
       && /^(stage|task):[a-z0-9][a-z0-9_.-]*$/.test(args[3]) && ['accepted', 'changes'].includes(args[4]) && args[5].trim()) return;
   if (args.length === 5 && args[0] === 'contract' && args[1] === 'direct' && /^[a-z0-9][a-z0-9-]{0,40}$/.test(args[2])
-      && args[3] === 'HVE creator' && path.isAbsolute(args[4])) return;
+      && args[3] === 'Frontier Lite' && path.isAbsolute(args[4])) return;
   throw new Error(`Unsupported lifecycle operation: ${args[0]}. Mission Control cannot run arbitrary commands or change workflow stages.`);
 }
 

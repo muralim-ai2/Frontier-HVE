@@ -25,7 +25,7 @@ def invoke(workspace: Path, *args: str) -> subprocess.CompletedProcess[str]:
 def new_ask(workspace: Path) -> dict[str, Any]:
     """Create a direct ask in the workspace and return its contract."""
     (workspace / "request.txt").write_text("Build an onboarding policy checker", encoding="utf-8")
-    made = invoke(workspace, "contract", "direct", "policy", "HVE creator", "request.txt")
+    made = invoke(workspace, "contract", "direct", "policy", "Frontier Lite", "request.txt")
     assert made.returncode == 0, made.stderr
     ask = json.loads(made.stdout)["ask"]
     contract: dict[str, Any] = json.loads((workspace / ".hve" / "asks" / ask / "contract.json").read_text(encoding="utf-8"))

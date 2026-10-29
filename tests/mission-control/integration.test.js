@@ -43,7 +43,7 @@ function completeStage(root, ask) {
 test('real task creation is visible to the harness and cleans request inputs', async t => {
   const { root, storage, state } = await setup(t);
   assert.match(state.ask.id, /-policy$/);
-  assert.equal(state.ask.agent, 'HVE creator');
+  assert.equal(state.ask.agent, 'Frontier Lite');
   const where = await lifecycle(bundled(), root, ['where']);
   assert.equal(where.open_ask.ask, state.ask.id);
   assert.equal(where.project.asks[0], state.ask.id);

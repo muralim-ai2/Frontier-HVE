@@ -26,7 +26,7 @@ def create(workspace: Path, slug: str) -> str:
     """Create a real ask in the disposable workspace."""
     request = workspace / "request.txt"
     request.write_text("Build an onboarding policy checker", encoding="utf-8")
-    data = run(workspace, "contract", "direct", slug, "HVE creator", str(request))
+    data = run(workspace, "contract", "direct", slug, "Frontier Lite", str(request))
     ask = data["ask"]
     assert isinstance(ask, str)
     return ask

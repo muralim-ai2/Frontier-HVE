@@ -281,7 +281,7 @@ def test_copilot_user_scope_and_cloud_exports() -> None:
         assert fire_copilot(hooks, ws, write, env) == [], "no open ask: the user-level hooks stay out of the way"
         (ws / "req.md").write_text("Build a login page", encoding="utf-8")
         lifecycle = home / ".hve" / "runtime" / "tools" / "loop" / "lifecycle.py"
-        made = subprocess.run([sys.executable, str(lifecycle), "contract", "direct", "login", "HVE creator", "req.md"], cwd=ws,
+        made = subprocess.run([sys.executable, str(lifecycle), "contract", "direct", "login", "Frontier Lite", "req.md"], cwd=ws,
                               capture_output=True, text=True, env=env)
         assert made.returncode == 0, made.stderr
         paths = json.loads(made.stdout)["paths"]

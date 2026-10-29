@@ -52,7 +52,7 @@ test('every ask of the project is listed newest first with its title, agent, sta
   assert.deepEqual(asks.map(ask => ask.id), [second, first]);
   const row = asks.find(ask => ask.id === first);
   assert.equal(row.title, 'Build an onboarding policy checker');
-  assert.equal(row.agent, 'HVE creator');
+  assert.equal(row.agent, 'Frontier Lite');
   assert.match(row.stage, /: planned$/);
   assert.deepEqual(asks.filter(ask => ask.active).map(ask => ask.id), [second]);
   assert.equal(askTime('20261028-1752-integrated-ui'), Date.parse('2026-10-28T17:52:00Z'));

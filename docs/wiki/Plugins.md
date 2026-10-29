@@ -646,6 +646,6 @@ The organization index (setting `frontierHve.pluginIndex`, a path or https URL):
 ## Not yet
 
 - Pack agents are not exported to Claude Code, Cursor or Codex; there the brief names the agent's instruction file to follow.
-- The creator agents (HVE creator, creator-flow, creator-github) do not route packs per prompt; creator-flow's graph format is not a pack format.
+- The creator agents (Frontier Lite, creator-flow, creator-github) do not route packs per prompt; creator-flow's graph format is not a pack format.
 - No publisher signatures beyond the index hash, no packs that depend on other packs, no sandbox for pack agents beyond their declared tools.
 - Live use is not yet verified (tracker N43).

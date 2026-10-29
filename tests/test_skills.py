@@ -351,7 +351,7 @@ def test_chat_is_told_once_when_another_chat_opens_an_ask() -> None:
         open_ask(root, "Build a War of the Worlds timeline")
         env = {"HARNESS_SKILLS_MIN_STATUS": "provisional"}
         opened = {"hook_event_name": "PostToolUse", "session_id": "p1", "tool_name": "run_in_terminal", "tool_response": "{}",
-                  "tool_input": {"command": 'python "rt/tools/loop/lifecycle.py" contract direct x "HVE creator" .hve/asks/request.md'}}
+                  "tool_input": {"command": 'python "rt/tools/loop/lifecycle.py" contract direct x "Frontier Lite" .hve/asks/request.md'}}
         fire(root, opened, **env)
         pre = {"hook_event_name": "PreToolUse", "session_id": "p1", "tool_input": {"filePath": "x.ts"}}
         first = json.loads(fire(root, pre, **env))["hookSpecificOutput"]["additionalContext"]

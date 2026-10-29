@@ -298,7 +298,7 @@ async function setUp(context) {
  */
 async function offerReload(message) {
   const reload = await vscode.window.showInformationMessage(
-    `${message} Reload the window, then pick a Frontier agent (E2E Delivery, BYOW or Prototype Creator) or HVE creator in a new chat with Session Target: Local.`,
+    `${message} Reload the window, then pick a Frontier agent (E2E Delivery, BYOW or Prototype Creator) or Frontier Lite in a new chat with Session Target: Local.`,
     'Reload Window');
   if (reload) {
     vscode.commands.executeCommand('workbench.action.reloadWindow');
