@@ -8,6 +8,9 @@
   const markdown = modular ? require('./markdown') : root.hveMarkdown;
   /** @type {typeof globalThis.hveViews} */
   const views = modular ? require('./views') : root.hveViews;
+  /** @type {typeof globalThis.hveTelemetry} */
+  const tele = modular ? require('./telemetry') : root.hveTelemetry;
+  const { telemetry } = tele;
   const { icon, ago, count, plural, pretty, button, chip, needs, attention, eventRow, todoList, bar, telemetrySwitch, askChats, noChat, askPicker, viewing, handoffNotice,
     PAGES } = views;
 
@@ -340,7 +343,7 @@
    */
   function dashboard(model, ui, now) {
     const snap = model.snapshot;
-    const pages = { live, plan, progress, files, others, skills: () => skills(model), settings: () => settings(model) };
+    const pages = { live, plan, progress, files, others, telemetry, skills: () => skills(model), settings: () => settings(model) };
     return h('div', { class: `dashboard ${model.busy ? 'busy' : ''}`.trim() },
       h('header', { class: 'dash-head' }, h('div', { class: 'dash-title' }, icon('logo', 'brand'),
         h('div', null, h('span', { class: 'section-label' }, snap?.project ? pretty(snap.project.name) : 'Frontier HVE'), h('h1', null, snap?.ask?.title || 'Mission Control')), chip(model),
@@ -355,7 +358,7 @@
       h('main', { class: `page page-${ui.page}` }, ...pages[ui.page](model, ui, now)));
   }
 
-  const api = { dashboard, live, plan, progress, files, others, skills, settings };
+  const api = { dashboard, live, plan, progress, files, others, telemetry, skills, settings };
   if (modular) module.exports = api;
   else root.hvePages = api;
 })(globalThis);

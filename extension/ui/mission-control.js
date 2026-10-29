@@ -12,9 +12,11 @@ const { Workflow } = require('./workflow');
 const { HarnessTree } = require('./harness-tree');
 const actions = require('./actions');
 const askFlow = require('./ask-flow');
+const analysis = require('./analysis');
+const { insights } = require('./insights');
 const { record, text, message, errorText } = require('./validate');
-const PAGES = ['live', 'plan', 'progress', 'files', 'others', 'skills', 'settings'];
-const SCRIPTS = ['vnode.js', 'markdown.js', 'views.js', 'pages.js', 'app.js'];
+const PAGES = ['live', 'plan', 'progress', 'files', 'others', 'telemetry', 'skills', 'settings'];
+const SCRIPTS = ['vnode.js', 'markdown.js', 'views.js', 'telemetry.js', 'pages.js', 'app.js'];
 const REFRESH_DELAY_MS = 400;
 
 /** Return the restricted webview document that loads Mission Control's styles and scripts.
@@ -72,7 +74,7 @@ class MissionControl {
     const version = text(record(context.extension.packageJSON, 'Extension manifest').version, 'Extension version');
     /** @type {Omit<import('./types').Model, 'now' | 'surface' | 'workspace' | 'telemetry' | 'navigate' | 'transcripts'>} */
     this.state = { busy: false, error: null, workspaceMessage: null, connection: { version, python: null, guard: guardMode(context.extensionPath) },
-      asks: null, asksError: null, snapshot: null, snapshotError: null, activity: null, activityError: null, pending: null, handoff: null, handoffError: null, files: null, filesError: null,
+      asks: null, asksError: null, snapshot: null, snapshotError: null, activity: null, activityError: null, pending: null, handoff: null, handoffError: null, insights: null, models: null, modelsError: null, analysis: null, files: null, filesError: null,
       packs: null, packsError: null };
     this.restoreWorkspace();
   }
@@ -243,7 +245,7 @@ class MissionControl {
     const carried = await this.section('Ask carried over', async () => askFlow.handoff(this));
     Object.assign(this.state, { asks: asks.value, asksError: asks.error, snapshot: state.value, snapshotError: state.error,
       activity: live.value, activityError: live.error, files: files.value, filesError: files.error,
-      handoff: carried.value, handoffError: carried.error });
+      handoff: carried.value, handoffError: carried.error, insights: live.value ? insights(live.value) : null });
     this.paint();
     return this.state.snapshot;
   }
@@ -370,6 +372,8 @@ class MissionControl {
         case 'startHandoff': await askFlow.startHandoff(this); break;
         case 'dismissHandoff': await askFlow.dismissHandoff(this); break;
         case 'attachReferences': await askFlow.attachReferences(this); break;
+        case 'loadModels': await analysis.loadModels(this); break;
+        case 'analyze': await analysis.analyze(this, data.model, data.question); break;
         case 'selectAsk': await actions.selectAsk(this, data.ask); break;
         case 'activateAsk': await actions.activateAsk(this, data.ask); break;
         case 'selectChat': actions.selectChat(this, data.chat); break;

@@ -8,7 +8,7 @@
   const root = document.getElementById('root');
   const announce = document.getElementById('announce');
   if (!root || !announce) throw new Error('Mission Control document is incomplete.');
-  const PAGES = ['live', 'plan', 'progress', 'files', 'others', 'skills', 'settings'];
+  const PAGES = ['live', 'plan', 'progress', 'files', 'others', 'telemetry', 'skills', 'settings'];
   const FILTERS = ['all', 'edits', 'commands', 'conversation', 'problems'];
   const saved = /** @type {Partial<import('../types').UiState> | undefined} */ (api.getState());
   /** @type {import('../types').UiState} */
@@ -17,6 +17,7 @@
   let model = null;
   let status = '';
   let packsAsked = false;
+  let modelsAsked = false;
   let deferred = false;
 
   /** Return a key that finds the same control after a redraw.
@@ -32,7 +33,7 @@
    */
   function draw() {
     if (!model || !root) return;
-    if (document.activeElement instanceof HTMLSelectElement) {
+    if (document.activeElement instanceof HTMLSelectElement || document.activeElement instanceof HTMLTextAreaElement) {
       deferred = true;
       return;
     }
@@ -64,7 +65,18 @@
     ui.page = /** @type {import('../types').Page} */ (page);
     document.documentElement.scrollTop = 0;
     askForPacks();
+    askForModels();
     draw();
+  }
+
+  /** Ask the host for the Copilot models the first time the Telemetry page shows.
+   * @returns {void}
+   */
+  function askForModels() {
+    if (model?.surface === 'editor' && ui.page === 'telemetry' && model.models === null && !model.modelsError && !modelsAsked) {
+      modelsAsked = true;
+      api.postMessage({ action: 'loadModels' });
+    }
   }
 
   /** Ask the host for the installed packs the first time the Skills and packs page shows.
@@ -86,21 +98,38 @@
       if (!FILTERS.includes(data.value || '')) throw new Error('Unknown activity filter.');
       ui.filter = /** @type {import('../types').UiState['filter']} */ (data.value);
       draw();
+    } else if (action === 'analyze') {
+      const pick = document.querySelector('select[data-field="model"]');
+      const box = document.querySelector('textarea[data-field="question"]');
+      if (!(pick instanceof HTMLSelectElement) || !(box instanceof HTMLTextAreaElement)) throw new Error('The analysis form is incomplete.');
+      api.postMessage({ action, model: pick.value, question: box.value.trim() || box.placeholder });
     } else {
       api.postMessage({ action, ...data });
       if (next) go(next);
     }
   });
 
+  document.addEventListener('input', event => {
+    if (event.target instanceof HTMLTextAreaElement && event.target.dataset.field === 'question') {
+      ui.question = event.target.value;
+      api.setState(ui);
+    }
+  });
+
   document.addEventListener('change', event => {
     const target = event.target;
+    if (target instanceof HTMLSelectElement && target.dataset.field === 'model') {
+      ui.model = target.value;
+      api.setState(ui);
+      return;
+    }
     if (!(target instanceof HTMLSelectElement) || target.dataset.action !== 'selectAsk' || !target.value) return;
     api.postMessage({ action: 'selectAsk', ask: target.value });
     target.blur();
   });
 
   document.addEventListener('focusout', event => {
-    if (event.target instanceof HTMLSelectElement && deferred) setTimeout(draw, 0);
+    if ((event.target instanceof HTMLSelectElement || event.target instanceof HTMLTextAreaElement) && deferred) setTimeout(draw, 0);
   });
 
   document.addEventListener('toggle', event => {
@@ -128,6 +157,7 @@
       status = next;
     }
     askForPacks();
+    askForModels();
     draw();
   });
 

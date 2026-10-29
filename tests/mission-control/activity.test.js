@@ -143,7 +143,7 @@ test('research telemetry tokens are summed per model for this session only', t =
     + JSON.stringify({ name: 'chat claude-opus-5.5', status: { code: 2, message: 'The operation was aborted' },
       attributes: { 'gen_ai.conversation.id': SESSION, 'gen_ai.request.model': 'claude-opus-5.5' } }) + '\n');
   const { tokens } = activity(root, chat, file, START + 60_000);
-  assert.deepEqual(tokens.models[0], { model: 'claude-opus-5.5', calls: 3, failed: 1, input: 3000, output: 120, cached: 200 });
+  assert.deepEqual(tokens.models[0], { model: 'claude-opus-5.5', calls: 3, failed: 1, input: 3000, output: 120, cached: 200, reasoning: 0 });
   assert.equal(tokens.models[1].model, 'gpt-4o-mini');
   assert.equal(tokens.aiu, 1.5);
   assert.equal(activity(root, chat, path.join(path.dirname(root), 'elsewhere.jsonl'), START).tokens, null);

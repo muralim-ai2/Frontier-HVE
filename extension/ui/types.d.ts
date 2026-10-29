@@ -51,7 +51,7 @@ export interface Pack {
   knowledge: string[];
   templates: string[];
 }
-export type Page = 'live' | 'plan' | 'progress' | 'files' | 'others' | 'skills' | 'settings';
+export type Page = 'live' | 'plan' | 'progress' | 'files' | 'others' | 'telemetry' | 'skills' | 'settings';
 export interface AskSummary {
   id: string;
   title: string;
@@ -95,6 +95,42 @@ export interface Chat {
   status: 'working' | 'waiting' | 'idle';
   asks: ChatLink[];
 }
+export interface Signal {
+  tone: 'error' | 'warn' | 'info';
+  title: string;
+  detail: string;
+}
+export interface Insights {
+  chat: string;
+  measured: boolean;
+  turns: number;
+  toolCalls: number;
+  commands: number;
+  failures: number;
+  skills: { count: number; names: string[]; tokens: number; measured: boolean };
+  chatTokens: number;
+  argTokens: number;
+  thinkingTokens: number | null;
+  input: number;
+  output: number;
+  total: number;
+  aiu: number;
+  signals: Signal[];
+  method: string;
+}
+export interface ChatModelInfo {
+  id: string;
+  name: string;
+  family: string;
+}
+export interface Analysis {
+  model: string;
+  question: string;
+  chat: string;
+  status: 'running' | 'done' | 'error';
+  text: string;
+  at: string;
+}
 export interface Handoff {
   title: string;
   description: string;
@@ -120,6 +156,10 @@ export interface Model {
   pending: Pending | null;
   handoff: Handoff | null;
   handoffError: string | null;
+  insights: Insights | null;
+  models: ChatModelInfo[] | null;
+  modelsError: string | null;
+  analysis: Analysis | null;
   files: AskFiles | null;
   filesError: string | null;
   packs: Pack[] | null;
@@ -129,6 +169,8 @@ export interface Model {
 export interface UiState {
   page: Page;
   filter: 'all' | 'edits' | 'commands' | 'conversation' | 'problems';
+  model?: string;
+  question?: string;
   open: Record<string, boolean>;
   seq: number;
 }
@@ -170,6 +212,7 @@ export interface Pages {
   progress(model: Model, ui: UiState, now: number): Child[];
   files(model: Model, ui: UiState, now: number): Child[];
   others(model: Model, ui: UiState, now: number): Child[];
+  telemetry(model: Model, ui: UiState, now: number): Child[];
   skills(model: Model): Child[];
   settings(model: Model): Child[];
 }
@@ -199,6 +242,13 @@ export interface Session {
   todos: Todo[];
   events: ActivityEvent[];
   files: { path: string; count: number; last: string }[];
+  stats: SessionStats;
+}
+export interface SessionStats {
+  chars: { user: number; agent: number; args: number };
+  skills: { name: string; bytes: number }[];
+  repeats: { title: string; count: number }[];
+  gap: { from: string; to: string } | null;
 }
 export interface TokenUse {
   model: string;
@@ -207,6 +257,7 @@ export interface TokenUse {
   input: number;
   output: number;
   cached: number;
+  reasoning: number;
 }
 export interface Activity {
   session: Session | null;
@@ -229,6 +280,7 @@ declare global {
   var hveMarkdown: { render(source: string): VNode[]; inline(source: string): Child[] };
   var hveViews: Views;
   var hvePages: Pages;
+  var hveTelemetry: { telemetry(model: Model, ui: UiState, now: number): Child[] };
 }
 export interface VNode {
   tag: string;

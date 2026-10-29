@@ -20,7 +20,8 @@ const cache = new Map();
 /** @typedef {import('./types').ActivityEvent} ActivityEvent */
 /** @typedef {{id: string, title: string | null, started: string, lastAt: string, turnOpen: boolean, open: {event: ActivityEvent, tool: string} | null,
  *   turns: number, tools: number, failures: number, commands: number, todos: import('./types').Todo[], events: ActivityEvent[],
- *   files: Map<string, {count: number, last: string}>}} Parsed */
+ *   files: Map<string, {count: number, last: string}>, chars: {user: number, agent: number, args: number}, skills: Map<string, number>,
+ *   calls: Map<string, {title: string, count: number}>, gap: {from: string, to: string} | null}} Parsed */
 
 /** Return the end of a file, starting at a line boundary when it was cut.
  * @param {string} file
@@ -206,19 +207,21 @@ function parse(file, workspace) {
   if (!SESSION.test(id)) throw new Error(`Unexpected chat session file name: ${path.basename(file)}`);
   /** @type {Parsed} */
   const s = { id, title: null, started: '', lastAt: '', turnOpen: false, open: null, turns: 0, tools: 0, failures: 0, commands: 0, todos: [],
-    events: [], files: new Map() };
+    events: [], files: new Map(), chars: { user: 0, agent: 0, args: 0 }, skills: new Map(), calls: new Map(), gap: null };
   /** @type {Map<string, {event: ActivityEvent, tool: string}>} */
   const running = new Map();
   for (const row of jsonLines(tail(file, TAIL_BYTES), path.basename(file))) {
     const type = text(row.type, 'Transcript event type');
     const at = text(row.timestamp, `${type} timestamp`);
     const data = record(row.data, `${type} data`);
+    if (s.lastAt && (!s.gap || Date.parse(at) - Date.parse(s.lastAt) > Date.parse(s.gap.to) - Date.parse(s.gap.from))) s.gap = { from: s.lastAt, to: at };
     s.started ||= at;
     s.lastAt = at;
     if (type === 'session.start') s.started = text(data.startTime, 'Session start time');
     else if (type === 'user.message') {
       settle(running);
       const content = text(data.content, 'Your message', true);
+      s.chars.user += content.length;
       if (content.trim()) {
         s.title ||= headline(content);
         s.events.push({ at, kind: 'prompt', title: headline(content), detail: '', files: [], state: 'ok' });
@@ -228,11 +231,20 @@ function parse(file, workspace) {
     else if (type === 'assistant.message') {
       settle(running);
       const content = text(data.content, 'Agent message', true);
+      s.chars.agent += content.length;
       if (content.trim()) s.events.push({ at, kind: 'message', title: clip(content, 160), detail: '', files: [], state: 'ok' });
     } else if (type === 'tool.execution_start') {
       const tool = text(data.toolName, 'Tool name');
       const args = data.arguments === undefined ? {} : record(data.arguments, `${tool} arguments`);
       const event = describe(tool, args, workspace, at);
+      const key = `${tool} ${JSON.stringify(args)}`;
+      s.chars.args += key.length;
+      s.calls.set(key, { title: event.title, count: (s.calls.get(key)?.count || 0) + 1 });
+      const skill = tool === 'read_file' && /[\\/]([^\\/]+)[\\/]SKILL\.md$/i.exec(arg(args, 'filePath') || '');
+      if (skill && !s.skills.has(skill[1])) {
+        const file = /** @type {string} */ (arg(args, 'filePath'));
+        s.skills.set(skill[1], fs.existsSync(file) ? fs.statSync(file).size : 0);
+      }
       s.tools += 1;
       if (tool === 'run_in_terminal') s.commands += 1;
       if (tool === 'manage_todo_list') s.todos = todoList(args);
@@ -304,6 +316,8 @@ function session(s, now) {
     .map(event => ({ ...event, state: event.state === 'running' && (state === 'idle' || event !== open?.event) ? 'stopped' : event.state }));
   return { id: s.id, title: s.title, started: s.started, lastAt: s.lastAt, status: state, current: state === 'idle' ? null : open?.event || null,
     turns: s.turns, tools: s.tools, failures: s.failures, commands: s.commands, todos: s.todos, events,
+    stats: { chars: { ...s.chars }, skills: [...s.skills].map(([name, bytes]) => ({ name, bytes })), gap: s.gap,
+      repeats: [...s.calls.values()].filter(call => call.count >= 3).sort((a, b) => b.count - a.count).slice(0, 5) },
     files: [...s.files].map(([file, row]) => ({ path: file, ...row })).sort((a, b) => b.last.localeCompare(a.last)) };
 }
 
@@ -355,7 +369,7 @@ function usage(workspace, file, id) {
     const owners = [attrs['gen_ai.conversation.id'], attrs['copilot_chat.chat_session_id'], attrs['copilot_chat.parent_chat_session_id']];
     if (!owners.includes(id)) continue;
     const model = text(attrs['gen_ai.response.model'] ?? attrs['gen_ai.request.model'], 'Telemetry model');
-    const use = models.get(model) || { model, calls: 0, failed: 0, input: 0, output: 0, cached: 0 };
+    const use = models.get(model) || { model, calls: 0, failed: 0, input: 0, output: 0, cached: 0, reasoning: 0 };
     use.calls += 1;
     models.set(model, use);
     if (attrs['gen_ai.usage.input_tokens'] === undefined && record(row.status, 'Telemetry span status').code === 2) {
@@ -365,6 +379,8 @@ function usage(workspace, file, id) {
     use.input += integer(attrs['gen_ai.usage.input_tokens'], 'Input tokens');
     use.output += integer(attrs['gen_ai.usage.output_tokens'], 'Output tokens');
     use.cached += attrs['gen_ai.usage.cache_read.input_tokens'] === undefined ? 0 : integer(attrs['gen_ai.usage.cache_read.input_tokens'], 'Cached tokens');
+    const reasoning = attrs['gen_ai.usage.reasoning_tokens'] ?? attrs['gen_ai.usage.reasoning.output_tokens'];
+    use.reasoning += reasoning === undefined ? 0 : integer(reasoning, 'Thinking tokens');
     nano += attrs['copilot_chat.copilot_usage_nano_aiu'] === undefined ? 0 : integer(attrs['copilot_chat.copilot_usage_nano_aiu'], 'AI units');
   }
   return models.size ? { models: [...models.values()].sort((a, b) => b.input - a.input), aiu: nano / 1e9 } : null;

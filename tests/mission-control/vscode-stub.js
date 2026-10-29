@@ -38,7 +38,7 @@ function webview(calls) {
 function host(roots, storage, globalState = null) {
   const commands = new Map();
   const settings = new Map();
-  const controls = { commands, settings, provider: null, inputs: [], confirmations: [], picks: [], dialogs: [], notices: [], calls: [], watchers: [], errors: [], statusItems: [],
+  const controls = { commands, settings, provider: null, inputs: [], confirmations: [], picks: [], dialogs: [], notices: [], models: [], calls: [], watchers: [], errors: [], statusItems: [],
     panels: [], trees: [],
     /** Return a Primary Side Bar view double. @param {boolean} [visible] @returns {object} */
     view: (visible = false) => ({ visible, webview: webview(controls.calls), onDidDispose: () => new Disposable() }) };
@@ -57,6 +57,9 @@ function host(roots, storage, globalState = null) {
     },
     TreeItem: class { constructor(label, collapsibleState) { this.label = label; this.collapsibleState = collapsibleState; } },
     TreeItemCollapsibleState: { None: 0, Collapsed: 1, Expanded: 2 },
+    CancellationTokenSource: class { constructor() { this.token = { isCancellationRequested: false }; } dispose() {} },
+    LanguageModelChatMessage: { User: content => ({ role: 'user', content }) },
+    lm: { selectChatModels: async selector => controls.models.filter(model => !selector.id || model.id === selector.id) },
     ThemeIcon: Object.assign(class { constructor(id) { this.id = id; } }, { Folder: { id: 'folder' }, File: { id: 'file' } }),
     Uri: { file: uri, parse: value => ({ toString: () => value }), joinPath: (base, ...parts) => uri(path.join(base.fsPath, ...parts)) },
     RelativePattern: class { constructor(base, pattern) { this.base = base; this.pattern = pattern; } },

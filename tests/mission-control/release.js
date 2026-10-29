@@ -10,8 +10,8 @@ const REPO = path.dirname(EXTENSION);
 const { runTests, resolveCliPathFromVSCodeExecutablePath } = createRequire(path.join(EXTENSION, 'package.json'))('@vscode/test-electron');
 const ORIGINAL = ['frontierHve.setup', 'frontierHve.installHarnesses', 'frontierHve.researchTelemetry', 'frontierHve.researchTelemetryOff',
   'frontierHve.installPlugin', 'frontierHve.managePlugins'];
-const UI_FILES = ['mission-control.js', 'actions.js', 'ask-flow.js', 'asks.js', 'chats.js', 'harness-tree.js', 'workspace-state.js', 'activity.js', 'workflow.js', 'lifecycle-cli.js',
-  'file-access.js', 'validate.js', 'media/app.css', 'media/app.js', 'media/vnode.js', 'media/markdown.js', 'media/views.js', 'media/pages.js', 'media/hve.svg'];
+const UI_FILES = ['mission-control.js', 'actions.js', 'ask-flow.js', 'asks.js', 'chats.js', 'harness-tree.js', 'insights.js', 'analysis.js', 'workspace-state.js', 'activity.js', 'workflow.js', 'lifecycle-cli.js',
+  'file-access.js', 'validate.js', 'media/app.css', 'media/app.js', 'media/vnode.js', 'media/markdown.js', 'media/views.js', 'media/telemetry.js', 'media/pages.js', 'media/hve.svg'];
 const EXCLUDED = /(^|\/)node_modules\/|^package-lock\.json$|^tsconfig\.json$|^ui\/types\.d\.ts$|\.vsix$|^build\.py$|__pycache__\//;
 
 /** Run a command and return its standard output, failing with its output when it exits non-zero.
