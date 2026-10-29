@@ -34,10 +34,12 @@ function apply(s, row, workspace) {
   s.lastAt = at;
   if (type === 'session.start') s.started = text(data.startTime, 'Session start time');
   else if (type === 'user.message') {
+    s.running.clear();
     const content = text(data.content, 'Your message', true);
     if (content.trim()) s.title ||= headline(content);
   } else if (type === 'assistant.turn_start') s.turnOpen = true;
   else if (type === 'assistant.turn_end') s.turnOpen = false;
+  else if (type === 'assistant.message') s.running.clear();
   else if (type === 'tool.execution_start') {
     const tool = text(data.toolName, 'Tool name');
     const args = data.arguments === undefined ? {} : record(data.arguments, `${tool} arguments`);

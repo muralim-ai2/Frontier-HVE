@@ -184,6 +184,15 @@ function todoList(args) {
   });
 }
 
+/** Mark tool calls that never reported a result as stopped once the conversation moved on: the agent answered or you wrote again.
+ * @param {Map<string, {event: ActivityEvent, tool: string}>} running
+ * @returns {void}
+ */
+function settle(running) {
+  for (const call of running.values()) call.event.state = 'stopped';
+  running.clear();
+}
+
 /** Parse one transcript into its session facts.
  * @param {string} file
  * @param {string} workspace
@@ -205,6 +214,7 @@ function parse(file, workspace) {
     s.lastAt = at;
     if (type === 'session.start') s.started = text(data.startTime, 'Session start time');
     else if (type === 'user.message') {
+      settle(running);
       const content = text(data.content, 'Your message', true);
       if (content.trim()) {
         s.title ||= headline(content);
@@ -213,6 +223,7 @@ function parse(file, workspace) {
     } else if (type === 'assistant.turn_start') { s.turnOpen = true; s.turns += 1; }
     else if (type === 'assistant.turn_end') s.turnOpen = false;
     else if (type === 'assistant.message') {
+      settle(running);
       const content = text(data.content, 'Agent message', true);
       if (content.trim()) s.events.push({ at, kind: 'message', title: clip(content, 160), detail: '', files: [], state: 'ok' });
     } else if (type === 'tool.execution_start') {
