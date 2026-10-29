@@ -43,7 +43,7 @@
   const KIND_ICON = { prompt: 'user', message: 'chat', read: 'eye', edit: 'pencil', run: 'terminal', search: 'search', ask: 'question',
     delegate: 'users', todo: 'list', guard: 'shield', tool: 'tool' };
   /** @type {[import('../types').Page, string, string][]} */
-  const PAGES = [['live', 'Live', 'pulse'], ['plan', 'Plan', 'map'], ['progress', 'Progress', 'flag'], ['files', 'Files', 'folder'], ['others', 'Other asks', 'list'], ['telemetry', 'Telemetry', 'spark'], ['skills', 'Skills & packs', 'box'],
+  const PAGES = [['live', 'Live', 'pulse'], ['plan', 'Plan', 'map'], ['progress', 'Progress', 'flag'], ['files', 'Files', 'folder'], ['others', 'Other asks', 'list'], ['telemetry', 'Telemetry', 'spark'], ['visuals', 'Visuals', 'map'], ['skills', 'Skills & packs', 'box'],
     ['settings', 'Settings', 'gear']];
 
   /** Return a decorative line icon.
@@ -222,7 +222,9 @@
     return h('div', { class: 'switch-row' }, h('div', null, h('strong', null, 'Research telemetry'),
       h('span', { class: 'muted' }, on ? 'On: new chats record tokens, cost and full content' : 'Off: no tokens or chat content recorded')),
     h('button', { class: `switch ${on ? 'on' : ''}`.trim(), type: 'button', role: 'switch', 'aria-checked': on ? 'true' : 'false', 'aria-label': 'Research telemetry',
-      'data-action': 'telemetry', 'data-value': on ? 'off' : 'on', disabled: model.busy }, h('span', { class: 'knob' })));
+      'data-action': 'telemetry', 'data-value': on ? 'off' : 'on', disabled: model.busy }, h('span', { class: 'knob' })),
+    model.telemetry.bytes ? button(`Prune data (${(model.telemetry.bytes / 1024 / 1024).toFixed(1)} MB)…`, 'pruneTelemetry',
+      { kind: 'link', disabled: model.busy, title: 'Archive and empty, or delete, the research telemetry export' }) : null);
   }
 
   /** Return the chats that work on the ask on screen; with no ask, every chat of this window.
@@ -364,7 +366,7 @@
    */
   function sidebar(model, ui, now) {
     return h('div', { class: `sidebar ${model.busy ? 'busy' : ''}`.trim(), 'data-page': ui.page },
-      h('header', { class: 'top' }, icon('logo', 'brand'), h('strong', null, 'Frontier HVE'), chip(model),
+      h('header', { class: 'top' }, icon('logo', 'brand'), h('strong', null, 'Frontier HVE'), h('span', { class: 'early', title: 'Early release: features may change' }, 'Early'), chip(model),
         button('', 'refresh', { kind: 'icon', icon: 'refresh', title: 'Refresh', disabled: model.busy })),
       model.workspaceMessage ? h('div', { class: 'notice' }, model.workspaceMessage, button('Choose folder', 'selectWorkspace')) : null,
       button('New ask', 'newAsk', { kind: 'primary new-ask', icon: 'plus', disabled: model.busy || !model.workspace,

@@ -147,7 +147,7 @@ function chatList(transcripts, workspace, asks, claims, pending, now) {
   return { chats: chats.sort((a, b) => b.lastAt.localeCompare(a.lastAt)), claimed };
 }
 
-/** Return the chat to show for an ask: the one chosen if it works on the ask, else its latest; with no ask, the latest chat.
+/** Return the chat to show: the one the user chose, else the ask's latest chat; with no ask, the latest chat.
  * @param {import('./types').Chat[]} chats
  * @param {string | null} ask
  * @param {string | null} chosen
@@ -155,7 +155,7 @@ function chatList(transcripts, workspace, asks, claims, pending, now) {
  */
 function shownChat(chats, ask, chosen) {
   const mine = ask === null ? chats : chats.filter(chat => chat.asks.some(link => link.ask === ask));
-  return mine.find(chat => chat.id === chosen) || mine[0] || null;
+  return chats.find(chat => chat.id === chosen) || mine[0] || null;
 }
 
 /** Validate the saved chat-to-ask links.
@@ -187,6 +187,42 @@ function pendingFrom(value, now) {
   return now - Date.parse(at) < PENDING_MS ? { ask, at } : null;
 }
 
+/** @type {Map<string, {size: number, mtime: number, meta: import('./types').ChatMeta}>} */
+const metas = new Map();
+
+/** Return the agent, execution mode and model of a chat from VS Code's own session record, read from its end and cached; Local when VS Code keeps it locally.
+ * @param {string} transcripts
+ * @param {string} id
+ * @returns {import('./types').ChatMeta}
+ */
+function chatMeta(transcripts, id) {
+  if (!SESSION.test(id)) throw new Error(`Invalid chat session id: ${id}`);
+  const file = path.join(path.dirname(path.dirname(transcripts)), 'chatSessions', `${id}.jsonl`);
+  if (!fs.existsSync(file)) return { agent: null, model: null, mode: null };
+  const stat = fs.statSync(file);
+  const hit = metas.get(file);
+  if (hit && hit.size === stat.size && hit.mtime === stat.mtimeMs) return hit.meta;
+  /** @param {number} limit @returns {import('./types').ChatMeta} */
+  const read = limit => {
+    const start = Math.max(0, stat.size - limit);
+    const handle = fs.openSync(file, 'r');
+    try {
+      const buffer = Buffer.alloc(stat.size - start);
+      fs.readSync(handle, buffer, 0, buffer.length, start);
+      const content = buffer.toString('utf8');
+      /** @param {RegExp} pattern @returns {string | null} */
+      const last = pattern => [...content.matchAll(pattern)].at(-1)?.[1] || null;
+      return { agent: last(/"telemetryModeName":"([^"]{1,80})"/g), model: last(/"modelId":"(?:copilot\/)?([^"]{1,80})"/g), mode: 'Local' };
+    } finally {
+      fs.closeSync(handle);
+    }
+  };
+  const tail = read(CHUNK_BYTES);
+  const meta = tail.agent && tail.model ? tail : read(stat.size);
+  metas.set(file, { size: stat.size, mtime: stat.mtimeMs, meta });
+  return meta;
+}
+
 /** Return VS Code's address of a local chat session, which `vscode.open` opens as a chat editor with its history.
  * @param {string} id The chat's session id, also its transcript's name.
  * @returns {string}
@@ -196,4 +232,4 @@ function chatSessionUri(id) {
   return `vscode-chat-session://local/${Buffer.from(id, 'utf8').toString('base64url')}`;
 }
 
-module.exports = { SESSION, chatList, shownChat, claimsFrom, pendingFrom, chatSessionUri };
+module.exports = { SESSION, chatList, shownChat, claimsFrom, pendingFrom, chatMeta, chatSessionUri };

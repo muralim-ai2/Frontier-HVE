@@ -58,7 +58,8 @@ test('without telemetry the summary estimates tokens and AI units, counts calls,
 
 test('with research telemetry the totals, AI units and thinking tokens are measured', () => {
   const run = { session: { title: 'Feed', turns: 2, tools: 3, commands: 1, failures: 0, events: [], todos: [],
-    stats: { chars: { user: 400, agent: 400, args: 400 }, skills: [], repeats: [], gap: null } }, chats: [], errors: null,
+    stats: { chars: { user: 400, agent: 400, args: 400 }, skills: [], repeats: [], gap: null, context: [] } }, chats: [], errors: null,
+  meta: { agent: 'Frontier HVE Collab', model: 'claude-haiku-5.5', mode: 'Local' },
   loadout: { skills: 4, tokens: 9000, overBudget: false, maxSkills: 10, maxTokens: 32000 },
   tokens: { models: [{ model: 'claude-haiku-5.5', calls: 2, failed: 0, input: 50000, output: 2000, cached: 30000, reasoning: 1500 }], aiu: 2.5 } };
   const data = insights(run);
@@ -66,9 +67,11 @@ test('with research telemetry the totals, AI units and thinking tokens are measu
   assert.deepEqual([data.input, data.output, data.total, data.aiu, data.thinkingTokens], [50000, 2000, 52000, 2.5, 1500]);
   assert.deepEqual(data.skills, { count: 4, names: [], tokens: 9000, measured: true });
   assert.equal(data.method, 'Measured by research telemetry for this chat.');
+  assert.deepEqual([data.agent, data.model, data.mode], ['Frontier HVE Collab', 'claude-haiku-5.5', 'Local']);
+  assert.deepEqual(data.context.map(row => row.group), ['thinking', 'messages']);
 });
 
-test('the Telemetry tab shows the tiles, the token mix, the signals and the experimental review, all as text', async t => {
+test('the Telemetry tab shows the chat\'s agent, mode and model, the tiles, the experimental review with standard questions and what fills the context, totals only when measured', async t => {
   const fixture = mission(t);
   chat(fixture.transcripts, fixture.root);
   fixture.controls.models.push({ id: 'claude-haiku-5.5', name: 'Claude Haiku 5.5', family: 'claude-haiku', sendRequest: async () => ({ text: (async function* () {})() }) },
@@ -78,14 +81,19 @@ test('the Telemetry tab shows the tiles, the token mix, the signals and the expe
   assert.deepEqual(model.models.map(row => row.name), ['Claude Haiku 5.5', 'GPT-6 Astra']);
   const page = dashboard(model, UI, Date.now());
   const shown = text(page);
-  for (const part of ['Telemetry · this chat', 'Estimated: research telemetry is off', 'Turns', 'Tool calls', 'Skills used', 'Skill tokens', 'Prompt and chat tokens',
-    'Thinking tokens', 'recorded only with research telemetry on', 'Where the tokens go', 'Repeated 3 times', 'Ask a model about this chat', 'Experimental']) {
+  for (const part of ['Telemetry · one chat', 'agent not recorded', 'execution mode not recorded', 'Total tokens and AI units appear for chats recorded with research telemetry on',
+    'Turns', 'Tool calls', 'Skills used', 'Skill tokens', 'Prompt and chat tokens', 'Thinking tokens', 'Ask a model about this chat', 'Experimental',
+    'Did the agent start sub-agents to explore different paths', 'My own question…', 'What fills the context window', 'Skills loaded', 'Searches', 'Commands']) {
     assert.ok(shown.includes(part), part);
   }
+  assert.ok(!shown.includes('tokens in total'));
+  assert.ok(!/≈/.test(shown));
+  assert.ok(!shown.includes('Signals'));
   const find = (node, match) => typeof node === 'string' ? [] : [...(match(node) ? [node] : []), ...node.children.flatMap(child => find(child, match))];
-  const options = find(page, node => node.tag === 'option');
+  const options = find(find(page, node => node.tag === 'select' && node.attrs['data-field'] === 'model')[0], node => node.tag === 'option');
   assert.deepEqual(options.filter(node => 'selected' in node.attrs).map(node => node.attrs.value), ['claude-haiku-5.5']);
-  assert.equal(find(page, node => node.tag === 'textarea').length, 1);
+  assert.equal(find(page, node => node.tag === 'textarea').length, 0);
+  assert.equal(find(dashboard(model, { ...UI, preset: 'custom' }, Date.now()), node => node.tag === 'textarea').length, 1);
   assert.equal(find(page, node => node.attrs['data-action'] === 'analyze').length, 1);
 });
 

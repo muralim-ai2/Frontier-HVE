@@ -24,7 +24,7 @@ function clock(iso) { return new Date(String(iso)).toLocaleTimeString('en-GB', {
 function insights(run) {
   const s = run.session;
   if (!s) return null;
-  const { chars, skills, repeats, gap } = s.stats;
+  const { chars, skills, repeats, gap, context } = s.stats;
   const measured = run.tokens;
   const skillTokens = run.loadout ? { value: run.loadout.tokens, measured: true } : { value: tokens(skills.reduce((sum, skill) => sum + skill.bytes, 0)), measured: false };
   const conversation = tokens(chars.user + chars.agent + chars.args);
@@ -45,8 +45,11 @@ function insights(run) {
     ...(run.errors?.paused ? [{ tone: /** @type {const} */ ('error'), title: 'Paused by the error guard', detail: `${run.errors.failures.length} failed commands in a row.` }] : []),
     ...(asked ? [{ tone: /** @type {const} */ ('info'), title: `Asked you ${asked} ${asked === 1 ? 'time' : 'times'}`, detail: 'Questions the agent put to you in Chat.' }] : []),
   ];
+  const groups = [...context.map(row => ({ group: row.group, count: row.count, tokens: tokens(row.bytes), items: row.items })),
+    { group: 'messages', count: 0, tokens: tokens(chars.user + chars.agent), items: [] },
+    ...(reasoning ? [{ group: 'thinking', count: 0, tokens: reasoning, items: [] }] : [])].filter(row => row.tokens > 0).sort((a, b) => b.tokens - a.tokens);
   return {
-    chat: s.title || 'Untitled chat', measured: !!measured, turns: s.turns, toolCalls: s.tools, commands: s.commands, failures: s.failures,
+    chat: s.title || 'Untitled chat', measured: !!measured, agent: run.meta?.agent || null, model: run.meta?.model || null, mode: run.meta?.mode || null, context: groups, turns: s.turns, toolCalls: s.tools, commands: s.commands, failures: s.failures,
     skills: { count: Math.max(skills.length, run.loadout?.skills || 0), names: skills.map(skill => skill.name), tokens: skillTokens.value, measured: skillTokens.measured },
     chatTokens: tokens(chars.user + chars.agent), argTokens: tokens(chars.args), thinkingTokens: reasoning || null,
     input, output, total: input + output, aiu: measured ? measured.aiu : estimatedInput / 1000 * AIU_PER_1K_INPUT, signals,
@@ -66,7 +69,8 @@ function digest(run, summary) {
   const s = /** @type {import('./types').Session} */ (run.session);
   const steps = s.events.slice(0, DIGEST_STEPS).reverse().map((event, index) =>
     `#${index + 1} ${event.at.slice(11, 19)} ${event.kind}${event.state === 'ok' ? '' : ` [${event.state}]`}: ${event.title}${event.detail ? ` | ${event.detail.slice(0, 160)}` : ''}`);
-  return [`Chat: ${summary.chat}`, `Turns ${s.turns}, tool calls ${s.tools}, commands ${s.commands}, failed ${s.failures}, skills read: ${summary.skills.names.join(', ') || 'none'}.`,
+  return [`Chat: ${summary.chat}`, `Agent ${summary.agent || 'unknown'}, model ${summary.model || 'unknown'}, ${summary.mode || 'unknown'} session.`,
+    `Context: ${summary.context.map(row => `${row.group} ${row.count ? `${row.count} calls, ` : ''}~${row.tokens} tokens`).join('; ')}.`, `Turns ${s.turns}, tool calls ${s.tools}, commands ${s.commands}, failed ${s.failures}, skills read: ${summary.skills.names.join(', ') || 'none'}.`,
     s.todos.length ? `To-do list: ${s.todos.map(todo => `${todo.title} (${todo.status})`).join('; ')}` : '',
     run.errors?.failures.length ? `Error guard: ${run.errors.paused ? 'paused after ' : ''}${run.errors.failures.map(failure => failure.command).join(' ; ')}` : '',
     summary.signals.length ? `Signals: ${summary.signals.map(signal => signal.title).join('; ')}` : '',

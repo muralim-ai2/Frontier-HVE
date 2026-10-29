@@ -264,6 +264,32 @@ details.folder > summary .muted, .tree .file .muted { flex: 1; font-size: 11px; 
 .tree .file .name { font-weight: 400; }
 .tree .other { display: flex; align-items: center; gap: 8px; padding: 4px 6px; font-size: 12px; }
 
+/* Early release, telemetry chips, context and visuals */
+.early { padding: 1px 8px; border-radius: 999px; font-size: 10px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; white-space: nowrap;
+  color: #fff; background: linear-gradient(90deg, #f59e0b, #ec4899); }
+body.vscode-high-contrast .early, body.vscode-high-contrast-light .early { background: none; color: var(--text); border: 1px solid var(--border); }
+.tele-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.tele-chip { display: inline-flex; align-items: center; gap: 5px; padding: 2px 10px; border-radius: 999px; font-size: 11.5px; border: 1px solid var(--border); background: var(--surface); }
+.tele-chip .icon { width: 13px; height: 13px; color: var(--accent); }
+.tele-chat { max-width: 520px; }
+.tele-chat select { width: 100%; }
+.tele-total.off { max-width: 300px; justify-items: stretch; text-align: left; gap: 8px; }
+.tele-context { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.tele-context li { --tone: var(--blue); display: grid; grid-template-columns: 28px minmax(0, 1fr) minmax(80px, 160px) auto; gap: 10px; align-items: center; padding: 6px 4px;
+  border-bottom: 1px solid color-mix(in srgb, var(--border) 50%, transparent); }
+.tele-context li:last-child { border-bottom: 0; }
+.tele-context li.tone-violet { --tone: var(--violet); } .tele-context li.tone-teal { --tone: var(--teal); } .tele-context li.tone-amber { --tone: var(--amber); }
+.tele-context li.tone-pink { --tone: var(--pink); } .tele-context li.tone-indigo { --tone: var(--indigo); }
+.tele-context-text { display: grid; gap: 1px; min-width: 0; } .tele-context-text .muted { font-size: 11.5px; overflow-wrap: anywhere; }
+.tele-context-bar { height: 8px; border-radius: 999px; background: color-mix(in srgb, var(--muted) 15%, transparent); overflow: hidden; }
+.tele-context-bar > span { display: block; height: 100%; border-radius: 999px; background: var(--tone); }
+.tele-context .num { font-size: 12px; white-space: nowrap; }
+.page-progress, .page-visuals { --violet: #8b5cf6; --blue: #3b82f6; --teal: #14b8a6; --amber: #f59e0b; --pink: #ec4899; --indigo: #6366f1; }
+.visual h2 { display: flex; align-items: center; gap: 6px; } .visual h2 .icon { color: var(--accent); }
+.actions-row { display: flex; flex-wrap: wrap; gap: 8px; }
+.switch-row + .btn.link, .switch-row .btn.link { font-size: 11.5px; }
+@media (max-width: 760px) { .tele-context li { grid-template-columns: 28px minmax(0, 1fr) auto; } .tele-context-bar { display: none; } }
+
 /* Telemetry */
 .page-telemetry { --violet: #8b5cf6; --blue: #3b82f6; --teal: #14b8a6; --amber: #f59e0b; --pink: #ec4899; --indigo: #6366f1; }
 .tele-hero { position: relative; overflow: hidden; display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 16px; padding: 22px 24px;

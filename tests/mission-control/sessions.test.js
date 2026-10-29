@@ -82,7 +82,8 @@ test('a chat is linked to the ask its contract created, the asks it reopened and
   assert.equal(chats.find(chat => chat.id === 'created').title, 'Build: Pawstagram, a social photo app for dogs');
   assert.equal(shownChat(chats, PAWS, null).id, 'follow-up');
   assert.equal(shownChat(chats, PAWS, 'created').id, 'created');
-  assert.equal(shownChat(chats, PAWS, 'plain').id, 'follow-up');
+  assert.equal(shownChat(chats, PAWS, 'plain').id, 'plain');
+  assert.equal(shownChat(chats, PAWS, 'missing').id, 'follow-up');
   assert.equal(shownChat(chats, REPORTING, null), null);
   assert.equal(shownChat(chats, null, null).id, 'plain');
 });

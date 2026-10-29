@@ -1,6 +1,6 @@
 # Mission Control
 
-Mission Control is the Frontier HVE sidebar. Click the **HVE icon in the Activity Bar** (the left edge of VS Code) to see what the agent is doing right now, with the **Harness files** pane below it; any page link opens the dashboard in the editor (**Frontier HVE: Open Mission Control** does too). It ships inside the Frontier HVE extension; there is nothing else to install.
+Mission Control is the Frontier HVE sidebar (marked **Early release**: features may change). Click the **HVE icon in the Activity Bar** (the left edge of VS Code) to see what the agent is doing right now, with the **Harness files** pane below it; any page link opens the dashboard in the editor (**Frontier HVE: Open Mission Control** does too). It ships inside the Frontier HVE extension; there is nothing else to install.
 
 ## Asks and chats
 
@@ -32,7 +32,7 @@ Mission Control updates within a second of any of these files changing while a v
 
 ## The sidebar
 
-From top to bottom: the live status chip; **New ask**; an ask carried over from another workspace, if any; the **ask dropdown** (every ask of the project, newest first, the active one marked "active"); when you view an ask that is not active, a notice with **Make active**; the ask card (project, a short title, agent, stage, how many chats, to-do progress; click for the full activity); **Needs you** (the agent is waiting for an answer in Chat, the error guard paused it or the last commands failed, the plan is a draft or was changed, items are ready for sign-off, the skill load is over the guideline); **Now** (the current step of the ask's latest chat, and its to-do list); **Recent** (the last six steps); links to the eight pages with a short status each; and the research telemetry switch.
+From top to bottom: the live status chip; **New ask**; an ask carried over from another workspace, if any; the **ask dropdown** (every ask of the project, newest first, the active one marked "active"); when you view an ask that is not active, a notice with **Make active**; the ask card (project, a short title, agent, stage, how many chats, to-do progress; click for the full activity); **Needs you** (the agent is waiting for an answer in Chat, the error guard paused it or the last commands failed, the plan is a draft or was changed, items are ready for sign-off, the skill load is over the guideline); **Now** (the current step of the ask's latest chat, and its to-do list); **Recent** (the last six steps); links to the nine pages with a short status each; and the research telemetry switch.
 
 Choosing an ask in the dropdown only changes what Mission Control shows. **Make active** asks you to confirm, then runs `lifecycle.py open <ask-id>`: agents, hooks and guards then work on that ask, and the ask you leave stays on disk with its unfinished items. Sign-off is available only for the active ask.
 
@@ -69,10 +69,11 @@ VS Code starts a new chat in the chat view that last had focus, and first asks t
 |---|---|---|
 | Live | Needs you; the chats of the ask (how each is linked, status, last activity) and the chats not linked to any ask; for the chosen chat: the current step and to-do list, turns, tool calls, commands, files changed and failed tool calls, model use and AI units when telemetry is on, the error guard's failed commands, the files the agent changed, and the whole activity, filterable (all, edits, commands, conversation, problems) | Choose a chat; **New chat for this ask**; **Link to this ask**; open a changed file beside the dashboard |
 | Plan | Where the plan stands (not written, draft, agreed, changed since agreed), the plan as formatted text (headings, lists with tick boxes, tables, code), the sign-off of each milestone and task, the options (output evaluation), and the generated skills and tools section | **Edit plan** opens `plan.md` in an editor beside the dashboard; the view updates when you save. **Accept** or **Request changes** with a note (active ask only) |
-| Progress | The ask's stages with their persona and status; the project's feature checks with their recorded exit code and the ask each came from; evidence files; recorded decisions | Open a check's output or an evidence file |
+| Progress | The ask's stages with their persona and status; the project's feature checks with their recorded exit code and the ask each came from; evidence files; recorded decisions; evaluation reports (`.hve/evaluations/`); the contract, `provenance.md`, plan and request. **Experimental:** a model summarizes where the ask stands in three bullets | Open any of these files; Summarize |
 | Files | The ask's folder as a tree: folders first, what each harness file is, size and last change; top folders open, your open and closed folders remembered | Open any file beside the dashboard; **Show in Explorer** |
 | Other asks | Every ask of the project besides the one on screen, with only its chat status (waiting, working, idle) and last activity. One ask is active at a time; asks that must run at the same time need their own workspace or git worktree | **Track** shows that ask's details on Live |
-| Telemetry | For the chat on Live: turns, tool calls, skills used and their tokens, prompt and chat tokens, thinking tokens (only with research telemetry), total tokens and AI units (measured with research telemetry, otherwise estimated with the method shown), where the tokens go, and signals found locally (repeated identical calls, failed calls, calls with no result, long pauses, questions to you). **Experimental:** pick a Copilot model and ask a question; it reads the chat's activity log and answers in three bullets that cite step numbers. It uses your Copilot quota; VS Code chooses the model's reasoning effort | Analyze with a model; turn research telemetry on |
+| Telemetry | One chat at a time, picked from a list grouped by ask: its agent, execution mode (Local) and model from VS Code's own session record; turns, tool calls, skills used and their tokens, prompt and chat tokens, thinking tokens (research telemetry only); total tokens and AI units only for chats recorded with research telemetry on. **Experimental:** pick a Copilot model and a standard question (did it start sub-agents to explore different paths, where it looped, where it got stuck, what it decided without asking, which errors it worked around, what filled its context, whether it followed the plan) or your own; it reads the activity log and answers in three bullets. **What fills the context window:** files read (sized from the files), skills, images, edits, commands, searches, sub-agents, web pages, questions, messages and thinking, largest first | Pick a chat; analyze with a model; turn research telemetry on |
+| Visuals | The solution map (built when, by the bundled map tool in seconds) and the clickable infographic | **Build** or **Refresh the map**, **Open the map** in its own tab; **Make an infographic** opens a Local chat with the skill and your subject filled in |
 | Skills & packs | The ask's skills with why each was chosen and its tokens against the guideline, the skills loaded in the chat shown on Live, the always-on harness skills (for example `wow-uplift`), and the expertise packs installed for you | Open a skill's `SKILL.md`; **Install a pack…** and **Manage packs…** (each says what it does; the pack list refreshes afterwards) |
 | Settings | The folder followed, the extension version, the Python launcher, the loop guard mode, where live activity comes from | Change folder; research telemetry switch; **Set up this workspace**; **Install for other tools** |
 
@@ -80,7 +81,7 @@ Accept needs finished work, a recorded passing check for feature tasks, and an a
 
 ## Research telemetry
 
-The switch turns Copilot's telemetry export on (Frontier HVE first warns that it records full chat content) or off. The agents no longer ask about it. When on, Mission Control shows token use and AI units for each new chat, and the ask report (`provenance.md`) measures cost, tokens, latency and cache, and reminds you to turn it off.
+**Prune data…** (under the switch, when the export has data) archives the export to a compressed `otel-archive-<time>.jsonl.gz` beside it and empties it, or deletes all records, after you confirm. The switch turns Copilot's telemetry export on (Frontier HVE first warns that it records full chat content) or off. The agents no longer ask about it. When on, Mission Control shows token use and AI units for each new chat, and the ask report (`provenance.md`) measures cost, tokens, latency and cache, and reminds you to turn it off.
 
 ## Requirements and limits
 
@@ -101,7 +102,8 @@ The switch turns Copilot's telemetry export on (Frontier HVE first warns that it
 | `extension/ui/asks.js` | The project's asks, an ask's folder tree, the folder name, saved request, scope text and starter message of a new ask, the carried-over ask |
 | `extension/ui/chats.js` | This window's chats, read incrementally, and the asks each one is linked to |
 | `extension/ui/activity.js` | Live activity of one chat from its transcript, run files and telemetry |
-| `extension/ui/insights.js`, `analysis.js`, `media/telemetry.js` | The Telemetry tab: the summary and signals, the experimental model review, the page |
+| `extension/ui/insights.js`, `analysis.js`, `media/telemetry.js` | The Telemetry tab: the summary, what fills the context, the experimental chat review and progress summary |
+| `extension/ui/extras.js` | Pruning research telemetry, building and opening the solution map, the infographic chat |
 | `extension/ui/harness-tree.js` | The Harness files pane: `.hve/` and `.harness/` as a native tree |
 | `extension/ui/workspace-state.js`, `file-access.js` | Read-only, bounded reads of `.hve/` state and the plan of the ask on screen |
 | `extension/ui/workflow.js`, `lifecycle-cli.js` | Creating and reopening asks, sign-offs and the pack list through the bundled tools (allowlisted operations only) |

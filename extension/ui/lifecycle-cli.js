@@ -4,7 +4,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { promisify } = require('node:util');
 const { execFile } = require('node:child_process');
-const { record, text, list, errorText } = require('./validate');
+const { record, text, list, integer, errorText } = require('./validate');
 const execute = promisify(execFile);
 const BASE_COMMANDS = Object.freeze({
   setup: 'frontierHve.setup',
@@ -95,6 +95,19 @@ async function packs(connection, workspace) {
   });
 }
 
+/** Build or refresh the workspace's solution map (.hve/map/) and return its size class and counts.
+ * @param {Runtime} connection
+ * @param {string} workspace
+ * @returns {Promise<{sizeClass: string, files: number, concepts: number, page: string}>}
+ */
+async function buildMap(connection, workspace) {
+  const script = path.join(connection.extensionPath, 'runtime', 'tools', 'map', 'solution_map.py');
+  const result = record(await runTool(connection, workspace, script, ['build']), 'Solution map build');
+  const size = record(result.size, 'Map size');
+  return { sizeClass: text(size.class, 'Map size class'), files: integer(size.files, 'Map files'), concepts: integer(result.concepts, 'Map concepts'),
+    page: path.join(workspace, '.hve', 'map', 'explorer.html') };
+}
+
 /** Return the title of the bundled direct lifecycle after checking the catalogue runs.
  * @param {Runtime} connection
  * @param {string} workspace
@@ -119,4 +132,4 @@ function guardMode(extensionPath) {
   return mode;
 }
 
-module.exports = { BASE_COMMANDS, runtime, validateOperation, lifecycle, packs, inspect, guardMode };
+module.exports = { BASE_COMMANDS, runtime, validateOperation, lifecycle, packs, buildMap, inspect, guardMode };

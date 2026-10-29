@@ -1,18 +1,21 @@
 'use strict';
 /** Mission Control: the Frontier HVE sidebar and dashboard, kept live from the harness files and this window's chat transcripts. */
 const vscode = require('vscode');
+const fs = require('node:fs');
 const path = require('node:path');
 const { randomBytes } = require('node:crypto');
 const { runtime, inspect, guardMode, packs } = require('./lifecycle-cli');
 const { snapshot } = require('./workspace-state');
 const { activity } = require('./activity');
 const { listAsks, askTree } = require('./asks');
-const { chatList, shownChat, claimsFrom, pendingFrom } = require('./chats');
+const { chatList, shownChat, claimsFrom, pendingFrom, chatMeta } = require('./chats');
 const { Workflow } = require('./workflow');
 const { HarnessTree } = require('./harness-tree');
 const actions = require('./actions');
 const askFlow = require('./ask-flow');
 const analysis = require('./analysis');
+const extras = require('./extras');
+const { evaluationFiles } = require('./asks');
 const { insights } = require('./insights');
 const { record, text, message, errorText } = require('./validate');
 const PAGES = ['live', 'plan', 'progress', 'files', 'others', 'telemetry', 'skills', 'settings'];
@@ -68,13 +71,15 @@ class MissionControl {
     /** @type {string | null} The chat on screen when it is not the ask's latest. */
     this.chat = null;
     this.disposed = false;
+    /** @type {vscode.WebviewPanel | null} */
+    this.mapPanel = null;
     /** @type {NodeJS.Timeout | null} */
     this.treeTimer = null;
     this.tree = new HarnessTree(() => this.workspace?.uri.scheme === 'file' ? this.workspace.uri.fsPath : null);
     const version = text(record(context.extension.packageJSON, 'Extension manifest').version, 'Extension version');
     /** @type {Omit<import('./types').Model, 'now' | 'surface' | 'workspace' | 'telemetry' | 'navigate' | 'transcripts'>} */
     this.state = { busy: false, error: null, workspaceMessage: null, connection: { version, python: null, guard: guardMode(context.extensionPath) },
-      asks: null, asksError: null, snapshot: null, snapshotError: null, activity: null, activityError: null, pending: null, handoff: null, handoffError: null, insights: null, models: null, modelsError: null, analysis: null, files: null, filesError: null,
+      asks: null, asksError: null, snapshot: null, snapshotError: null, activity: null, activityError: null, pending: null, handoff: null, handoffError: null, insights: null, models: null, modelsError: null, analysis: null, map: null, evaluations: [], outputsError: null, files: null, filesError: null,
       packs: null, packsError: null };
     this.restoreWorkspace();
   }
@@ -116,7 +121,8 @@ class MissionControl {
   telemetry() {
     const otel = vscode.workspace.getConfiguration('github.copilot.chat.otel');
     const file = otel.get('outfile');
-    return { enabled: otel.get('enabled') === true, file: typeof file === 'string' && file ? file : null };
+    const resolved = typeof file === 'string' && file ? (path.isAbsolute(file) || !this.workspace ? file : path.join(this.workspace.uri.fsPath, file)) : null;
+    return { enabled: otel.get('enabled') === true, file: resolved, bytes: resolved && fs.existsSync(resolved) ? fs.statSync(resolved).size : null };
   }
 
   /** Watch the workspace's .hve/ and .harness/ folders and this window's chat transcripts.
@@ -239,13 +245,16 @@ class MissionControl {
       }
       this.state.pending = claimed ? null : pending;
       const shown = shownChat(chats, viewed, this.chat);
-      return { ...activity(root, shown && transcripts ? path.join(transcripts, `${shown.id}.jsonl`) : null, this.telemetry().file, now), chats };
+      return { ...activity(root, shown && transcripts ? path.join(transcripts, `${shown.id}.jsonl`) : null, this.telemetry().file, now), chats,
+        meta: shown && transcripts ? chatMeta(transcripts, shown.id) : null };
     });
     const files = await this.section('Ask files', async () => viewed ? askTree(root, viewed) : null);
+    const outputs = await this.section('Maps and evaluations', async () => ({ map: extras.mapInfo(root), evaluations: evaluationFiles(root) }));
     const carried = await this.section('Ask carried over', async () => askFlow.handoff(this));
     Object.assign(this.state, { asks: asks.value, asksError: asks.error, snapshot: state.value, snapshotError: state.error,
       activity: live.value, activityError: live.error, files: files.value, filesError: files.error,
-      handoff: carried.value, handoffError: carried.error, insights: live.value ? insights(live.value) : null });
+      handoff: carried.value, handoffError: carried.error, insights: live.value ? insights(live.value) : null,
+      map: outputs.value?.map || null, evaluations: outputs.value?.evaluations || [], outputsError: outputs.error });
     this.paint();
     return this.state.snapshot;
   }
@@ -374,6 +383,11 @@ class MissionControl {
         case 'attachReferences': await askFlow.attachReferences(this); break;
         case 'loadModels': await analysis.loadModels(this); break;
         case 'analyze': await analysis.analyze(this, data.model, data.question); break;
+        case 'summarize': await analysis.summarize(this, data.model); break;
+        case 'pruneTelemetry': await extras.pruneTelemetry(this); break;
+        case 'refreshMap': await extras.refreshMap(this); break;
+        case 'openMap': extras.openMap(this); break;
+        case 'infographic': await extras.infographic(this); break;
         case 'selectAsk': await actions.selectAsk(this, data.ask); break;
         case 'activateAsk': await actions.activateAsk(this, data.ask); break;
         case 'selectChat': actions.selectChat(this, data.chat); break;
@@ -409,6 +423,7 @@ class MissionControl {
     this.watchers.forEach(watcher => watcher.dispose());
     this.tree.dispose();
     this.panel?.dispose();
+    this.mapPanel?.dispose();
     this.views.clear();
     this.output.dispose();
   }

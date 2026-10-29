@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Infographic</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <main class="stage" id="stage" aria-labelledby="title">
+    <header class="top">
+      <div class="brand">
+        <span class="mark" id="mark"></span>
+        <div>
+          <p class="eyebrow" id="eyebrow"></p>
+          <h1 id="title"></h1>
+          <p class="sub" id="sub"></p>
+        </div>
+      </div>
+      <ul class="legend" id="legend" aria-label="Legend"></ul>
+    </header>
+
+    <section class="body" id="body" aria-label="Infographic">
+      <div id="content"></div>
+      <aside class="panel" id="panel" aria-labelledby="panel-title"></aside>
+    </section>
+
+    <footer class="foot">
+      <p class="foot-note" id="foot-note"></p>
+      <div class="seg" id="seg" role="group" aria-label="Preview this infographic in a theme"></div>
+    </footer>
+
+    <svg class="edges" id="edges" aria-hidden="true"></svg>
+  </main>
+  <dialog class="detail" id="detail" aria-labelledby="d-title">
+    <div class="d-hd"><span class="tile" id="d-icon"></span><h2 id="d-title"></h2><button type="button" class="d-close" id="d-close" aria-label="Close"></button></div>
+    <div class="d-body" id="d-body"></div>
+  </dialog>
+  <script src="data.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

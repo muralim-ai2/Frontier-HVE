@@ -8,7 +8,8 @@ const { EXTENSION } = require('./helpers');
 const { snapshot } = require('../../extension/ui/workspace-state');
 const { activity } = require('../../extension/ui/activity');
 const { listAsks, askTree } = require('../../extension/ui/asks');
-const { chatList, shownChat } = require('../../extension/ui/chats');
+const { chatList, shownChat, chatMeta } = require('../../extension/ui/chats');
+const { evaluationFiles } = require('../../extension/ui/asks');
 const { insights } = require('../../extension/ui/insights');
 
 const [workspace, transcripts, telemetry, at, selected] = process.argv.slice(2);
@@ -25,7 +26,8 @@ const shown = shownChat(chats, viewed, null);
 const model = { now: new Date(now).toISOString(), surface: 'sidebar', busy: false, error: null, workspace: { name: path.basename(workspace), path: workspace },
   workspaceMessage: null, connection: { version: manifest.version, python: 'python', guard: 'advise' }, telemetry: { enabled: !!file, file }, transcripts,
   asks, asksError: null, snapshot: state, snapshotError: null, activityError: null, pending: null, packs: [], packsError: null,
-  activity: { ...activity(workspace, shown ? path.join(transcripts, `${shown.id}.jsonl`) : null, file, now), chats }, handoff: null, handoffError: null,
+  activity: { ...activity(workspace, shown ? path.join(transcripts, `${shown.id}.jsonl`) : null, file, now), chats, meta: shown ? chatMeta(transcripts, shown.id) : null }, handoff: null, handoffError: null, evaluations: evaluationFiles(workspace), outputsError: null,
+  map: fs.existsSync(path.join(workspace, '.hve', 'map', 'explorer.html')) ? { built: fs.statSync(path.join(workspace, '.hve', 'map', 'explorer.html')).mtime.toISOString(), bytes: 1 } : null,
   models: [{ id: 'claude-haiku-5.5', name: 'Claude Haiku 5.5', family: 'claude-haiku' }, { id: 'gpt-6-astra', name: 'GPT-6 Astra', family: 'gpt-6' }], modelsError: null, analysis: null,
   files: viewed ? askTree(workspace, viewed) : null, filesError: null, navigate: { page: 'live', seq: 0 } };
 model.insights = model.activity.session ? insights(model.activity) : null;

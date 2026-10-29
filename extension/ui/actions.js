@@ -5,7 +5,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { BASE_COMMANDS } = require('./lifecycle-cli');
 const { snapshot } = require('./workspace-state');
-const { listAsks, askTree } = require('./asks');
+const { listAsks, askTree, evaluationFiles } = require('./asks');
 const { claimsFrom } = require('./chats');
 const { containedPath } = require('./file-access');
 const IMAGES = ['.png', '.jpg', '.jpeg', '.webp', '.gif'];
@@ -157,7 +157,7 @@ async function openFile(mc, relative) {
   const root = mc.target().uri.fsPath;
   const state = snapshot(root, mc.selected);
   const listed = [...state.files, ...(mc.state.activity?.session?.files.map(file => file.path) || []),
-    ...state.skills.map(skill => path.join('.hve', 'skills', skill.name, 'SKILL.md')), ...(state.ask ? treeFiles(askTree(root, state.ask.id).entries) : [])]
+    ...state.skills.map(skill => path.join('.hve', 'skills', skill.name, 'SKILL.md')), ...(state.ask ? treeFiles(askTree(root, state.ask.id).entries) : []), ...evaluationFiles(root)]
     .map(file => path.normalize(file));
   if (!listed.includes(path.normalize(relative))) throw new Error('That file is not listed in Mission Control.');
   const uri = vscode.Uri.file(containedPath(state.workspace, relative));

@@ -8,7 +8,7 @@
   const root = document.getElementById('root');
   const announce = document.getElementById('announce');
   if (!root || !announce) throw new Error('Mission Control document is incomplete.');
-  const PAGES = ['live', 'plan', 'progress', 'files', 'others', 'telemetry', 'skills', 'settings'];
+  const PAGES = ['live', 'plan', 'progress', 'files', 'others', 'telemetry', 'visuals', 'skills', 'settings'];
   const FILTERS = ['all', 'edits', 'commands', 'conversation', 'problems'];
   const saved = /** @type {Partial<import('../types').UiState> | undefined} */ (api.getState());
   /** @type {import('../types').UiState} */
@@ -73,7 +73,7 @@
    * @returns {void}
    */
   function askForModels() {
-    if (model?.surface === 'editor' && ui.page === 'telemetry' && model.models === null && !model.modelsError && !modelsAsked) {
+    if (model?.surface === 'editor' && ['telemetry', 'progress'].includes(ui.page) && model.models === null && !model.modelsError && !modelsAsked) {
       modelsAsked = true;
       api.postMessage({ action: 'loadModels' });
     }
@@ -98,11 +98,18 @@
       if (!FILTERS.includes(data.value || '')) throw new Error('Unknown activity filter.');
       ui.filter = /** @type {import('../types').UiState['filter']} */ (data.value);
       draw();
-    } else if (action === 'analyze') {
+    } else if (action === 'analyze' || action === 'summarize') {
       const pick = document.querySelector('select[data-field="model"]');
-      const box = document.querySelector('textarea[data-field="question"]');
-      if (!(pick instanceof HTMLSelectElement) || !(box instanceof HTMLTextAreaElement)) throw new Error('The analysis form is incomplete.');
-      api.postMessage({ action, model: pick.value, question: box.value.trim() || box.placeholder });
+      if (!(pick instanceof HTMLSelectElement)) throw new Error('The model list is missing.');
+      if (action === 'summarize') api.postMessage({ action, model: pick.value });
+      else {
+        const preset = document.querySelector('select[data-field="preset"]');
+        const box = document.querySelector('textarea[data-field="question"]');
+        if (!(preset instanceof HTMLSelectElement)) throw new Error('The question list is missing.');
+        const question = preset.value === 'custom' ? (box instanceof HTMLTextAreaElement ? box.value.trim() : '') : preset.selectedOptions[0].textContent || '';
+        if (!question) throw new Error('Type your question first.');
+        api.postMessage({ action, model: pick.value, question });
+      }
     } else {
       api.postMessage({ action, ...data });
       if (next) go(next);
@@ -121,6 +128,17 @@
     if (target instanceof HTMLSelectElement && target.dataset.field === 'model') {
       ui.model = target.value;
       api.setState(ui);
+      return;
+    }
+    if (target instanceof HTMLSelectElement && target.dataset.field === 'preset') {
+      ui.preset = target.value;
+      target.blur();
+      draw();
+      return;
+    }
+    if (target instanceof HTMLSelectElement && target.dataset.action === 'selectChat' && target.value) {
+      api.postMessage({ action: 'selectChat', chat: target.value });
+      target.blur();
       return;
     }
     if (!(target instanceof HTMLSelectElement) || target.dataset.action !== 'selectAsk' || !target.value) return;

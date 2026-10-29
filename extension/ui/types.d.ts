@@ -51,7 +51,7 @@ export interface Pack {
   knowledge: string[];
   templates: string[];
 }
-export type Page = 'live' | 'plan' | 'progress' | 'files' | 'others' | 'telemetry' | 'skills' | 'settings';
+export type Page = 'live' | 'plan' | 'progress' | 'files' | 'others' | 'telemetry' | 'visuals' | 'skills' | 'settings';
 export interface AskSummary {
   id: string;
   title: string;
@@ -103,6 +103,10 @@ export interface Signal {
 export interface Insights {
   chat: string;
   measured: boolean;
+  agent: string | null;
+  model: string | null;
+  mode: string | null;
+  context: { group: string; count: number; tokens: number; items: string[] }[];
   turns: number;
   toolCalls: number;
   commands: number;
@@ -124,6 +128,7 @@ export interface ChatModelInfo {
   family: string;
 }
 export interface Analysis {
+  topic: 'chat' | 'progress';
   model: string;
   question: string;
   chat: string;
@@ -145,7 +150,7 @@ export interface Model {
   workspace: { name: string; path: string } | null;
   workspaceMessage: string | null;
   connection: { version: string; python: string | null; guard: 'advise' | 'enforce' | null };
-  telemetry: { enabled: boolean; file: string | null };
+  telemetry: { enabled: boolean; file: string | null; bytes: number | null };
   transcripts: string | null;
   asks: AskSummary[] | null;
   asksError: string | null;
@@ -160,6 +165,9 @@ export interface Model {
   models: ChatModelInfo[] | null;
   modelsError: string | null;
   analysis: Analysis | null;
+  map: { built: string; bytes: number } | null;
+  evaluations: string[];
+  outputsError: string | null;
   files: AskFiles | null;
   filesError: string | null;
   packs: Pack[] | null;
@@ -171,6 +179,7 @@ export interface UiState {
   filter: 'all' | 'edits' | 'commands' | 'conversation' | 'problems';
   model?: string;
   question?: string;
+  preset?: string;
   open: Record<string, boolean>;
   seq: number;
 }
@@ -213,6 +222,7 @@ export interface Pages {
   files(model: Model, ui: UiState, now: number): Child[];
   others(model: Model, ui: UiState, now: number): Child[];
   telemetry(model: Model, ui: UiState, now: number): Child[];
+  visuals(model: Model, ui: UiState, now: number): Child[];
   skills(model: Model): Child[];
   settings(model: Model): Child[];
 }
@@ -249,6 +259,7 @@ export interface SessionStats {
   skills: { name: string; bytes: number }[];
   repeats: { title: string; count: number }[];
   gap: { from: string; to: string } | null;
+  context: { group: string; count: number; bytes: number; items: string[] }[];
 }
 export interface TokenUse {
   model: string;
@@ -259,9 +270,15 @@ export interface TokenUse {
   cached: number;
   reasoning: number;
 }
+export interface ChatMeta {
+  agent: string | null;
+  model: string | null;
+  mode: 'Local' | null;
+}
 export interface Activity {
   session: Session | null;
   chats: Chat[];
+  meta: ChatMeta | null;
   errors: { paused: boolean; failures: { command: string; output: string }[] } | null;
   loadout: { skills: number; tokens: number; overBudget: boolean; maxSkills: number; maxTokens: number } | null;
   tokens: { models: TokenUse[]; aiu: number } | null;

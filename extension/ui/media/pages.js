@@ -215,6 +215,66 @@
         h('span', { class: 'event-icon' }, icon('flag')), h('div', { class: 'event-body' }, h('div', { class: 'event-title' }, `${decision.stage}: ${decision.choice}`),
           decision.why ? h('div', { class: 'event-detail' }, decision.why) : null), h('time', null, ago(decision.ts, now)))))
         : h('p', { class: 'muted' }, 'No decisions recorded yet.')),
+      card('Evaluations', model.evaluations.length ? fileList(model.evaluations)
+        : h('p', { class: 'muted' }, 'No output evaluation has run yet. Ask the agent for one, or tick the evaluation option in the plan.')),
+      card('Contract and provenance', fileList([`.hve/asks/${snap.ask.id}/contract.json`, `.hve/asks/${snap.ask.id}/provenance.md`, `.hve/asks/${snap.ask.id}/plan.md`,
+        `.hve/asks/${snap.ask.id}/request.md`].filter(file => model.files?.entries.some(node => node.path === file))), h('span', { class: 'muted' }, 'provenance.md appears when the agent writes the ask report')),
+      summary(model, ui, now),
+    ];
+  }
+
+  /** Return file buttons that open beside Mission Control.
+   * @param {string[]} paths
+   * @returns {VNode}
+   */
+  function fileList(paths) {
+    return h('div', { class: 'files' }, ...paths.map(file => h('button', { class: 'file', type: 'button', 'data-action': 'openFile', 'data-path': file },
+      icon('file'), h('span', null, file))));
+  }
+
+  /** Return the experimental progress summary: a model reads the ask's state, provenance and latest evaluation.
+   * @param {Model} model
+   * @param {UiState} ui
+   * @param {number} now
+   * @returns {VNode}
+   */
+  function summary(model, ui, now) {
+    const models = model.models || [];
+    const chosen = models.find(row => row.id === ui.model) || models.find(row => /haiku/i.test(row.family + row.name)) || models[0];
+    const result = model.analysis?.topic === 'progress' ? model.analysis : null;
+    return h('section', { class: 'card tele-lab' }, h('header', { class: 'card-head' }, h('h2', null, icon('spark'), ' Summarize this ask'),
+      h('span', { class: 'tele-badge' }, 'Experimental')),
+    h('p', { class: 'muted' }, 'A Copilot model reads the stages, checks, sign-offs, decisions, provenance.md and the latest evaluation, and answers in three bullets.'),
+    model.modelsError ? h('div', { class: 'notice error' }, model.modelsError) : null,
+    models.length ? h('div', { class: 'tele-ask' }, h('label', { class: 'tele-field' }, h('span', { class: 'section-label' }, 'Model'),
+      h('select', { 'data-field': 'model' }, ...models.map(row => h('option', { value: row.id, selected: row.id === chosen?.id }, row.name)))),
+    button('Summarize', 'summarize', { kind: 'primary', icon: 'spark', disabled: model.busy || result?.status === 'running' }))
+      : model.modelsError ? null : h('p', { class: 'muted' }, 'Loading Copilot models…'),
+    result ? h('div', { class: `tele-answer status-${result.status}`, 'aria-live': 'polite' }, h('div', { class: 'meta' }, `${result.model} · ${result.status === 'running' ? 'thinking…' : ago(result.at, now)}`),
+      result.text ? h('div', { class: 'markdown' }, ...markdown.render(result.text)) : h('div', { class: 'tele-shimmer' }, h('span', null), h('span', null), h('span', null))) : null);
+  }
+
+  /** Render the Visuals page: build and open the solution map, and start a clickable infographic in a chat.
+   * @param {Model} model
+   * @param {UiState} ui
+   * @param {number} now
+   * @returns {Child[]}
+   */
+  function visuals(model, ui, now) {
+    const map = model.map;
+    return [
+      model.outputsError ? h('div', { class: 'notice error' }, model.outputsError) : null,
+      h('div', { class: 'grid two' },
+        h('section', { class: 'card visual' }, h('header', { class: 'card-head' }, h('h2', null, icon('map'), ' Solution map'),
+          h('span', { class: `pill ${map ? 'good' : ''}`.trim() }, map ? `built ${ago(map.built, now)}` : 'not built')),
+        h('p', { class: 'muted' }, 'An interactive map of this repository: concepts, modules, files and functions, how they connect, and what a change would touch. '
+          + 'Built by the bundled map tool in seconds, no model; it opens in its own tab.'),
+        h('div', { class: 'actions-row' }, button(map ? 'Refresh the map' : 'Build the map', 'refreshMap', { kind: 'primary', icon: 'refresh', disabled: model.busy }),
+          map ? button('Open the map', 'openMap', { icon: 'map' }) : null)),
+        h('section', { class: 'card visual' }, h('header', { class: 'card-head' }, h('h2', null, icon('spark'), ' Clickable infographic')),
+          h('p', { class: 'muted' }, 'A 1920x1080 theme-aware infographic for a flow, journey, process, architecture or timeline, with PNG export. '
+            + 'A new chat opens with the clickable-infographic skill and your subject filled in; the agent builds it when you send it.'),
+          h('div', { class: 'actions-row' }, button('Make an infographic', 'infographic', { kind: 'primary', icon: 'spark', disabled: model.busy || !model.workspace })))),
     ];
   }
 
@@ -343,10 +403,10 @@
    */
   function dashboard(model, ui, now) {
     const snap = model.snapshot;
-    const pages = { live, plan, progress, files, others, telemetry, skills: () => skills(model), settings: () => settings(model) };
+    const pages = { live, plan, progress, files, others, telemetry, visuals, skills: () => skills(model), settings: () => settings(model) };
     return h('div', { class: `dashboard ${model.busy ? 'busy' : ''}`.trim() },
       h('header', { class: 'dash-head' }, h('div', { class: 'dash-title' }, icon('logo', 'brand'),
-        h('div', null, h('span', { class: 'section-label' }, snap?.project ? pretty(snap.project.name) : 'Frontier HVE'), h('h1', null, snap?.ask?.title || 'Mission Control')), chip(model),
+        h('div', null, h('span', { class: 'section-label' }, snap?.project ? pretty(snap.project.name) : 'Frontier HVE'), h('h1', null, snap?.ask?.title || 'Mission Control')), h('span', { class: 'early', title: 'Early release: features may change' }, 'Early release'), chip(model),
         button('New ask', 'newAsk', { icon: 'plus', disabled: model.busy || !model.workspace, title: 'Start a new piece of work in this project' }),
         button('', 'refresh', { kind: 'icon', icon: 'refresh', title: 'Refresh', disabled: model.busy })),
       askPicker(model),
@@ -358,7 +418,7 @@
       h('main', { class: `page page-${ui.page}` }, ...pages[ui.page](model, ui, now)));
   }
 
-  const api = { dashboard, live, plan, progress, files, others, telemetry, skills, settings };
+  const api = { dashboard, live, plan, progress, files, others, telemetry, visuals, skills, settings };
   if (modular) module.exports = api;
   else root.hvePages = api;
 })(globalThis);

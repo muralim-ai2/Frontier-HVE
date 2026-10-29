@@ -8,6 +8,9 @@ const TAIL_BYTES = 8 * 1024 * 1024;
 const TELEMETRY_TAIL_BYTES = 4 * 1024 * 1024;
 const IDLE_AFTER_MS = 5 * 60 * 1000;
 const QUICK_TOOL_MS = 60 * 1000;
+const IMAGE_BYTES = 6000;
+/** @type {Record<string, string>} */
+const CONTEXT_GROUP = { read: 'reads', edit: 'edits', run: 'commands', search: 'searches', delegate: 'subagents', ask: 'questions', todo: 'other', tool: 'other' };
 const LONG_TOOLS = new Set(['run_in_terminal', 'get_terminal_output', 'runSubagent', 'execution_subagent', 'search_subagent', 'explore_subagent',
   'run_playwright_code', 'vscode_askQuestions', 'ask_user']);
 const EVENT_LIMIT = 80;
@@ -21,7 +24,8 @@ const cache = new Map();
 /** @typedef {{id: string, title: string | null, started: string, lastAt: string, turnOpen: boolean, open: {event: ActivityEvent, tool: string} | null,
  *   turns: number, tools: number, failures: number, commands: number, todos: import('./types').Todo[], events: ActivityEvent[],
  *   files: Map<string, {count: number, last: string}>, chars: {user: number, agent: number, args: number}, skills: Map<string, number>,
- *   calls: Map<string, {title: string, count: number}>, gap: {from: string, to: string} | null}} Parsed */
+ *   calls: Map<string, {title: string, count: number}>, gap: {from: string, to: string} | null,
+ *   context: Map<string, {count: number, bytes: number, items: string[]}>}} Parsed */
 
 /** Return the end of a file, starting at a line boundary when it was cut.
  * @param {string} file
@@ -207,7 +211,7 @@ function parse(file, workspace) {
   if (!SESSION.test(id)) throw new Error(`Unexpected chat session file name: ${path.basename(file)}`);
   /** @type {Parsed} */
   const s = { id, title: null, started: '', lastAt: '', turnOpen: false, open: null, turns: 0, tools: 0, failures: 0, commands: 0, todos: [],
-    events: [], files: new Map(), chars: { user: 0, agent: 0, args: 0 }, skills: new Map(), calls: new Map(), gap: null };
+    events: [], files: new Map(), chars: { user: 0, agent: 0, args: 0 }, skills: new Map(), calls: new Map(), gap: null, context: new Map() };
   /** @type {Map<string, {event: ActivityEvent, tool: string}>} */
   const running = new Map();
   for (const row of jsonLines(tail(file, TAIL_BYTES), path.basename(file))) {
@@ -245,6 +249,15 @@ function parse(file, workspace) {
         const file = /** @type {string} */ (arg(args, 'filePath'));
         s.skills.set(skill[1], fs.existsSync(file) ? fs.statSync(file).size : 0);
       }
+      const read = tool === 'read_file' ? arg(args, 'filePath') : null;
+      const group = skill ? 'skills' : tool === 'view_image' ? 'images' : tool === 'fetch_webpage' ? 'web' : CONTEXT_GROUP[event.kind] || 'other';
+      const bytes = tool === 'view_image' ? IMAGE_BYTES
+        : read && path.isAbsolute(read) && fs.existsSync(read) && fs.statSync(read).isFile() ? fs.statSync(read).size : key.length;
+      const row = s.context.get(group) || { count: 0, bytes: 0, items: [] };
+      row.count += 1;
+      row.bytes += bytes;
+      if (row.items.length < 4 && !row.items.includes(event.title)) row.items.push(event.title);
+      s.context.set(group, row);
       s.tools += 1;
       if (tool === 'run_in_terminal') s.commands += 1;
       if (tool === 'manage_todo_list') s.todos = todoList(args);
@@ -317,7 +330,8 @@ function session(s, now) {
   return { id: s.id, title: s.title, started: s.started, lastAt: s.lastAt, status: state, current: state === 'idle' ? null : open?.event || null,
     turns: s.turns, tools: s.tools, failures: s.failures, commands: s.commands, todos: s.todos, events,
     stats: { chars: { ...s.chars }, skills: [...s.skills].map(([name, bytes]) => ({ name, bytes })), gap: s.gap,
-      repeats: [...s.calls.values()].filter(call => call.count >= 3).sort((a, b) => b.count - a.count).slice(0, 5) },
+      repeats: [...s.calls.values()].filter(call => call.count >= 3).sort((a, b) => b.count - a.count).slice(0, 5),
+      context: [...s.context].map(([group, row]) => ({ group, ...row, items: [...row.items] })).sort((a, b) => b.bytes - a.bytes) },
     files: [...s.files].map(([file, row]) => ({ path: file, ...row })).sort((a, b) => b.last.localeCompare(a.last)) };
 }
 
@@ -391,7 +405,7 @@ function usage(workspace, file, id) {
  * @param {string | null} file The chat's transcript, or null when no chat is shown.
  * @param {string | null} telemetryFile The research telemetry export, or null when it was never configured.
  * @param {number} now
- * @returns {Omit<import('./types').Activity, 'chats'>}
+ * @returns {Omit<import('./types').Activity, 'chats' | 'meta'>}
  */
 function activity(workspace, file, telemetryFile, now) {
   if (!file) return { session: null, errors: null, loadout: null, tokens: null };

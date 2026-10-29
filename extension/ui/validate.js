@@ -70,7 +70,7 @@ function message(value) {
   /** @type {Record<string, string[]>} */
   const fields = {
     ready: [], refresh: [], selectWorkspace: [], newAsk: [], newChat: [], editPlan: [], loadPacks: [], revealAsk: [], attachReferences: [], startHandoff: [], dismissHandoff: [], loadModels: [],
-    analyze: ['model', 'question'],
+    analyze: ['model', 'question'], summarize: ['model'], pruneTelemetry: [], refreshMap: [], openMap: [], infographic: [],
     openDashboard: ['page'], openFile: ['path'], command: ['name'], telemetry: ['value'], review: ['item', 'revision', 'value'],
     selectAsk: ['ask'], activateAsk: ['ask'], selectChat: ['chat'], linkChat: ['chat'],
   };

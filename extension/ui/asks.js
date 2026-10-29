@@ -117,11 +117,26 @@ function scopeText(brief) {
  * @returns {string}
  */
 function starterPrompt(kind, ask, brief) {
-  const use = `If you are an HVE agent, use the ask in .hve/asks/${ask.id}/ (request and plan attached) and do not create another; otherwise ignore this.`;
+  const use = `If you are an agent that uses .hve or .harness folders, work in the ask .hve/asks/${ask.id}/ (request and plan attached) and keep its records in that same folder; `
+    + 'do not create another. Otherwise ignore this if it does not apply.';
   if (kind === 'resume') return [`Continue: ${ask.title}`, use, 'Say where it stands, then ask me what next.'].join('\n');
   if (!brief) throw new Error('A new ask or a follow-up needs a title.');
   return [kind === 'new' ? brief.title : `${ask.title}, follow-up: ${brief.title}`, brief.description, use,
     'Ask me for references or constraints first, then confirm the scope.'].filter(Boolean).join('\n');
+}
+
+/** Return the report files of the latest evaluation runs under .hve/evaluations/, newest run first, bounded; links are skipped.
+ * @param {string} workspace
+ * @returns {string[]}
+ */
+function evaluationFiles(workspace) {
+  const root = fs.realpathSync(workspace);
+  const folder = containedPath(root, path.join('.hve', 'evaluations'));
+  if (!fs.existsSync(folder)) return [];
+  return fs.readdirSync(folder, { withFileTypes: true }).filter(entry => entry.isDirectory() && entry.name !== 'input')
+    .map(entry => ({ name: entry.name, mtime: fs.statSync(path.join(folder, entry.name)).mtimeMs })).sort((a, b) => b.mtime - a.mtime).slice(0, 8)
+    .flatMap(run => fs.readdirSync(path.join(folder, run.name), { withFileTypes: true }).filter(entry => entry.isFile() && /\.(md|json)$/i.test(entry.name))
+      .slice(0, 6).map(entry => `.hve/evaluations/${run.name}/${entry.name}`));
 }
 
 /** Return the asks the project still lists whose contract.json is gone, because their files were deleted.
@@ -155,4 +170,4 @@ function handoffFrom(value, folder, now) {
   return { title, description, from: text(row.from, 'Carried-over source'), at };
 }
 
-module.exports = { ASK, askTime, listAsks, askTree, slugFor, askRequest, scopeText, starterPrompt, deletedAsks, handoffFrom };
+module.exports = { ASK, askTime, listAsks, askTree, slugFor, askRequest, scopeText, starterPrompt, evaluationFiles, deletedAsks, handoffFrom };

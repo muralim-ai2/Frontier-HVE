@@ -42,8 +42,8 @@ async function create(fixture, title, description) {
   return listAsks(fixture.root).find(ask => ask.active);
 }
 
-test('the starter is short: title, description, use the ask only if you are an HVE agent, and references first', () => {
-  const use = 'If you are an HVE agent, use the ask in .hve/asks/20261029-0329-dog-profile-badges/ (request and plan attached) and do not create another; otherwise ignore this.';
+test('the starter is short: title, description, use the ask only if the agent uses .hve or .harness folders, and references first', () => {
+  const use = 'If you are an agent that uses .hve or .harness folders, work in the ask .hve/asks/20261029-0329-dog-profile-badges/ (request and plan attached) and keep its records in that same folder; do not create another. Otherwise ignore this if it does not apply.';
   assert.equal(starterPrompt('new', ASK, { title: 'Dog profile badges', description: 'Come up with 3 creative badge ideas and build them' }),
     `Dog profile badges\nCome up with 3 creative badge ideas and build them\n${use}\nAsk me for references or constraints first, then confirm the scope.`);
   assert.equal(starterPrompt('new', ASK, { title: 'Dog profile badges', description: '' }).split('\n').length, 3);

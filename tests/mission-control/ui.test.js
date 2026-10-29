@@ -59,7 +59,8 @@ function model(t) {
   return { now: new Date(NOW).toISOString(), surface: 'sidebar', busy: false, error: null, workspace: { name: 'policy', path: root }, workspaceMessage: null,
     connection: { version: '0.20.0', python: 'python', guard: 'advise' }, telemetry: { enabled: false, file: null }, transcripts,
     asks, asksError: null, snapshot: snapshot(root), snapshotError: null, activity: { ...activity(root, path.join(transcripts, 'session-1.jsonl'), null, NOW), chats },
-    activityError: null, pending: null, files: askTree(root, ASK), filesError: null, packs: null, packsError: null,
+    activityError: null, pending: null, files: askTree(root, ASK), filesError: null, packs: null, packsError: null, evaluations: [], map: null, outputsError: null,
+    models: null, modelsError: null, analysis: null, insights: null, handoff: null, handoffError: null,
     navigate: { page: 'live', seq: 0 } };
 }
 
@@ -78,7 +79,7 @@ test('the sidebar shows live status, the ask, what needs you, the current step a
   assert.match(shown, /1 of 2 to-dos done/);
   assert.match(shown, /Research telemetry/);
   assert.equal(find(tree, node => node.attrs.role === 'switch')[0].attrs['aria-checked'], 'false');
-  assert.deepEqual(actions(tree, 'go').map(node => node.attrs['data-page']).filter((page, index, all) => all.indexOf(page) === index), ['live', 'plan', 'progress', 'files', 'others', 'telemetry', 'skills', 'settings']);
+  assert.deepEqual(actions(tree, 'go').map(node => node.attrs['data-page']).filter((page, index, all) => all.indexOf(page) === index), ['live', 'plan', 'progress', 'files', 'others', 'telemetry', 'visuals', 'skills', 'settings']);
   assert.doesNotMatch(shown, /Continue in Chat/);
 });
 

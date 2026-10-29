@@ -252,4 +252,4 @@ async function attachReferences(mc) {
   await vscode.commands.executeCommand('workbench.action.chat.open', { attachFiles: files });
 }
 
-module.exports = { HANDOFF, askBrief, newAsk, newChat, chooseChat, startChat, attachReferences, startElsewhere, handoff, offerHandoff, startHandoff, dismissHandoff };
+module.exports = { AGENT, HANDOFF, askBrief, newAsk, newChat, chooseChat, startChat, attachReferences, startElsewhere, handoff, offerHandoff, startHandoff, dismissHandoff };
