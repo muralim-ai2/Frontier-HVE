@@ -20,8 +20,17 @@
       "activitybar": [{ "id": "frontierHve", "title": "Frontier HVE", "icon": "ui/media/hve.svg" }]
     },
     "views": {
-      "frontierHve": [{ "type": "webview", "id": "frontierHve.missionControl", "name": "Mission Control" }]
+      "frontierHve": [
+        { "type": "webview", "id": "frontierHve.missionControl", "name": "Mission Control" },
+        { "id": "frontierHve.harnessFiles", "name": "Harness files" }
+      ]
     },
+    "viewsWelcome": [
+      {
+        "view": "frontierHve.harnessFiles",
+        "contents": "No .hve/ or .harness/ folder in this workspace yet. Asks, plans, evidence, run records and loop files appear here as soon as an agent or the harness writes them.\n[New ask](command:frontierHve.newAsk)"
+      }
+    ],
     "commands": [
       {
         "command": "frontierHve.setup",

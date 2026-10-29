@@ -9,6 +9,7 @@ const { activity } = require('./activity');
 const { listAsks, askTree } = require('./asks');
 const { chatList, shownChat, claimsFrom, pendingFrom } = require('./chats');
 const { Workflow } = require('./workflow');
+const { HarnessTree } = require('./harness-tree');
 const actions = require('./actions');
 const { record, text, message, errorText } = require('./validate');
 const PAGES = ['live', 'plan', 'progress', 'files', 'skills', 'settings'];
@@ -64,6 +65,9 @@ class MissionControl {
     /** @type {string | null} The chat on screen when it is not the ask's latest. */
     this.chat = null;
     this.disposed = false;
+    /** @type {NodeJS.Timeout | null} */
+    this.treeTimer = null;
+    this.tree = new HarnessTree(() => this.workspace?.uri.scheme === 'file' ? this.workspace.uri.fsPath : null);
     const version = text(record(context.extension.packageJSON, 'Extension manifest').version, 'Extension version');
     /** @type {Omit<import('./types').Model, 'now' | 'surface' | 'workspace' | 'telemetry' | 'navigate' | 'transcripts'>} */
     this.state = { busy: false, error: null, workspaceMessage: null, connection: { version, python: null, guard: guardMode(context.extensionPath) },
@@ -112,23 +116,35 @@ class MissionControl {
     return { enabled: otel.get('enabled') === true, file: typeof file === 'string' && file ? file : null };
   }
 
-  /** Watch the workspace's harness state and this window's chat transcripts.
+  /** Watch the workspace's .hve/ and .harness/ folders and this window's chat transcripts.
    * @returns {void}
    */
   bindWatchers() {
     this.watchers.forEach(watcher => watcher.dispose());
     this.watchers = [];
+    this.tree.refresh();
     if (this.workspace?.uri.scheme !== 'file') return;
     const patterns = [new vscode.RelativePattern(this.workspace, '.hve/**/*')];
     const storage = this.context.storageUri;
     if (storage) patterns.push(new vscode.RelativePattern(vscode.Uri.file(path.dirname(storage.fsPath)), 'GitHub.copilot-chat/transcripts/*.jsonl'));
+    patterns.push(new vscode.RelativePattern(this.workspace, '.harness/**/*'));
     for (const pattern of patterns) {
       const watcher = vscode.workspace.createFileSystemWatcher(pattern);
-      watcher.onDidCreate(() => this.scheduleRefresh());
-      watcher.onDidChange(() => this.scheduleRefresh());
-      watcher.onDidDelete(() => this.scheduleRefresh());
+      const changed = pattern.pattern.endsWith('.jsonl') ? () => this.scheduleRefresh() : () => { this.scheduleRefresh(); this.scheduleTree(); };
+      watcher.onDidCreate(changed);
+      watcher.onDidChange(changed);
+      watcher.onDidDelete(changed);
       this.watchers.push(watcher);
     }
+  }
+
+  /** Coalesce file changes into one refresh of the Harness files pane, which reads only the folders it shows.
+   * @returns {void}
+   */
+  scheduleTree() {
+    if (this.disposed) return;
+    if (this.treeTimer) clearTimeout(this.treeTimer);
+    this.treeTimer = setTimeout(() => { this.treeTimer = null; this.tree.refresh(); }, REFRESH_DELAY_MS);
   }
 
   /** Coalesce change notifications into one refresh of a visible view; a hidden view refreshes itself when shown again.
@@ -379,7 +395,9 @@ class MissionControl {
     if (this.disposed) return;
     this.disposed = true;
     if (this.timer) clearTimeout(this.timer);
+    if (this.treeTimer) clearTimeout(this.treeTimer);
     this.watchers.forEach(watcher => watcher.dispose());
+    this.tree.dispose();
     this.panel?.dispose();
     this.views.clear();
     this.output.dispose();
@@ -393,7 +411,9 @@ class MissionControl {
  */
 function register(context, findPython) {
   const ui = new MissionControl(context, findPython);
-  return [ui,
+  const files = vscode.window.createTreeView('frontierHve.harnessFiles', { treeDataProvider: ui.tree, showCollapseAll: true });
+  ui.tree.view = files;
+  return [ui, files,
     vscode.window.registerWebviewViewProvider('frontierHve.missionControl', ui),
     vscode.commands.registerCommand('frontierHve.openMissionControl', () => ui.execute({ action: 'openDashboard', page: 'live' })),
     vscode.commands.registerCommand('frontierHve.refreshMissionControl', () => ui.execute({ action: 'refresh' })),

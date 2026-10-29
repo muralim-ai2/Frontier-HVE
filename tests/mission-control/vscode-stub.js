@@ -37,12 +37,25 @@ function webview(calls) {
 function host(roots, storage) {
   const commands = new Map();
   const settings = new Map();
-  const controls = { commands, settings, provider: null, inputs: [], confirmations: [], calls: [], watchers: [], errors: [], statusItems: [], panels: [],
+  const controls = { commands, settings, provider: null, inputs: [], confirmations: [], calls: [], watchers: [], errors: [], statusItems: [], panels: [], trees: [],
     /** Return a Primary Side Bar view double. @param {boolean} [visible] @returns {object} */
     view: (visible = false) => ({ visible, webview: webview(controls.calls), onDidDispose: () => new Disposable() }) };
   const folders = roots.map((root, index) => ({ name: path.basename(root), uri: uri(root), index }));
   const api = {
     Disposable,
+    EventEmitter: class {
+      constructor() {
+        /** @type {((value: unknown) => void)[]} */
+        this.listeners = [];
+        this.event = listener => { this.listeners.push(listener); return new Disposable(); };
+      }
+      /** @param {unknown} value */
+      fire(value) { this.listeners.forEach(listener => listener(value)); }
+      dispose() { this.listeners = []; }
+    },
+    TreeItem: class { constructor(label, collapsibleState) { this.label = label; this.collapsibleState = collapsibleState; } },
+    TreeItemCollapsibleState: { None: 0, Collapsed: 1, Expanded: 2 },
+    ThemeIcon: Object.assign(class { constructor(id) { this.id = id; } }, { Folder: { id: 'folder' }, File: { id: 'file' } }),
     Uri: { file: uri, parse: value => ({ toString: () => value }), joinPath: (base, ...parts) => uri(path.join(base.fsPath, ...parts)) },
     RelativePattern: class { constructor(base, pattern) { this.base = base; this.pattern = pattern; } },
     ViewColumn: { Active: -1, Beside: -2 },
@@ -79,6 +92,11 @@ function host(roots, storage) {
         controls.provider = provider;
         controls.calls.push(['provider', id]);
         return new Disposable(() => { controls.provider = null; });
+      },
+      createTreeView: (id, options) => {
+        const view = Object.assign(new Disposable(() => { view.closed = true; }), { id, options, message: undefined, closed: false });
+        controls.trees.push(view);
+        return view;
       },
       showErrorMessage: async message => { controls.errors.push(message); },
       showInformationMessage: async message => { controls.calls.push(['information', message]); },

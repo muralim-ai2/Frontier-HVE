@@ -30,7 +30,8 @@ test('the existing extension contributes Mission Control, keeps its commands and
   assert.deepEqual(manifest.activationEvents, ['onStartupFinished']);
   assert.deepEqual(manifest.contributes.commands.map(command => command.command), [...ORIGINAL, ...MISSION]);
   assert.deepEqual(manifest.contributes.viewsContainers.activitybar, [{ id: 'frontierHve', title: 'Frontier HVE', icon: 'ui/media/hve.svg' }]);
-  assert.deepEqual(manifest.contributes.views.frontierHve, [{ type: 'webview', id: 'frontierHve.missionControl', name: 'Mission Control' }]);
+  assert.deepEqual(manifest.contributes.views.frontierHve, [{ type: 'webview', id: 'frontierHve.missionControl', name: 'Mission Control' },
+    { id: 'frontierHve.harnessFiles', name: 'Harness files' }]);
   assert.ok(manifest.contributes.configuration.properties['frontierHve.pluginIndex']);
   for (const file of ['hve.svg', 'app.css', 'app.js', 'vnode.js', 'markdown.js', 'views.js', 'pages.js']) {
     assert.ok(fs.statSync(path.join(EXTENSION, 'ui', 'media', file)).isFile(), file);
@@ -64,7 +65,7 @@ test('full activation registers Mission Control before setup work, keeps every o
 test('registration is passive, watches harness state and chat transcripts, and posts the model without creating project files', async t => {
   const fixture = mission(t);
   assert.ok(!fixture.controls.calls.some(call => call[0] !== 'provider'));
-  assert.deepEqual(fixture.controls.watchers.map(watcher => watcher.pattern.pattern), ['.hve/**/*', 'GitHub.copilot-chat/transcripts/*.jsonl']);
+  assert.deepEqual(fixture.controls.watchers.map(watcher => watcher.pattern.pattern), ['.hve/**/*', 'GitHub.copilot-chat/transcripts/*.jsonl', '.harness/**/*']);
   assert.equal(fixture.controls.watchers[1].pattern.base.fsPath, path.join(fixture.storage, 'window'));
   const view = fixture.controls.view();
   fixture.controls.provider.resolveWebviewView(view);
