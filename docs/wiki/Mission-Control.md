@@ -1,6 +1,6 @@
 # Mission Control
 
-Mission Control is the Frontier HVE sidebar. Click the **HVE icon in the Activity Bar** (the left edge of VS Code) to see what the agent is doing right now; any page link opens the dashboard in the editor (**Frontier HVE: Open Mission Control** does too). It ships inside the Frontier HVE extension; there is nothing else to install.
+Mission Control is the Frontier HVE sidebar. Click the **HVE icon in the Activity Bar** (the left edge of VS Code) to see what the agent is doing right now, with the **Harness files** pane below it; any page link opens the dashboard in the editor (**Frontier HVE: Open Mission Control** does too). It ships inside the Frontier HVE extension; there is nothing else to install.
 
 ## Asks and chats
 
@@ -27,13 +27,19 @@ Links made here are kept in this window's Mission Control state; they never chan
 | The harness run files of the chat | The error guard's failed commands and pause, the skill load against the guideline, guard alerts | `.hve/runs/<chat>.*` |
 | Research telemetry, when on | Model calls, input, cached and output tokens per model, AI units for the chat | the telemetry export (`.hve/runs/copilot-otel.jsonl`) |
 
-Mission Control updates within a second of any of these files changing while a view of it is visible; a hidden view does no work and catches up when shown. Relative times ("2 min ago") keep ticking. Viewing never writes to the project, runs a check, or starts an agent.
+Mission Control updates within a second of any of these files changing while a view of it is visible; a hidden view does no work and catches up when shown. A tool call whose result Copilot never records (it happens, for example with `view_image`) shows as stopped once the agent answers or you write again, so **Now** moves on to the next step instead of sticking on it. Relative times ("2 min ago") keep ticking. Viewing never writes to the project, runs a check, or starts an agent.
 
 ## The sidebar
 
-From top to bottom: the live status chip; the **ask dropdown** (every ask of the project, newest first, the active one marked "active"); when you view an ask that is not active, a notice with **Make active**; the ask card (project, a short title, agent, stage, how many chats, to-do progress; click for the full activity); **Needs you** (the agent is waiting for an answer in Chat, the error guard paused it or the last commands failed, the plan is a draft or was changed, items are ready for sign-off, the skill load is over the guideline); **Now** (the current step of the ask's latest chat, and its to-do list); **Recent** (the last six steps); links to the six pages with a short status each; the research telemetry switch; and **New ask**.
+From top to bottom: the live status chip; **New ask**; the **ask dropdown** (every ask of the project, newest first, the active one marked "active"); when you view an ask that is not active, a notice with **Make active**; the ask card (project, a short title, agent, stage, how many chats, to-do progress; click for the full activity); **Needs you** (the agent is waiting for an answer in Chat, the error guard paused it or the last commands failed, the plan is a draft or was changed, items are ready for sign-off, the skill load is over the guideline); **Now** (the current step of the ask's latest chat, and its to-do list); **Recent** (the last six steps); links to the six pages with a short status each; and the research telemetry switch.
 
 Choosing an ask in the dropdown only changes what Mission Control shows. **Make active** asks you to confirm, then runs `lifecycle.py open <ask-id>`: agents, hooks and guards then work on that ask, and the ask you leave stays on disk with its unfinished items. Sign-off is available only for the active ask.
+
+## The Harness files pane
+
+Below Mission Control in the same sidebar, **Harness files** shows everything under the workspace's `.hve/` and `.harness/` folders as a normal VS Code tree: drag the divider to resize it, collapse it, or use **Collapse All**. `.hve/`, `.hve/asks/` and the active ask's folder open by themselves; ask folders are listed newest first with the ask's title, and the active one is marked "active". Every file and folder is listed, including asks without a contract, loose files an agent left in `.hve/asks/`, run records in `.hve/runs/`, skills, project state and loop evidence in `.harness/`. Click a file to open it. The pane updates when these folders change, even while Mission Control is hidden. Links (symlinks, junctions) are listed but never opened. A folder with more than 500 entries shows the first 500 and a note. If an ask's `contract.json` cannot be read, the pane says so at the top and the files stay browsable. With no `.hve/` or `.harness/` yet, the pane explains that and offers **New ask**.
+
+It only shows files: it does not create an ask for work an agent did without one.
 
 ## New ask
 
@@ -79,6 +85,7 @@ The switch turns Copilot's telemetry export on (Frontier HVE first warns that it
 | `extension/ui/asks.js` | The project's asks, an ask's folder tree, the proposed name for a new ask |
 | `extension/ui/chats.js` | This window's chats, read incrementally, and the asks each one is linked to |
 | `extension/ui/activity.js` | Live activity of one chat from its transcript, run files and telemetry |
+| `extension/ui/harness-tree.js` | The Harness files pane: `.hve/` and `.harness/` as a native tree |
 | `extension/ui/workspace-state.js`, `file-access.js` | Read-only, bounded reads of `.hve/` state and the plan of the ask on screen |
 | `extension/ui/workflow.js`, `lifecycle-cli.js` | Creating and reopening asks, sign-offs and the pack list through the bundled tools (allowlisted operations only) |
 | `extension/ui/media/` | The webview: `views.js` (sidebar and ask dropdown), `pages.js` (dashboard pages), `markdown.js` (plan rendering), `vnode.js` (tags and attributes from an allowlist, text never parsed as markup), `app.js`, `app.css` |
