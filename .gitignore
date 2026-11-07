@@ -31,3 +31,14 @@ graphify-out/
 *.key
 *.pfx
 
+.aria/outputs/harness/graph/
+.aria/outputs/*/current/
+.aria/skills/
+.aria/discovery/
+.aria/evals/
+.aria/runs/copilot-otel.jsonl
+.aria/runs/otel/
+.aria/runs/bench.lock
+
+.aria/
+.harness/
