@@ -300,6 +300,7 @@ test('filters: search matches names, span and trace IDs; agent, type and status 
   const ids = (/** @type {Partial<import('../../extension/ui/types').TrajectoryUi>} */ state) => [...views.visible(run, { ...views.uiState(UI), ...state }).matched];
   assert.deepEqual(ids({ q: 'GREP' }), ['t2']);
   assert.deepEqual(ids({ q: 'm4' }), ['m4']);
+  assert.deepEqual(ids({ q: 'toolerror' }), ['t3']);
   assert.equal(ids({ q: fx.TRACE }).length, 14);
   assert.deepEqual(ids({ agent: 'Explore' }), ['a2', 'm3', 'm4']);
   assert.deepEqual(ids({ agent: 'Explore', kind: 'model', status: 'ok' }), ['m4']);

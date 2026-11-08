@@ -96,7 +96,8 @@
     const q = s.q.trim().toLowerCase();
     const active = !!q || s.status !== 'all' || s.kind !== 'all' || s.agent !== 'all' || s.errors;
     /** @param {TrajectoryEvent} e @returns {boolean} */
-    const test = e => (!q || [e.name, e.agent, e.tool, e.model, e.rawType, e.spanId, e.traceId, e.statusMessage, KIND[e.kind][0]].some(v => !!v && v.toLowerCase().includes(q)))
+    const test = e => (!q || [e.name, e.agent, e.tool, e.model, e.rawType, e.spanId, e.traceId, e.statusMessage, KIND[e.kind][0],
+      e.attributes.find(([key]) => key === 'error.type')?.[1]].some(v => !!v && v.toLowerCase().includes(q)))
       && (s.status === 'all' || e.status === s.status) && (s.kind === 'all' || e.kind === s.kind) && (s.agent === 'all' || owner(e, byId) === s.agent)
       && (!s.errors || PROBLEMS.includes(e.status));
     const matched = new Set(run.events.filter(e => !active || test(e)).map(e => e.id));
