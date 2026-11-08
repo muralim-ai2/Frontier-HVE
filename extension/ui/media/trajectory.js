@@ -177,6 +177,7 @@
       return h('g', { class: `tnode kind-${e.kind} status-${e.status}${s.sel === e.id ? ' sel' : ''}${matched.has(e.id) ? '' : ' muted'}`, transform: `translate(${p.x} ${p.y})`,
         tabindex: e.id === focus ? 0 : -1, role: 'button', 'aria-pressed': s.sel === e.id ? 'true' : 'false', 'aria-label': label(e), 'data-action': 'trajSelect', 'data-id': e.id,
         'data-x': p.x, 'data-y': p.y, ...links(e, ids) },
+      h('title', null, label(e)),
       h('rect', { class: 'tshape', width: NODE.w, height: NODE.h, rx: KIND[e.kind][2] }), h('rect', { class: 'tstripe', width: 4, height: NODE.h }),
       h('text', { class: 'tl1', x: 12, y: 16 }, `#${e.seq} · ${KIND[e.kind][0]}${e.retry ? ` · retry ${e.retry}` : ''}${e.orphan ? ' · orphan' : ''}`),
       h('text', { class: 'tl2', x: 12, y: 33 }, clip(e.name, 27)),

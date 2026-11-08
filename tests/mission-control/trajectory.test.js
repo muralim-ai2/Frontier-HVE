@@ -227,6 +227,7 @@ test('views: the graph draws one keyboard-reachable node per step with labelled 
   assert.deepEqual(find(tree, node => node.attrs.class === 'tedge-label').map(text), ['retry 1', 'handoff', 'retry 1']);
   assert.equal(find(tree, node => node.attrs.class === 'tviewport')[0].attrs.transform, 'translate(10 20) scale(0.5)');
   assert.match(text(nodes[13]), /#14 · Tool call · orphan/);
+  assert.equal(text(find(nodes[1], node => node.tag === 'title')[0]), nodes[1].attrs['aria-label']);
   const { at } = views.layout(/** @type {import('../../extension/ui/types').Trajectory} */ (model().trajectory).events);
   const a1 = /** @type {{x: number, y: number}} */ (at.get('a1'));
   assert.deepEqual([a1.x, at.get('a2')?.x, at.get('m3')?.x], [0, 2 * views.NODE.dx, 3 * views.NODE.dx]);
