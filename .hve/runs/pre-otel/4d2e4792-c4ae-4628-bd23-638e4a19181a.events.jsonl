@@ -1,0 +1,12 @@
+{"event": "PreToolUse", "mode": "single", "ts_ms": 1791267621394.0, "tool_use_id": "toolu_01MtwDFp9AzQpNzMD3gq2tA6__vscode-1791266517504", "tool_name": "list_dir"}
+{"event": "PreToolUse", "mode": "single", "ts_ms": 1791267622099.0, "tool_use_id": "toolu_019rB2viFcuub4yYDWeFj2u1__vscode-1791266517505", "tool_name": "run_in_terminal"}
+{"event": "PostToolUse", "mode": "single", "ts_ms": 1791267622073.0, "tool_use_id": "toolu_01MtwDFp9AzQpNzMD3gq2tA6__vscode-1791266517504", "tool_name": "list_dir"}
+{"event": "PostToolUse", "mode": "single", "ts_ms": 1791267647726.0, "tool_use_id": "toolu_019rB2viFcuub4yYDWeFj2u1__vscode-1791266517505", "tool_name": "run_in_terminal"}
+{"event": "Stop", "mode": "single", "ts_ms": 1791267649556.0, "tool_use_id": null, "tool_name": null}
+{"event": "PreToolUse", "mode": "single", "ts_ms": 1791267737269.0, "tool_use_id": "toolu_0144PvvcceDBw8wxyyKXBsu3__vscode-1791266517506", "tool_name": "run_in_terminal"}
+{"event": "PostToolUse", "mode": "single", "ts_ms": 1791267740738.0, "tool_use_id": "toolu_0144PvvcceDBw8wxyyKXBsu3__vscode-1791266517506", "tool_name": "run_in_terminal"}
+{"event": "PreToolUse", "mode": "single", "ts_ms": 1791267744419.0, "tool_use_id": "toolu_016hrKtoP52JvikxuhE6uL9a__vscode-1791266517507", "tool_name": "grep_search"}
+{"event": "PostToolUse", "mode": "single", "ts_ms": 1791267745247.0, "tool_use_id": "toolu_016hrKtoP52JvikxuhE6uL9a__vscode-1791266517507", "tool_name": "grep_search"}
+{"event": "PreToolUse", "mode": "single", "ts_ms": 1791267747359.0, "tool_use_id": "toolu_01MtobFGH3C8ppqdX1cVjhcV__vscode-1791266517508", "tool_name": "read_file"}
+{"event": "PostToolUse", "mode": "single", "ts_ms": 1791267749301.0, "tool_use_id": "toolu_01MtobFGH3C8ppqdX1cVjhcV__vscode-1791266517508", "tool_name": "read_file"}
+{"event": "Stop", "mode": "single", "ts_ms": 1791267755072.0, "tool_use_id": null, "tool_name": null}

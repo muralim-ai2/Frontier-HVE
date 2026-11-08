@@ -1,0 +1,10 @@
+import { test } from "node:test";
+import assert from "node:assert/strict";
+import { getBestTextColor, getContrastRatio, hexToRgb, hslToHex, normalizeHex, rgbToHsl } from "../lib/color";
+import { applyLocks, generatePalette, modes } from "../lib/palette";
+import { paletteToCssVariables, paletteToJson, paletteToSvg } from "../lib/export";
+test("HEX normalization and known color conversions", (): void => { assert.equal(normalizeHex(" #abc "), "AABBCC"); assert.equal(normalizeHex("#xyz"), null); assert.deepEqual(hexToRgb("FFFFFF"), [255, 255, 255]); assert.deepEqual(rgbToHsl(255, 0, 0), [0, 100, 50]); assert.equal(hslToHex(-120, 100, 50), "0000FF"); assert.equal(hslToHex(720, 200, 100), "FFFFFF"); });
+test("WCAG black and white contrast", (): void => { assert.equal(getContrastRatio("000000", "FFFFFF"), 21); assert.equal(getBestTextColor("FFFFFF"), "black"); assert.equal(getBestTextColor("000000"), "white"); });
+test("every mode returns five valid, varied colors", (): void => { for (const mode of modes) for (const seed of ["000000", "FFFFFF", "2A9D8F"]) { const palette = generatePalette({ mode, seed }); assert.equal(palette.length, 5); assert.ok(palette.every((color: string): boolean => /^[0-9A-F]{6}$/.test(color))); assert.ok(new Set(palette).size >= 4); } });
+test("locks preserve exact selected colors", (): void => { const original = ["111111", "222222", "333333", "444444", "555555"], next = Array<string>(5).fill("FFFFFF"); assert.deepEqual(applyLocks(original, next, [true, false, true, false, true]), ["111111", "FFFFFF", "333333", "FFFFFF", "555555"]); assert.deepEqual(applyLocks(original, next, Array<boolean>(5).fill(true)), original); });
+test("exports contain valid normalized values", (): void => { const palette = ["264653", "2A9D8F", "E9C46A", "F4A261", "E76F51"]; assert.equal(JSON.parse(paletteToJson(palette)).length, 5); assert.match(paletteToCssVariables(palette), /--color-5: #E76F51;/); assert.equal((paletteToSvg(palette).match(/<text /g) || []).length, 5); });

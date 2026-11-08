@@ -1,0 +1,190 @@
+{
+  "checked": "2026-10-07T16:02:55+00:00",
+  "total_tokens": 11632,
+  "share_pct": {
+    "128000": 9.1,
+    "200000": 5.8,
+    "1000000": 1.2
+  },
+  "previous_total_tokens": null,
+  "by_kind": {
+    "skill": 6238,
+    "instructions": 910,
+    "agent": 1484,
+    "mcp": 3000
+  },
+  "skill_count": 42,
+  "top": [
+    {
+      "kind": "mcp",
+      "origin": "workspace",
+      "name": "graphify",
+      "path": "C:/PwC_HarnessEngineering2/enterprise-harness/.vscode/mcp.json",
+      "tokens": 1500,
+      "estimate": true
+    },
+    {
+      "kind": "mcp",
+      "origin": "user",
+      "name": "io.github.upstash/context7",
+      "path": "C:/Users/mmahendiran/AppData/Roaming/Code/User/mcp.json",
+      "tokens": 1500,
+      "estimate": true
+    },
+    {
+      "kind": "agent",
+      "origin": "agent",
+      "name": "HVE creator",
+      "path": "c:/Users/mmahendiran/AppData/Roaming/Code/User/globalStorage/muralim-ai2.frontier-hve/plugin/com.github.copilot/agents/hve-creator.agent.md",
+      "tokens": 1484
+    },
+    {
+      "kind": "instructions",
+      "origin": "workspace",
+      "name": "copilot-instructions.md",
+      "path": "C:/PwC_HarnessEngineering2/enterprise-harness/.github/copilot-instructions.md",
+      "tokens": 743
+    },
+    {
+      "kind": "skill",
+      "origin": "plugin:azure-skills",
+      "name": "azure-cost",
+      "description": "Unified Azure cost management: query historical costs, forecast future spending, and optimize to reduce waste. WHEN: \\\"Azure costs\\\", \\\"Azure spending\\\", \\\"Azure bill\\\", \\\"cost breakdown\\\", \\\"cost by service\\\", \\\"cost by resource\\\", \\\"how much am I spending\\\", \\\"show my bill\\\", \\\"monthly cost summary\\\", \\\"cost trends\\\", \\\"top cost drivers\\\", \\\"actual cost\\\", \\\"amortized cost\\\", \\\"forecast spending\\\", \\\"projected costs\\\", \\\"estimate bill\\\", \\\"future costs\\\", \\\"budget forecast\\\", \\\"end of month costs\\\", \\\"how much will I spend\\\", \\\"optimize costs\\\", \\\"reduce spending\\\", \\\"find cost savings\\\", \\\"orphaned resources\\\", \\\"rightsize VMs\\\", \\\"cost analysis\\\", \\\"reduce waste\\\", \\\"unused resources\\\", \\\"optimize Redis costs\\\", \\\"cost by tag\\\", \\\"cost by resource group\\\", \\\"AKS cost analysis add-on\\\", \\\"namespace cost\\\", \\\"cost spike\\\", \\\"anomaly\\\", \\\"budget alert\\\", \\\"AKS cost visibility\\\". DO NOT USE FOR: deploying resources, provisioning infrastructure, diagnostics, security audits, or estimating costs for new resources not yet deployed.",
+      "path": "C:/Users/mmahendiran/.vscode/agent-plugins/github.com/microsoft/azure-skills/skills/azure-cost/SKILL.md",
+      "tokens": 304
+    },
+    {
+      "kind": "skill",
+      "origin": "plugin:azure-skills",
+      "name": "azure-prepare",
+      "description": "Prepare Azure apps for deployment (infra Bicep/Terraform, azure.yaml, Dockerfiles). Use for create/modernize or create+deploy; not cross-cloud migration (use azure-cloud-migrate). WHEN: \\\"create app\\\", \\\"build web app\\\", \\\"create API\\\", \\\"create serverless HTTP API\\\", \\\"create frontend\\\", \\\"create back end\\\", \\\"build a service\\\", \\\"modernize application\\\", \\\"update application\\\", \\\"add authentication\\\", \\\"add caching\\\", \\\"host on Azure\\\", \\\"create and deploy\\\", \\\"deploy to Azure\\\", \\\"deploy to Azure using Terraform\\\", \\\"deploy to Azure App Service\\\", \\\"deploy to Azure App Service using Terraform\\\", \\\"deploy to Azure Container Apps\\\", \\\"deploy to Azure Container Apps using Terraform\\\", \\\"generate Terraform\\\", \\\"generate Bicep\\\", \\\"function app\\\", \\\"timer trigger\\\", \\\"service bus trigger\\\", \\\"event-driven function\\\", \\\"containerized Node.js app\\\", \\\"social media app\\\", \\\"static portfolio website\\\", \\\"todo list with frontend and API\\\", \\\"prepare my Azure application to use Key Vault\\\", \\\"managed identity\\\".",
+      "path": "C:/Users/mmahendiran/.vscode/agent-plugins/github.com/microsoft/azure-skills/skills/azure-prepare/SKILL.md",
+      "tokens": 299
+    },
+    {
+      "kind": "skill",
+      "origin": "plugin:azure-skills",
+      "name": "microsoft-foundry",
+      "description": "Deploy, evaluate, and manage Foundry agents end-to-end: Docker build, ACR push, hosted/prompt agent create, container start, batch eval, prompt optimization, prompt optimizer workflows, agent.yaml, dataset curation from traces. USE FOR: deploy agent to Foundry, hosted agent, create agent, invoke agent, evaluate agent, run batch eval, optimize prompt, improve prompt, prompt optimization, prompt optimizer, improve agent instructions, optimize agent instructions, optimize system prompt, deploy model, Foundry project, RBAC, role assignment, permissions, quota, capacity, region, troubleshoot agent, deployment failure, create dataset from traces, dataset versioning, eval trending, create AI Services, Cognitive Services, create Foundry resource, provision resource, knowledge index, agent monitoring, customize deployment, onboard, availability. DO NOT USE FOR: Azure Functions, App Service, general Azure deploy (use azure-deploy), general Azure prep (use azure-prepare).",
+      "path": "C:/Users/mmahendiran/.vscode/agent-plugins/github.com/microsoft/azure-skills/skills/microsoft-foundry/SKILL.md",
+      "tokens": 290
+    },
+    {
+      "kind": "skill",
+      "origin": "plugin:azure-skills",
+      "name": "azure-messaging",
+      "description": "Troubleshoot and resolve issues with Azure Messaging SDKs for Event Hubs and Service Bus. Covers connection failures, authentication errors, message processing issues, and SDK configuration problems. WHEN: event hub SDK error, service bus SDK issue, messaging connection failure, AMQP error, event processor host issue, message lock lost, message lock expired, lock renewal, lock renewal batch, send timeout, receiver disconnected, SDK troubleshooting, azure messaging SDK, event hub consumer, service bus queue issue, topic subscription error, enable logging event hub, service bus logging, eventhub python, servicebus java, eventhub javascript, servicebus dotnet, event hub checkpoint, event hub not receiving messages, service bus dead letter, batch processing lock, session lock expired, idle timeout, connection inactive, link detach, slow reconnect, session error, duplicate events, offset reset, receive batch.",
+      "path": "C:/Users/mmahendiran/.vscode/agent-plugins/github.com/microsoft/azure-skills/skills/azure-messaging/SKILL.md",
+      "tokens": 275
+    },
+    {
+      "kind": "skill",
+      "origin": "plugin:azure-skills",
+      "name": "azure-deploy",
+      "description": "Execute Azure deployments for ALREADY-PREPARED applications that have existing .azure/deployment-plan.md and infrastructure files. DO NOT use this skill when the user asks to CREATE a new application \u2014 use azure-prepare instead. This skill runs azd up, azd deploy, terraform apply, and az deployment commands with built-in error recovery. Requires .azure/deployment-plan.md from azure-prepare and validated status from azure-validate. WHEN: \\\"run azd up\\\", \\\"run azd deploy\\\", \\\"execute deployment\\\", \\\"push to production\\\", \\\"push to cloud\\\", \\\"go live\\\", \\\"ship it\\\", \\\"bicep deploy\\\", \\\"terraform apply\\\", \\\"publish to Azure\\\", \\\"launch on Azure\\\". DO NOT USE WHEN: \\\"create and deploy\\\", \\\"build and deploy\\\", \\\"create a new app\\\", \\\"set up infrastructure\\\", \\\"create and deploy to Azure using Terraform\\\" \u2014 use azure-prepare for these.",
+      "path": "C:/Users/mmahendiran/.vscode/agent-plugins/github.com/microsoft/azure-skills/skills/azure-deploy/SKILL.md",
+      "tokens": 254
+    },
+    {
+      "kind": "skill",
+      "origin": "plugin:azure-skills",
+      "name": "azure-enterprise-infra-planner",
+      "description": "Architect and provision enterprise Azure infrastructure from workload descriptions. For cloud architects and platform engineers planning networking, identity, security, compliance, and multi-resource topologies with WAF alignment. Generates Bicep or Terraform directly (no azd). WHEN: 'plan Azure infrastructure', 'architect Azure landing zone', 'design hub-spoke network', 'plan multi-region DR topology', 'set up VNets firewalls and private endpoints', 'subscription-scope Bicep deployment', 'Azure Backup for VM workloads'. PREFER azure-prepare FOR app-centric workflows.",
+      "path": "C:/Users/mmahendiran/.vscode/agent-plugins/github.com/microsoft/azure-skills/skills/azure-enterprise-infra-planner/SKILL.md",
+      "tokens": 196
+    }
+  ],
+  "duplicates": [
+    {
+      "a": "C:/PwC_HarnessEngineering2/enterprise-harness/plugins/harness-assist/skills/code-review/SKILL.md",
+      "b": "c:/Users/mmahendiran/AppData/Roaming/Code/User/globalStorage/muralim-ai2.frontier-hve/plugin/skills/code-review/SKILL.md",
+      "same_name": true,
+      "similarity": 1.0
+    },
+    {
+      "a": "C:/PwC_HarnessEngineering2/enterprise-harness/plugins/harness-assist/skills/delivery-coach/SKILL.md",
+      "b": "c:/Users/mmahendiran/AppData/Roaming/Code/User/globalStorage/muralim-ai2.frontier-hve/plugin/skills/delivery-coach/SKILL.md",
+      "same_name": true,
+      "similarity": 1.0
+    },
+    {
+      "a": "C:/PwC_HarnessEngineering2/enterprise-harness/plugins/harness-assist/skills/explain-walkthrough/SKILL.md",
+      "b": "c:/Users/mmahendiran/AppData/Roaming/Code/User/globalStorage/muralim-ai2.frontier-hve/plugin/skills/explain-walkthrough/SKILL.md",
+      "same_name": true,
+      "similarity": 1.0
+    },
+    {
+      "a": "C:/PwC_HarnessEngineering2/enterprise-harness/plugins/harness-assist/skills/feature-checklist/SKILL.md",
+      "b": "c:/Users/mmahendiran/AppData/Roaming/Code/User/globalStorage/muralim-ai2.frontier-hve/plugin/skills/feature-checklist/SKILL.md",
+      "same_name": true,
+      "similarity": 1.0
+    },
+    {
+      "a": "C:/PwC_HarnessEngineering2/enterprise-harness/plugins/harness-assist/skills/parallel-options/SKILL.md",
+      "b": "c:/Users/mmahendiran/AppData/Roaming/Code/User/globalStorage/muralim-ai2.frontier-hve/plugin/skills/parallel-options/SKILL.md",
+      "same_name": true,
+      "similarity": 1.0
+    },
+    {
+      "a": "C:/PwC_HarnessEngineering2/enterprise-harness/plugins/harness-assist/skills/pr-push/SKILL.md",
+      "b": "c:/Users/mmahendiran/AppData/Roaming/Code/User/globalStorage/muralim-ai2.frontier-hve/plugin/skills/pr-push/SKILL.md",
+      "same_name": true,
+      "similarity": 1.0
+    },
+    {
+      "a": "C:/PwC_HarnessEngineering2/enterprise-harness/plugins/harness-assist/skills/prototype-guardrail/SKILL.md",
+      "b": "c:/Users/mmahendiran/AppData/Roaming/Code/User/globalStorage/muralim-ai2.frontier-hve/plugin/skills/prototype-guardrail/SKILL.md",
+      "same_name": true,
+      "similarity": 1.0
+    },
+    {
+      "a": "C:/PwC_HarnessEngineering2/enterprise-harness/plugins/harness-assist/skills/recommend-skills/SKILL.md",
+      "b": "c:/Users/mmahendiran/AppData/Roaming/Code/User/globalStorage/muralim-ai2.frontier-hve/plugin/skills/recommend-skills/SKILL.md",
+      "same_name": true,
+      "similarity": 1.0
+    },
+    {
+      "a": "C:/PwC_HarnessEngineering2/enterprise-harness/plugins/harness-assist/skills/run-tests/SKILL.md",
+      "b": "c:/Users/mmahendiran/AppData/Roaming/Code/User/globalStorage/muralim-ai2.frontier-hve/plugin/skills/run-tests/SKILL.md",
+      "same_name": true,
+      "similarity": 1.0
+    }
+  ],
+  "unmeasured_skills": [
+    "appinsights-instrumentation",
+    "azure-ai",
+    "azure-aigateway",
+    "azure-cloud-migrate",
+    "azure-compliance",
+    "azure-compute",
+    "azure-cost",
+    "azure-deploy",
+    "azure-diagnostics",
+    "azure-enterprise-infra-planner",
+    "azure-hosted-copilot-sdk",
+    "azure-kubernetes",
+    "azure-kusto",
+    "azure-messaging",
+    "azure-prepare",
+    "azure-quotas",
+    "azure-rbac",
+    "azure-resource-lookup",
+    "azure-resource-visualizer",
+    "azure-storage",
+    "azure-upgrade",
+    "azure-validate",
+    "code-review",
+    "delivery-coach",
+    "entra-app-registration",
+    "explain-walkthrough",
+    "feature-checklist",
+    "microsoft-foundry",
+    "parallel-options",
+    "pr-push",
+    "prototype-guardrail",
+    "recommend-skills",
+    "run-tests"
+  ],
+  "not_counted": "VS Code's built-in system prompt and built-in tool schemas",
+  "warnings": []
+}

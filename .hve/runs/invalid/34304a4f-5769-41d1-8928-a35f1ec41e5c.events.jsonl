@@ -1,0 +1,2 @@
+{"event": "Stop", "mode": "minimal", "ts_ms": 1791307524075.0, "tool_use_id": null, "tool_name": null, "transcript_path": "c:\\Users\\mmahendiran\\AppData\\Roaming\\Code\\User\\workspaceStorage\\f2c09152c2dafc5f607490c8769874c3\\GitHub.copilot-chat\\transcripts\\34304a4f-5769-41d1-8928-a35f1ec41e5c.jsonl"}
+{"event": "PreToolUse", "mode": "minimal", "ts_ms": 1791307568735.0, "tool_use_id": "call_oE9tqoYoFJbvOK2JTglUel26__vscode-1791301005603", "tool_name": "run_in_terminal", "transcript_path": null}
