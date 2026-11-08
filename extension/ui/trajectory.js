@@ -117,7 +117,8 @@ function fromSpan(span, chat) {
   }
   const resource = span.resource ? record(record(span.resource, 'Telemetry resource').attributes, 'Telemetry resource attributes') : {};
   const tokens = kind === 'model' ? { input: number(attrs, ['gen_ai.usage.input_tokens']), output: number(attrs, ['gen_ai.usage.output_tokens']),
-    cached: number(attrs, ['gen_ai.usage.cache_read.input_tokens']), reasoning: number(attrs, ['gen_ai.usage.reasoning_tokens', 'gen_ai.usage.reasoning.output_tokens']) } : null;
+    cached: number(attrs, ['gen_ai.usage.cache_read.input_tokens']), reasoning: number(attrs, ['gen_ai.usage.reasoning_tokens', 'gen_ai.usage.reasoning.output_tokens']),
+    aiu: number(attrs, ['copilot_chat.copilot_usage_nano_aiu']) / 1e9 } : null;
   return {
     id: String(span.spanId), seq: 0, traceId: typeof span.traceId === 'string' ? span.traceId : null, spanId: String(span.spanId),
     parentId: parent && typeof parent.spanId === 'string' ? parent.spanId : null, orphan: false, kind, rawType: name, depth: 0, children: [], retry: 0,
@@ -195,7 +196,7 @@ function summarize(all, base) {
   const starts = events.map(event => event.start);
   const ends = events.map(event => event.end ?? event.start);
   const models = events.filter(event => event.kind === 'model');
-  const sum = /** @param {'input' | 'output' | 'cached'} key */ key => models.reduce((total, event) => total + (event.tokens?.[key] || 0), 0);
+  const sum = /** @param {'input' | 'output' | 'cached' | 'aiu'} key */ key => models.reduce((total, event) => total + (event.tokens?.[key] || 0), 0);
   const start = starts.length ? Math.min(...starts) : null;
   const last = ends.length ? Math.max(...ends) : null;
   const running = events.filter(event => event.status === 'running').length;
@@ -204,6 +205,7 @@ function summarize(all, base) {
     agents: [...new Set(events.map(event => event.agent).filter(/** @returns {name is string} */ name => !!name))],
     modelCalls: models.length, toolCalls: events.filter(event => event.kind === 'tool').length, handoffs: events.filter(event => event.kind === 'handoff').length,
     errors: events.filter(event => ['failed', 'timeout'].includes(event.status)).length, input: sum('input'), output: sum('output'), cached: sum('cached'),
+    aiu: base.source === 'telemetry' ? sum('aiu') : null,
     running, orphans: events.filter(event => event.orphan).length, roots, events };
 }
 

@@ -1,12 +1,4 @@
 {
   "servers": {
-    "graphify": {
-      "type": "stdio",
-      "command": "graphify-mcp",
-      "args": ["${workspaceFolder}/.hve/outputs/harness/graph/graph.json"],
-      "env": {
-        "GRAPHIFY_QUERY_LOG_DISABLE": "1"
-      }
-    }
   }
 }

@@ -84,7 +84,7 @@ export interface TrajectoryEvent {
   children: string[];
   retry: number;
   session: string | null;
-  tokens: { input: number; output: number; cached: number; reasoning: number } | null;
+  tokens: { input: number; output: number; cached: number; reasoning: number; aiu: number } | null;
   content: TrajectoryContent[];
   attributes: [string, string][];
   resource: [string, string][];
@@ -108,6 +108,7 @@ export interface Trajectory {
   input: number;
   output: number;
   cached: number;
+  aiu: number | null;
   running: number;
   orphans: number;
   truncated: number;
@@ -126,6 +127,7 @@ export interface TrajectoryUi {
   collapsed: Record<string, boolean>;
   zoom: { k: number; x: number; y: number };
   paused: boolean;
+  limit: number;
 }
 export interface AskSummary {
   id: string;
@@ -239,6 +241,7 @@ export interface Model {
   insights: Insights | null;
   trajectory: Trajectory | null;
   trajectoryError: string | null;
+  trajectoryPending?: number;
   models: ChatModelInfo[] | null;
   modelsError: string | null;
   analysis: Analysis | null;
@@ -376,15 +379,16 @@ declare global {
   var hveMarkdown: { render(source: string): VNode[]; inline(source: string): Child[] };
   var hveViews: Views;
   var hvePages: Pages;
-  var hveTelemetry: { telemetry(model: Model, ui: UiState, now: number): Child[] };
+  var hveTelemetry: { telemetry(model: Model, ui: UiState, now: number): Child[]; chatPicker(model: Model): VNode | null };
   var hveTrajectory: TrajectoryViews;
 }
 export interface TrajectoryViews {
   trajectory(model: Model, ui: UiState, now: number): Child[];
   uiState(ui: UiState): TrajectoryUi;
-  visible(run: Trajectory, state: TrajectoryUi): { shown: TrajectoryEvent[]; matched: Set<string>; hidden: number };
+  visible(run: Trajectory, state: TrajectoryUi): { shown: TrajectoryEvent[]; matched: Set<string>; active: boolean; hidden: number };
   layout(events: TrajectoryEvent[]): { at: Map<string, { x: number; y: number }>; width: number; height: number };
   NODE: { w: number; h: number; dx: number; dy: number };
+  PAGE_ROWS: number;
 }
 export interface VNode {
   tag: string;

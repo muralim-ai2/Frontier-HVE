@@ -39,11 +39,14 @@
     chevron: ['m9.5 6 6 6-6 6'],
     folder: ['M3 6.5h6l2 2h10v11H3Z'],
     spark: ['M12 3v4m0 10v4M3 12h4m10 0h4', 'm6.3 6.3 2.4 2.4m6.6 6.6 2.4 2.4m0-11.4-2.4 2.4m-6.6 6.6-2.4 2.4'],
+    route: [{ cx: 6, cy: 18, r: 2.2 }, { cx: 18, cy: 6, r: 2.2 }, 'M8.2 18H15a3.5 3.5 0 0 0 0-7H9a3.5 3.5 0 0 1 0-7h6.8'],
+    copy: ['M8.5 8.5h11v12h-11Z', 'M5.5 15.5h-1v-12h11v1'],
+    minus: ['M5 12h14'],
   };
   const KIND_ICON = { prompt: 'user', message: 'chat', read: 'eye', edit: 'pencil', run: 'terminal', search: 'search', ask: 'question',
     delegate: 'users', todo: 'list', guard: 'shield', tool: 'tool' };
   /** @type {[import('../types').Page, string, string][]} */
-  const PAGES = [['live', 'Live', 'pulse'], ['plan', 'Plan', 'map'], ['progress', 'Progress', 'flag'], ['files', 'Files', 'folder'], ['others', 'Other asks', 'list'], ['telemetry', 'Telemetry', 'spark'], ['visuals', 'Visuals', 'map'], ['skills', 'Skills & packs', 'box'],
+  const PAGES = [['live', 'Live', 'pulse'], ['plan', 'Plan', 'map'], ['progress', 'Progress', 'flag'], ['files', 'Files', 'folder'], ['others', 'Other asks', 'list'], ['telemetry', 'Telemetry', 'spark'], ['trajectory', 'Agent Trajectory', 'route'], ['visuals', 'Visuals', 'map'], ['skills', 'Skills & packs', 'box'],
     ['settings', 'Settings', 'gear']];
 
   /** Return a decorative line icon.
@@ -352,7 +355,7 @@
     /** @type {Record<string, string>} */
     const badges = { plan: snap?.plan ? { empty: 'not written', draft: 'draft', agreed: 'agreed', edited: 'changed' }[snap.plan.status] : '',
       progress: snap?.features.length ? `${passing}/${snap.features.length}` : '', files: model.files ? String(model.files.count) : '',
-      skills: snap?.skills.length ? String(snap.skills.length) : '' };
+      skills: snap?.skills.length ? String(snap.skills.length) : '', trajectory: model.trajectory?.errors ? plural(model.trajectory.errors, 'error') : '' };
     return h('nav', { class: 'links', 'aria-label': 'Mission Control pages' }, ...PAGES.map(([page, label, glyph]) =>
       h('button', { class: 'link-row', type: 'button', 'data-action': 'go', 'data-page': page }, icon(glyph), h('span', null, label),
         badges[page] ? h('span', { class: 'badge' }, badges[page]) : null, icon('chevron', 'trail'))));

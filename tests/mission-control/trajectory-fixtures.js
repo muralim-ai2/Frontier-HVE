@@ -46,7 +46,8 @@ function span(id, parent, name, from, to, attributes = {}, status = { code: 0 })
  */
 function chat(id, parent, from, to, input, extra = {}, status = { code: 0 }) {
   return span(id, parent, 'chat claude-opus-5.5', from, to, { 'gen_ai.request.model': 'claude-opus-5.5', 'gen_ai.response.model': 'claude-opus-5.5',
-    ...(status.code === 2 ? {} : { 'gen_ai.usage.input_tokens': input, 'gen_ai.usage.output_tokens': Math.round(input / 40), 'gen_ai.usage.cache_read.input_tokens': Math.round(input / 2) }),
+    ...(status.code === 2 ? {} : { 'gen_ai.usage.input_tokens': input, 'gen_ai.usage.output_tokens': Math.round(input / 40), 'gen_ai.usage.cache_read.input_tokens': Math.round(input / 2),
+      'copilot_chat.copilot_usage_nano_aiu': input * 1000 }),
     'gen_ai.system_instructions': 'You are an agent. '.repeat(400), ...extra }, status);
 }
 
