@@ -17,9 +17,10 @@ const analysis = require('./analysis');
 const extras = require('./extras');
 const { evaluationFiles } = require('./asks');
 const { insights } = require('./insights');
+const { trajectory } = require('./trajectory');
 const { record, text, message, errorText } = require('./validate');
-const PAGES = ['live', 'plan', 'progress', 'files', 'others', 'telemetry', 'skills', 'settings'];
-const SCRIPTS = ['vnode.js', 'markdown.js', 'views.js', 'telemetry.js', 'pages.js', 'app.js'];
+const PAGES = ['live', 'plan', 'progress', 'files', 'others', 'telemetry', 'trajectory', 'visuals', 'skills', 'settings'];
+const SCRIPTS = ['vnode.js', 'markdown.js', 'views.js', 'telemetry.js', 'trajectory.js', 'pages.js', 'app.js'];
 const REFRESH_DELAY_MS = 400;
 
 /** Return the restricted webview document that loads Mission Control's styles and scripts.
@@ -79,7 +80,7 @@ class MissionControl {
     const version = text(record(context.extension.packageJSON, 'Extension manifest').version, 'Extension version');
     /** @type {Omit<import('./types').Model, 'now' | 'surface' | 'workspace' | 'telemetry' | 'navigate' | 'transcripts'>} */
     this.state = { busy: false, error: null, workspaceMessage: null, connection: { version, python: null, guard: guardMode(context.extensionPath) },
-      asks: null, asksError: null, snapshot: null, snapshotError: null, activity: null, activityError: null, pending: null, handoff: null, handoffError: null, insights: null, models: null, modelsError: null, analysis: null, map: null, evaluations: [], outputsError: null, files: null, filesError: null,
+      asks: null, asksError: null, snapshot: null, snapshotError: null, activity: null, activityError: null, pending: null, handoff: null, handoffError: null, insights: null, trajectory: null, trajectoryError: null, models: null, modelsError: null, analysis: null, map: null, evaluations: [], outputsError: null, files: null, filesError: null,
       packs: null, packsError: null };
     this.restoreWorkspace();
   }
@@ -125,7 +126,7 @@ class MissionControl {
     return { enabled: otel.get('enabled') === true, file: resolved, bytes: resolved && fs.existsSync(resolved) ? fs.statSync(resolved).size : null };
   }
 
-  /** Watch the workspace's .hve/ and .harness/ folders and this window's chat transcripts.
+  /** Watch the workspace's .hve/ and .harness/ folders, this window's chat transcripts and the research telemetry export.
    * @returns {void}
    */
   bindWatchers() {
@@ -136,6 +137,8 @@ class MissionControl {
     const patterns = [new vscode.RelativePattern(this.workspace, '.hve/**/*')];
     const storage = this.context.storageUri;
     if (storage) patterns.push(new vscode.RelativePattern(vscode.Uri.file(path.dirname(storage.fsPath)), 'GitHub.copilot-chat/transcripts/*.jsonl'));
+    const otel = this.telemetry().file;
+    if (otel?.endsWith('.jsonl')) patterns.push(new vscode.RelativePattern(vscode.Uri.file(path.dirname(otel)), path.basename(otel)));
     patterns.push(new vscode.RelativePattern(this.workspace, '.harness/**/*'));
     for (const pattern of patterns) {
       const watcher = vscode.workspace.createFileSystemWatcher(pattern);
@@ -217,7 +220,8 @@ class MissionControl {
     if (!vscode.workspace.isTrusted) throw new Error('Trust this workspace to use Mission Control.');
     this.state.workspaceMessage = null;
     if (!this.workspace) {
-      Object.assign(this.state, { asks: null, asksError: null, snapshot: null, snapshotError: null, activity: null, activityError: null, files: null, filesError: null });
+      Object.assign(this.state, { asks: null, asksError: null, snapshot: null, snapshotError: null, activity: null, activityError: null, files: null, filesError: null,
+        trajectory: null, trajectoryError: null });
       this.state.workspaceMessage = (vscode.workspace.workspaceFolders?.length || 0) > 1
         ? 'Choose which workspace folder Mission Control follows.' : 'Open a project folder to use Mission Control.';
       this.paint();
@@ -249,11 +253,12 @@ class MissionControl {
         meta: shown && transcripts ? chatMeta(transcripts, shown.id) : null };
     });
     const files = await this.section('Ask files', async () => viewed ? askTree(root, viewed) : null);
+    const trail = await this.section('Agent trajectory', async () => trajectory(root, this.telemetry().file, live.value?.session || null));
     const outputs = await this.section('Maps and evaluations', async () => ({ map: extras.mapInfo(root), evaluations: evaluationFiles(root) }));
     const carried = await this.section('Ask carried over', async () => askFlow.handoff(this));
     Object.assign(this.state, { asks: asks.value, asksError: asks.error, snapshot: state.value, snapshotError: state.error,
       activity: live.value, activityError: live.error, files: files.value, filesError: files.error,
-      handoff: carried.value, handoffError: carried.error, insights: live.value ? insights(live.value) : null,
+      handoff: carried.value, handoffError: carried.error, insights: live.value ? insights(live.value) : null, trajectory: trail.value, trajectoryError: trail.error,
       map: outputs.value?.map || null, evaluations: outputs.value?.evaluations || [], outputsError: outputs.error });
     this.paint();
     return this.state.snapshot;
@@ -449,7 +454,7 @@ function register(context, findPython) {
     vscode.commands.registerCommand('frontierHve.missionControlModel', () => ui.model('editor')),
     vscode.workspace.onDidChangeWorkspaceFolders(() => { ui.restoreWorkspace(); ui.scheduleRefresh(); }),
     vscode.workspace.onDidChangeConfiguration(event => {
-      if (event.affectsConfiguration('github.copilot.chat.otel')) ui.scheduleRefresh();
+      if (event.affectsConfiguration('github.copilot.chat.otel')) { ui.bindWatchers(); ui.scheduleRefresh(); }
     })];
 }
 

@@ -51,7 +51,84 @@ export interface Pack {
   knowledge: string[];
   templates: string[];
 }
-export type Page = 'live' | 'plan' | 'progress' | 'files' | 'others' | 'telemetry' | 'visuals' | 'skills' | 'settings';
+export type Page = 'live' | 'plan' | 'progress' | 'files' | 'others' | 'telemetry' | 'trajectory' | 'visuals' | 'skills' | 'settings';
+export type TrajectoryKind = 'agent' | 'handoff' | 'model' | 'tool' | 'user' | 'response' | 'guard' | 'other';
+export type TrajectoryStatus = 'ok' | 'failed' | 'cancelled' | 'timeout' | 'running' | 'stopped';
+export interface TrajectoryContent {
+  label: string;
+  side: 'input' | 'output';
+  text: string;
+  chars: number;
+  truncated: boolean;
+  redacted: boolean;
+}
+export interface TrajectoryEvent {
+  id: string;
+  seq: number;
+  traceId: string | null;
+  spanId: string | null;
+  parentId: string | null;
+  orphan: boolean;
+  kind: TrajectoryKind;
+  rawType: string;
+  name: string;
+  agent: string | null;
+  model: string | null;
+  tool: string | null;
+  status: TrajectoryStatus;
+  statusMessage: string | null;
+  start: number;
+  end: number | null;
+  durationMs: number | null;
+  depth: number;
+  children: string[];
+  retry: number;
+  session: string | null;
+  tokens: { input: number; output: number; cached: number; reasoning: number; aiu: number } | null;
+  content: TrajectoryContent[];
+  attributes: [string, string][];
+  resource: [string, string][];
+  spanEvents: { name: string; at: number }[];
+  links: string[];
+}
+export interface Trajectory {
+  source: 'telemetry' | 'transcript';
+  chat: string;
+  title: string | null;
+  traceIds: string[];
+  start: number | null;
+  end: number | null;
+  lastUpdate: number | null;
+  durationMs: number | null;
+  agents: string[];
+  modelCalls: number;
+  toolCalls: number;
+  handoffs: number;
+  errors: number;
+  input: number;
+  output: number;
+  cached: number;
+  aiu: number | null;
+  running: number;
+  orphans: number;
+  truncated: number;
+  roots: string[];
+  events: TrajectoryEvent[];
+}
+export interface TrajectoryUi {
+  view: 'graph' | 'timeline';
+  sel: string | null;
+  q: string;
+  status: string;
+  kind: string;
+  agent: string;
+  errors: boolean;
+  time: 'clock' | 'elapsed';
+  collapsed: Record<string, boolean>;
+  zoom: { k: number; x: number; y: number };
+  paused: boolean;
+  limit: number;
+}
 export interface AskSummary {
   id: string;
   title: string;
@@ -162,6 +239,9 @@ export interface Model {
   handoff: Handoff | null;
   handoffError: string | null;
   insights: Insights | null;
+  trajectory: Trajectory | null;
+  trajectoryError: string | null;
+  trajectoryPending?: number;
   models: ChatModelInfo[] | null;
   modelsError: string | null;
   analysis: Analysis | null;
@@ -182,6 +262,7 @@ export interface UiState {
   preset?: string;
   open: Record<string, boolean>;
   seq: number;
+  traj?: TrajectoryUi;
 }
 export interface Need {
   tone: 'error' | 'warn' | 'info';
@@ -222,6 +303,7 @@ export interface Pages {
   files(model: Model, ui: UiState, now: number): Child[];
   others(model: Model, ui: UiState, now: number): Child[];
   telemetry(model: Model, ui: UiState, now: number): Child[];
+  trajectory(model: Model, ui: UiState, now: number): Child[];
   visuals(model: Model, ui: UiState, now: number): Child[];
   skills(model: Model): Child[];
   settings(model: Model): Child[];
@@ -297,7 +379,16 @@ declare global {
   var hveMarkdown: { render(source: string): VNode[]; inline(source: string): Child[] };
   var hveViews: Views;
   var hvePages: Pages;
-  var hveTelemetry: { telemetry(model: Model, ui: UiState, now: number): Child[] };
+  var hveTelemetry: { telemetry(model: Model, ui: UiState, now: number): Child[]; chatPicker(model: Model): VNode | null };
+  var hveTrajectory: TrajectoryViews;
+}
+export interface TrajectoryViews {
+  trajectory(model: Model, ui: UiState, now: number): Child[];
+  uiState(ui: UiState): TrajectoryUi;
+  visible(run: Trajectory, state: TrajectoryUi): { shown: TrajectoryEvent[]; matched: Set<string>; active: boolean; hidden: number };
+  layout(events: TrajectoryEvent[]): { at: Map<string, { x: number; y: number }>; width: number; height: number };
+  NODE: { w: number; h: number; dx: number; dy: number };
+  PAGE_ROWS: number;
 }
 export interface VNode {
   tag: string;

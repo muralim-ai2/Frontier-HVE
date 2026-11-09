@@ -11,6 +11,7 @@ const { listAsks, askTree } = require('../../extension/ui/asks');
 const { chatList, shownChat, chatMeta } = require('../../extension/ui/chats');
 const { evaluationFiles } = require('../../extension/ui/asks');
 const { insights } = require('../../extension/ui/insights');
+const { trajectory } = require('../../extension/ui/trajectory');
 
 const [workspace, transcripts, telemetry, at, selected] = process.argv.slice(2);
 if (!workspace || !transcripts) throw new Error('usage: node preview.js <workspace> <transcripts folder> [telemetry export or -] [ISO time to show or -] [ask on screen]');
@@ -31,6 +32,8 @@ const model = { now: new Date(now).toISOString(), surface: 'sidebar', busy: fals
   models: [{ id: 'claude-haiku-5.5', name: 'Claude Haiku 5.5', family: 'claude-haiku' }, { id: 'gpt-6-astra', name: 'GPT-6 Astra', family: 'gpt-6' }], modelsError: null, analysis: null,
   files: viewed ? askTree(workspace, viewed) : null, filesError: null, navigate: { page: 'live', seq: 0 } };
 model.insights = model.activity.session ? insights(model.activity) : null;
+model.trajectory = trajectory(workspace, file, model.activity.session);
+model.trajectoryError = null;
 const out = fs.mkdtempSync(path.join(os.tmpdir(), 'hve-preview-'));
 const media = name => pathToFileURL(path.join(EXTENSION, 'ui', 'media', name)).href;
 fs.writeFileSync(path.join(out, 'model.js'), `window.previewModel = ${JSON.stringify(model)};\nwindow.previewNow = ${now};\n`);
@@ -56,5 +59,5 @@ fs.writeFileSync(path.join(out, 'index.html'), `<!doctype html><html lang="en"><
 <link rel="stylesheet" href="${media('app.css')}"><link rel="stylesheet" href="${pathToFileURL(path.join(__dirname, 'preview-theme.css')).href}"></head>
 <body><div id="root"></div><div id="announce" class="sr-only" role="status" aria-live="polite"></div>
 <script src="model.js"></script><script src="bridge.js"></script>
-${['vnode.js', 'markdown.js', 'views.js', 'telemetry.js', 'pages.js', 'app.js'].map(name => `<script src="${media(name)}"></script>`).join('\n')}</body></html>`);
+${['vnode.js', 'markdown.js', 'views.js', 'telemetry.js', 'trajectory.js', 'pages.js', 'app.js'].map(name => `<script src="${media(name)}"></script>`).join('\n')}</body></html>`);
 console.log(pathToFileURL(path.join(out, 'index.html')).href);

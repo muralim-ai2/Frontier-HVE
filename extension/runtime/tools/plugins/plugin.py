@@ -21,6 +21,11 @@ import store  # noqa: E402
 from route import candidates  # noqa: E402
 from store import content_sha256, file_sha256  # noqa: E402
 
+if sys.platform == "win32":
+    import msvcrt
+else:
+    import fcntl
+
 SUMS = "SHA256SUMS"
 ZIP_TIME = (1980, 1, 1, 0, 0, 0)
 REQUIREMENTS = "frontier-hve.plugins.json"
@@ -30,18 +35,24 @@ Json = dict[str, Any]
 
 @contextmanager
 def store_lock() -> Iterator[None]:
-    """Hold the store lock so two windows never change plugins at once."""
+    """Hold an OS lock on the store so two windows never change plugins at once; it ends with the process that holds it."""
     path = store.home() / "plugins.lock"
     path.parent.mkdir(parents=True, exist_ok=True)
-    try:
-        path.open("x").close()
-    except FileExistsError as error:
-        raise RuntimeError(f"another Frontier HVE window is changing plugins ({path}); retry when it finishes, "
-                           "or delete the lock file if no install is running") from error
-    try:
-        yield
-    finally:
-        path.unlink()
+    with path.open("a+b") as handle:
+        try:
+            if sys.platform == "win32":
+                handle.seek(0)
+                msvcrt.locking(handle.fileno(), msvcrt.LK_NBLCK, 1)
+            else:
+                fcntl.flock(handle, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except OSError as error:
+            raise RuntimeError(f"another Frontier HVE window is changing plugins ({path}); retry when it finishes") from error
+        try:
+            yield
+        finally:
+            if sys.platform == "win32":
+                handle.seek(0)
+                msvcrt.locking(handle.fileno(), msvcrt.LK_UNLCK, 1)
 
 
 def write_registry(data: Json) -> None:

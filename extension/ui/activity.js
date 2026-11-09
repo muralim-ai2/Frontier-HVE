@@ -415,4 +415,4 @@ function activity(workspace, file, telemetryFile, now) {
   return { session: current, errors: run.errors, loadout: run.loadout, tokens: telemetryFile ? usage(workspace, telemetryFile, current.id) : null };
 }
 
-module.exports = { activity, describe, status, stillRunning, headline, clip, jsonLines };
+module.exports = { activity, describe, status, stillRunning, headline, clip, jsonLines, tail, inside, TELEMETRY_TAIL_BYTES };

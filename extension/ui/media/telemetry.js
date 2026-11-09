@@ -146,7 +146,7 @@
     ];
   }
 
-  const api = { telemetry, QUESTIONS };
+  const api = { telemetry, chatPicker, QUESTIONS };
   if (modular) module.exports = api;
   else root.hveTelemetry = api;
 })(globalThis);

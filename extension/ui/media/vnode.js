@@ -2,10 +2,10 @@
 /** Build view trees as plain objects with allowlisted tags and attributes, and mount them as DOM nodes. */
 (function (root) {
   const TAGS = new Set(['div', 'span', 'p', 'h1', 'h2', 'h3', 'h4', 'ul', 'ol', 'li', 'strong', 'em', 'code', 'pre', 'table', 'thead', 'tbody', 'tr',
-    'th', 'td', 'blockquote', 'hr', 'button', 'nav', 'section', 'header', 'footer', 'main', 'article', 'details', 'summary', 'small', 'time',
-    'label', 'select', 'option', 'textarea', 'svg', 'path', 'circle', 'rect', 'polyline', 'line']);
-  const SVG = new Set(['svg', 'path', 'circle', 'rect', 'polyline', 'line']);
-  const ATTRIBUTE = /^(class|role|title|tabindex|disabled|open|type|value|selected|placeholder|rows|maxlength|viewBox|d|cx|cy|r|x|y|x1|x2|y1|y2|rx|width|height|points|style-width|aria-[a-z-]+|data-[a-z-]+)$/;
+    'th', 'td', 'blockquote', 'hr', 'button', 'nav', 'section', 'header', 'footer', 'main', 'article', 'aside', 'details', 'summary', 'small', 'time',
+    'label', 'select', 'option', 'textarea', 'input', 'svg', 'path', 'circle', 'rect', 'polyline', 'line', 'g', 'text', 'title']);
+  const SVG = new Set(['svg', 'path', 'circle', 'rect', 'polyline', 'line', 'g', 'text', 'title']);
+  const ATTRIBUTE = /^(class|role|title|tabindex|disabled|open|type|value|selected|placeholder|rows|maxlength|viewBox|d|cx|cy|r|x|y|x1|x2|y1|y2|rx|width|height|points|transform|style-width|aria-[a-z-]+|data-[a-z-]+)$/;
 
   /** @typedef {import('../types').VNode} VNode */
   /** @typedef {import('../types').Child} Child */
